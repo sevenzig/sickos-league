@@ -50,6 +50,7 @@ export interface LeagueData {
   matchups: Matchup[];
   currentWeek: number;
   records: TeamRecord[];
+  lockedWeeks: number[];
 }
 
 // Scoring event types

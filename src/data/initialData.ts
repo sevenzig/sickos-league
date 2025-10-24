@@ -13,17 +13,8 @@ const initialTeams: Team[] = [
   { name: 'Devin Jones', rosters: ['Indianapolis', 'Atlanta', 'Arizona', 'Tampa Bay'] }
 ];
 
-// Updated records with actual results through Week 7
-const initialRecords: TeamRecord[] = [
-  { teamName: 'Jacob Frush', wins: 6, losses: 1, totalPoints: 274, weeklyResults: ['W', 'W', 'W', 'L', 'W', 'W', 'W'] },
-  { teamName: 'Paul Johnson', wins: 5, losses: 2, totalPoints: 400, weeklyResults: ['W', 'L', 'W', 'W', 'W', 'W', 'L'] },
-  { teamName: 'Scott Thurston', wins: 4, losses: 3, totalPoints: 234, weeklyResults: ['L', 'W', 'W', 'W', 'L', 'L', 'W'] },
-  { teamName: 'Eric Johnson', wins: 3, losses: 4, totalPoints: 252, weeklyResults: ['L', 'L', 'L', 'W', 'L', 'W', 'W'] },
-  { teamName: 'Max Athorn', wins: 3, losses: 4, totalPoints: 239, weeklyResults: ['W', 'L', 'W', 'L', 'L', 'W', 'L'] },
-  { teamName: 'Anthony Meehl', wins: 3, losses: 4, totalPoints: 132, weeklyResults: ['L', 'W', 'L', 'W', 'W', 'L', 'L'] },
-  { teamName: 'Paul Nikstad', wins: 2, losses: 5, totalPoints: 147, weeklyResults: ['L', 'L', 'L', 'L', 'W', 'L', 'W'] },
-  { teamName: 'Devin Jones', wins: 2, losses: 5, totalPoints: 6, weeklyResults: ['W', 'W', 'L', 'L', 'L', 'L', 'L'] }
-];
+// Records will be calculated dynamically from lineups and CSV data
+const initialRecords: TeamRecord[] = [];
 
 // Lineups with actual QB choices from weeks 1-7
 const initialLineups = [
@@ -80,7 +71,7 @@ const initialLineups = [
   // Week 6
   { teamName: 'Paul Johnson', week: 6, activeQBs: ['Cleveland', 'Miami'] },
   { teamName: 'Max Athorn', week: 6, activeQBs: ['NY Giants', 'Cincinnati'] },
-  { teamName: 'Jacob Frush', week: 6, activeQBs: ['NY Jets', 'Dallas'] },
+  { teamName: 'Jacob Frush', week: 6, activeQBs: ['Baltimore', 'Chicago'] },
   { teamName: 'Devin Jones', week: 6, activeQBs: ['Atlanta', 'Arizona'] },
   { teamName: 'Eric Johnson', week: 6, activeQBs: ['Tennessee', 'San Francisco'] },
   { teamName: 'Scott Thurston', week: 6, activeQBs: ['NY Jets', 'Dallas'] },
@@ -107,40 +98,40 @@ const initialMatchups = [
   { week: 1, team1: 'Max Athorn', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
   
   // Week 2
+  { week: 2, team1: 'Paul Nikstad', team2: 'Anthony Meehl', team1Score: 0, team2Score: 0, winner: null },
+  { week: 2, team1: 'Max Athorn', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
   { week: 2, team1: 'Paul Johnson', team2: 'Jacob Frush', team1Score: 0, team2Score: 0, winner: null },
-  { week: 2, team1: 'Max Athorn', team2: 'Anthony Meehl', team1Score: 0, team2Score: 0, winner: null },
   { week: 2, team1: 'Eric Johnson', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
-  { week: 2, team1: 'Paul Nikstad', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
   
   // Week 3
-  { week: 3, team1: 'Paul Johnson', team2: 'Max Athorn', team1Score: 0, team2Score: 0, winner: null },
-  { week: 3, team1: 'Anthony Meehl', team2: 'Eric Johnson', team1Score: 0, team2Score: 0, winner: null },
-  { week: 3, team1: 'Jacob Frush', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
-  { week: 3, team1: 'Paul Nikstad', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
+  { week: 3, team1: 'Max Athorn', team2: 'Paul Nikstad', team1Score: 0, team2Score: 0, winner: null },
+  { week: 3, team1: 'Eric Johnson', team2: 'Jacob Frush', team1Score: 0, team2Score: 0, winner: null },
+  { week: 3, team1: 'Scott Thurston', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
+  { week: 3, team1: 'Paul Johnson', team2: 'Anthony Meehl', team1Score: 0, team2Score: 0, winner: null },
   
   // Week 4
-  { week: 4, team1: 'Paul Johnson', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
-  { week: 4, team1: 'Max Athorn', team2: 'Anthony Meehl', team1Score: 0, team2Score: 0, winner: null },
-  { week: 4, team1: 'Eric Johnson', team2: 'Jacob Frush', team1Score: 0, team2Score: 0, winner: null },
-  { week: 4, team1: 'Paul Nikstad', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
+  { week: 4, team1: 'Eric Johnson', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
+  { week: 4, team1: 'Jacob Frush', team2: 'Anthony Meehl', team1Score: 0, team2Score: 0, winner: null },
+  { week: 4, team1: 'Paul Johnson', team2: 'Max Athorn', team1Score: 0, team2Score: 0, winner: null },
+  { week: 4, team1: 'Scott Thurston', team2: 'Paul Nikstad', team1Score: 0, team2Score: 0, winner: null },
   
   // Week 5
-  { week: 5, team1: 'Paul Johnson', team2: 'Eric Johnson', team1Score: 0, team2Score: 0, winner: null },
-  { week: 5, team1: 'Max Athorn', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
-  { week: 5, team1: 'Anthony Meehl', team2: 'Jacob Frush', team1Score: 0, team2Score: 0, winner: null },
-  { week: 5, team1: 'Paul Nikstad', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
+  { week: 5, team1: 'Scott Thurston', team2: 'Paul Johnson', team1Score: 0, team2Score: 0, winner: null },
+  { week: 5, team1: 'Eric Johnson', team2: 'Anthony Meehl', team1Score: 0, team2Score: 0, winner: null },
+  { week: 5, team1: 'Jacob Frush', team2: 'Max Athorn', team1Score: 0, team2Score: 0, winner: null },
+  { week: 5, team1: 'Devin Jones', team2: 'Paul Nikstad', team1Score: 0, team2Score: 0, winner: null },
   
   // Week 6
-  { week: 6, team1: 'Paul Johnson', team2: 'Jacob Frush', team1Score: 0, team2Score: 0, winner: null },
-  { week: 6, team1: 'Max Athorn', team2: 'Anthony Meehl', team1Score: 0, team2Score: 0, winner: null },
-  { week: 6, team1: 'Eric Johnson', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
-  { week: 6, team1: 'Paul Nikstad', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
+  { week: 6, team1: 'Devin Jones', team2: 'Paul Johnson', team1Score: 0, team2Score: 0, winner: null },
+  { week: 6, team1: 'Eric Johnson', team2: 'Paul Nikstad', team1Score: 0, team2Score: 0, winner: null },
+  { week: 6, team1: 'Anthony Meehl', team2: 'Max Athorn', team1Score: 0, team2Score: 0, winner: null },
+  { week: 6, team1: 'Jacob Frush', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
   
   // Week 7
-  { week: 7, team1: 'Paul Johnson', team2: 'Anthony Meehl', team1Score: 0, team2Score: 0, winner: null },
-  { week: 7, team1: 'Max Athorn', team2: 'Eric Johnson', team1Score: 0, team2Score: 0, winner: null },
-  { week: 7, team1: 'Jacob Frush', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
-  { week: 7, team1: 'Paul Nikstad', team2: 'Devin Jones', team1Score: 0, team2Score: 0, winner: null },
+  { week: 7, team1: 'Eric Johnson', team2: 'Max Athorn', team1Score: 0, team2Score: 0, winner: null },
+  { week: 7, team1: 'Anthony Meehl', team2: 'Scott Thurston', team1Score: 0, team2Score: 0, winner: null },
+  { week: 7, team1: 'Paul Nikstad', team2: 'Paul Johnson', team1Score: 0, team2Score: 0, winner: null },
+  { week: 7, team1: 'Devin Jones', team2: 'Jacob Frush', team1Score: 0, team2Score: 0, winner: null },
   
   // Week 8 (same as Week 1)
   { week: 8, team1: 'Paul Nikstad', team2: 'Jacob Frush', team1Score: 0, team2Score: 0, winner: null },
@@ -215,5 +206,6 @@ export const initialLeagueData: LeagueData = {
   gameStats: week1GameStats, // Week 1 scoring data
   matchups: initialMatchups,
   currentWeek: 8, // Will be auto-calculated based on available CSV data
-  records: initialRecords
+  records: initialRecords,
+  lockedWeeks: [] // Will be auto-calculated based on CSV data + complete lineups
 };

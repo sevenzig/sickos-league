@@ -1,7 +1,26 @@
 import { LeagueData } from '../types';
 import { initialLeagueData } from '../data/initialData';
+import { getAvailableWeeks } from './csvLoader';
 
 const STORAGE_KEY = 'bad-qb-league-data';
+
+/**
+ * Auto-determine locked weeks based on CSV data and complete lineups
+ */
+function determineLockedWeeks(data: LeagueData): number[] {
+  const lockedWeeks: number[] = [];
+  const availableWeeks = getAvailableWeeks(); // Weeks with CSV data
+  
+  // Any week with CSV data AND complete lineups is automatically locked
+  for (const week of availableWeeks) {
+    const weekLineups = data.lineups.filter(l => l.week === week);
+    const hasAllLineups = weekLineups.length === data.teams.length;
+    if (hasAllLineups) {
+      lockedWeeks.push(week);
+    }
+  }
+  return lockedWeeks;
+}
 
 /**
  * Load league data from localStorage or return initial data
@@ -12,7 +31,11 @@ export function loadLeagueData(): LeagueData {
     if (stored) {
       const parsed = JSON.parse(stored);
       // Validate that the data has the required structure and new matchups
-      if (parsed.teams && parsed.records && parsed.currentWeek !== undefined && parsed.matchups && parsed.matchups.length >= 18) {
+      if (parsed.teams && parsed.currentWeek !== undefined && parsed.matchups && parsed.matchups.length >= 18) {
+        // Migration: Add lockedWeeks if it doesn't exist
+        if (!parsed.lockedWeeks) {
+          parsed.lockedWeeks = determineLockedWeeks(parsed);
+        }
         return parsed as LeagueData;
       }
     }
@@ -22,7 +45,10 @@ export function loadLeagueData(): LeagueData {
   
   // Return initial data if no valid data found
   console.log('Loading fresh initial data with new matchups');
-  return initialLeagueData;
+  const data = { ...initialLeagueData };
+  // Auto-calculate locked weeks for initial data
+  data.lockedWeeks = determineLockedWeeks(data);
+  return data;
 }
 
 /**
@@ -76,7 +102,7 @@ export function importLeagueData(jsonString: string): LeagueData | null {
   try {
     const parsed = JSON.parse(jsonString);
     // Validate structure
-    if (parsed.teams && parsed.records && parsed.currentWeek !== undefined) {
+    if (parsed.teams && parsed.currentWeek !== undefined) {
       const data = parsed as LeagueData;
       saveLeagueData(data);
       return data;

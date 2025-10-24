@@ -3,10 +3,9 @@ import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
 
 const SetLineups: React.FC = () => {
-  const { leagueData, setLineup } = useLeagueData();
+  const { leagueData, setLineup, lockWeek, isWeekLocked } = useLeagueData();
   const [selectedWeek, setSelectedWeek] = useState(leagueData.currentWeek);
   const [lineups, setLineups] = useState<{ [teamName: string]: string[] }>({});
-  const [savedTeams, setSavedTeams] = useState<Set<string>>(new Set());
 
   // Initialize lineups state with existing data
   React.useEffect(() => {
@@ -35,26 +34,32 @@ const SetLineups: React.FC = () => {
   };
 
   const saveLineups = () => {
-    Object.entries(lineups).forEach(([teamName, activeQBs]) => {
-      if (activeQBs.length === 2) {
-        setLineup(teamName, selectedWeek, activeQBs);
+    const incompleteTeams: string[] = [];
+    
+    // Check all teams have 2 QBs selected
+    leagueData.teams.forEach(team => {
+      const teamLineup = lineups[team.name] || [];
+      if (teamLineup.length !== 2) {
+        incompleteTeams.push(team.name);
       }
     });
-    alert('Lineups saved successfully!');
-  };
 
-  const saveTeamLineup = (teamName: string) => {
-    const activeQBs = lineups[teamName] || [];
-    if (activeQBs.length === 2) {
-      setLineup(teamName, selectedWeek, activeQBs);
-      setSavedTeams(prev => new Set([...prev, teamName]));
-      alert(`${teamName}'s lineup saved successfully!`);
-    } else {
-      alert(`${teamName} needs 2 QBs selected to save lineup.`);
+    if (incompleteTeams.length > 0) {
+      alert(`The following teams need 2 QBs selected: ${incompleteTeams.join(', ')}`);
+      return;
     }
+
+    // Save all lineups
+    Object.entries(lineups).forEach(([teamName, activeQBs]) => {
+      setLineup(teamName, selectedWeek, activeQBs);
+    });
+
+    // Lock the week
+    lockWeek(selectedWeek);
+    alert('All lineups saved and week locked successfully!');
   };
 
-  const canEditWeek = selectedWeek >= leagueData.currentWeek;
+  const canEditWeek = selectedWeek >= leagueData.currentWeek && !isWeekLocked(selectedWeek);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 px-4">
@@ -80,7 +85,6 @@ const SetLineups: React.FC = () => {
                 value={selectedWeek}
                 onChange={(e) => {
                   setSelectedWeek(Number(e.target.value));
-                  setSavedTeams(new Set()); // Reset saved teams when week changes
                 }}
                 className="bg-gray-700 text-white rounded px-2 py-1 text-sm focus-ring"
               >
@@ -107,7 +111,6 @@ const SetLineups: React.FC = () => {
         {leagueData.teams.map(team => {
           const teamLineup = lineups[team.name] || [];
           const isComplete = teamLineup.length === 2;
-          const isSaved = savedTeams.has(team.name);
           
           return (
             <div key={team.name} className="bg-gray-800 rounded-lg flex flex-col">
@@ -128,7 +131,6 @@ const SetLineups: React.FC = () => {
                 {team.rosters.map(qb => {
                   const isSelected = teamLineup.includes(qb);
                   const canSelect = !isSelected && teamLineup.length < 2;
-                  const isSelectedAndSaved = isSelected && isSaved;
                   
                   return (
                     <button
@@ -136,9 +138,7 @@ const SetLineups: React.FC = () => {
                       onClick={() => canEditWeek && handleQBSelection(team.name, qb, !isSelected)}
                       disabled={!canEditWeek || (!isSelected && !canSelect)}
                       className={`rounded text-left transition-colors flex flex-col items-center justify-center ${
-                        isSelectedAndSaved
-                          ? 'bg-green-500 text-white ring-1 ring-green-300'
-                          : isSelected
+                        isSelected
                           ? 'bg-green-600 text-white'
                           : canSelect
                           ? 'bg-gray-600 hover:bg-gray-500 text-white'

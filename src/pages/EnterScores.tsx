@@ -21,6 +21,11 @@ const EnterScores: React.FC = () => {
     window.location.reload();
   };
 
+  const handleRefreshCSVData = () => {
+    // Force re-import of CSV modules and recalculate standings
+    window.location.reload();
+  };
+
   // Create team ownership map
   const teamOwnership: { [teamName: string]: string } = {};
   leagueData.teams.forEach(team => {
@@ -336,8 +341,14 @@ const EnterScores: React.FC = () => {
         </div>
       )}
 
-      {/* Refresh Data Button */}
-      <div className="flex justify-end">
+      {/* Refresh Data Buttons */}
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={handleRefreshCSVData}
+          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+        >
+          Refresh CSV Data
+        </button>
         <button
           onClick={handleRefreshData}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"

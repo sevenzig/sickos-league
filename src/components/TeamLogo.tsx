@@ -35,13 +35,13 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
   if (!logoPath) {
     return (
       <div className={`flex items-center ${className}`}>
-        <div className={`${sizeClasses[size]} bg-gray-600 rounded flex items-center justify-center`}>
+        <div className={`${sizeClasses[size]} bg-gray-600 rounded flex items-center justify-center flex-shrink-0`}>
           <span className={`${textSizeClasses[size]} text-gray-300 font-medium`}>
             {fallbackText || teamName.charAt(0)}
           </span>
         </div>
         {showName && (
-          <span className={`ml-2 ${textSizeClasses[size]} font-medium`}>
+          <span className={`ml-2 ${textSizeClasses[size]} font-medium leading-tight`}>
             {teamName}
           </span>
         )}
@@ -54,7 +54,7 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
       <img 
         src={logoPath} 
         alt={`${teamName} logo`}
-        className={`${sizeClasses[size]} object-contain`}
+        className={`${sizeClasses[size]} object-contain flex-shrink-0`}
         onError={(e) => {
           // Fallback to text if image fails to load
           const target = e.target as HTMLImageElement;
@@ -62,7 +62,7 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
           const parent = target.parentElement;
           if (parent) {
             parent.innerHTML = `
-              <div class="${sizeClasses[size]} bg-gray-600 rounded flex items-center justify-center">
+              <div class="${sizeClasses[size]} bg-gray-600 rounded flex items-center justify-center flex-shrink-0">
                 <span class="${textSizeClasses[size]} text-gray-300 font-medium">
                   ${fallbackText || teamName.charAt(0)}
                 </span>
@@ -72,7 +72,7 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
         }}
       />
       {showName && (
-        <span className={`ml-2 ${textSizeClasses[size]} font-medium`}>
+        <span className={`ml-2 ${textSizeClasses[size]} font-medium leading-tight`}>
           {teamName}
         </span>
       )}

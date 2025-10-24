@@ -154,7 +154,17 @@ export function getWeeklyCSVData(week: number): string {
     case 5: return week5CSV;
     case 6: return week6CSV;
     case 7: return week7CSV;
-    // Add more weeks as needed
+    case 8: return ''; // Week 8 - placeholder for future CSV data
+    case 9: return ''; // Week 9 - placeholder for future CSV data
+    case 10: return ''; // Week 10 - placeholder for future CSV data
+    case 11: return ''; // Week 11 - placeholder for future CSV data
+    case 12: return ''; // Week 12 - placeholder for future CSV data
+    case 13: return ''; // Week 13 - placeholder for future CSV data
+    case 14: return ''; // Week 14 - placeholder for future CSV data
+    case 15: return ''; // Week 15 - placeholder for future CSV data
+    case 16: return ''; // Week 16 - placeholder for future CSV data
+    case 17: return ''; // Week 17 - placeholder for future CSV data
+    case 18: return ''; // Week 18 - placeholder for future CSV data
     default: return '';
   }
 }

@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
-import { calculateTeamRecords } from '../utils/scoring';
+import { 
+  calculateStandings, 
+  calculateWeeklyResults, 
+  getTeamWeekResult, 
+  getCurrentRecord,
+  calculateMatchupScore,
+  getTeamWeekMatchupDetails
+} from '../utils/standingsCalculator';
 import { getWeeklyCSVData } from '../data/scoringData';
-import { parseWeeklyCSV } from '../utils/csvParser';
 
 const Home: React.FC = () => {
-  const { leagueData, updateLeagueData } = useLeagueData();
+  const { leagueData, updateLeagueData, isWeekLocked } = useLeagueData();
   const [selectedWeek, setSelectedWeek] = useState(leagueData.currentWeek - 1);
 
 
@@ -16,249 +22,13 @@ const Home: React.FC = () => {
   // Get lineups for selected week
   const weekLineups = leagueData.lineups.filter(l => l.week === selectedWeek);
 
-  // Helper function to get team score and breakdown for a QB
-  const getTeamScoreAndBreakdown = (qb: string) => {
-    try {
-      const csvData = getWeeklyCSVData(selectedWeek);
-      if (!csvData) {
-        console.log(`No CSV data available for week ${selectedWeek}`);
-        return { score: 0, breakdown: null };
-      }
-      
-      const weeklyData = parseWeeklyCSV(csvData, selectedWeek);
-      const teamPerformance = weeklyData.qbPerformances.find(team => team.team === qb);
-      
-      if (teamPerformance) {
-        console.log(`Found performance for ${qb}:`, teamPerformance);
-        return { score: teamPerformance.finalScore, breakdown: teamPerformance };
-      } else {
-        console.log(`No performance data found for ${qb}. Available teams:`, weeklyData.qbPerformances.map(t => t.team));
-        return { score: 0, breakdown: null };
-      }
-    } catch (error) {
-      console.error(`Error getting score for ${qb}:`, error);
-      return { score: 0, breakdown: null };
-    }
-  };
-
-  // Calculate matchup scores dynamically from CSV data and lineups
-  const calculateMatchupScores = (matchup: any) => {
-    const team1Lineup = weekLineups.find(l => l.teamName === matchup.team1);
-    const team2Lineup = weekLineups.find(l => l.teamName === matchup.team2);
-    
-    let team1Score = 0;
-    let team2Score = 0;
-    let team1Breakdown: any[] = [];
-    let team2Breakdown: any[] = [];
-    
-    // Check if CSV data is available for this week
-    const csvData = getWeeklyCSVData(selectedWeek);
-    if (!csvData) {
-      return { team1Score: 0, team2Score: 0, team1Breakdown: [], team2Breakdown: [] };
-    }
-    
-    // Calculate team 1 score
-    if (team1Lineup) {
-      team1Lineup.activeQBs.forEach(qb => {
-        const { score, breakdown } = getTeamScoreAndBreakdown(qb);
-        team1Score += score;
-        if (breakdown) {
-          team1Breakdown.push({ qb, breakdown });
-        }
-      });
-    }
-    
-    // Calculate team 2 score
-    if (team2Lineup) {
-      team2Lineup.activeQBs.forEach(qb => {
-        const { score, breakdown } = getTeamScoreAndBreakdown(qb);
-        team2Score += score;
-        if (breakdown) {
-          team2Breakdown.push({ qb, breakdown });
-        }
-      });
-    }
-    
-    return { team1Score, team2Score, team1Breakdown, team2Breakdown };
-  };
-
-  // Helper function to calculate team records using dynamic scoring
-  const calculateDynamicTeamRecords = () => {
-    const records: { [teamName: string]: { wins: number; losses: number; ties: number; totalPoints: number } } = {};
-
-    // Initialize records for all teams
-    leagueData.teams.forEach(team => {
-      records[team.name] = {
-        wins: 0,
-        losses: 0,
-        ties: 0,
-        totalPoints: 0
-      };
-    });
-
-    // Process each matchup using dynamic scoring
-    leagueData.matchups.forEach(matchup => {
-      const { team1Score, team2Score } = calculateMatchupScores(matchup);
-      
-      // Only count if there are actual scores
-      if (team1Score > 0 || team2Score > 0) {
-        const isTie = team1Score === team2Score;
-        const team1Won = team1Score > team2Score;
-        
-        if (isTie) {
-          records[matchup.team1].ties++;
-          records[matchup.team2].ties++;
-        } else if (team1Won) {
-          records[matchup.team1].wins++;
-          records[matchup.team2].losses++;
-        } else {
-          records[matchup.team1].losses++;
-          records[matchup.team2].wins++;
-        }
-
-        // Add points to total
-        records[matchup.team1].totalPoints += team1Score;
-        records[matchup.team2].totalPoints += team2Score;
-      }
-    });
-
-    // Convert to array format
-    return Object.entries(records).map(([teamName, record]) => ({
-      teamName,
-      wins: record.wins,
-      losses: record.losses,
-      ties: record.ties,
-      totalPoints: record.totalPoints
-    }));
-  };
-
-  // Calculate standings dynamically from matchups using dynamic scoring
-  const calculatedRecords = calculateDynamicTeamRecords();
-  const standings = calculatedRecords.sort((a, b) => {
-    if (a.wins !== b.wins) return b.wins - a.wins;
-    return b.totalPoints - a.totalPoints;
-  });
+  // Calculate standings using the centralized utility
+  const standings = calculateStandings(leagueData.matchups, leagueData.lineups, leagueData.teams);
 
   // W/L/T Chart functions
   const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
   const teams = leagueData.teams.map(team => team.name);
 
-  // Helper function to get team score and breakdown for a QB (for W/L/T chart)
-  const getTeamScoreAndBreakdownForWeek = (qb: string, week: number) => {
-    try {
-      const csvData = getWeeklyCSVData(week);
-      if (!csvData) {
-        return { score: 0, breakdown: null };
-      }
-      
-      const weeklyData = parseWeeklyCSV(csvData, week);
-      const teamPerformance = weeklyData.qbPerformances.find(team => team.team === qb);
-      
-      if (teamPerformance) {
-        return { score: teamPerformance.finalScore, breakdown: teamPerformance };
-      } else {
-        return { score: 0, breakdown: null };
-      }
-    } catch (error) {
-      return { score: 0, breakdown: null };
-    }
-  };
-
-  // Calculate matchup scores for W/L/T chart
-  const calculateMatchupScoresForWeek = (matchup: any, week: number) => {
-    const team1Lineup = leagueData.lineups.find(l => l.teamName === matchup.team1 && l.week === week);
-    const team2Lineup = leagueData.lineups.find(l => l.teamName === matchup.team2 && l.week === week);
-    
-    let team1Score = 0;
-    let team2Score = 0;
-    
-    // Check if CSV data is available for this week
-    const csvData = getWeeklyCSVData(week);
-    if (!csvData) {
-      return { team1Score: 0, team2Score: 0 };
-    }
-    
-    // Calculate team 1 score
-    if (team1Lineup) {
-      team1Lineup.activeQBs.forEach(qb => {
-        const { score } = getTeamScoreAndBreakdownForWeek(qb, week);
-        team1Score += score;
-      });
-    }
-    
-    // Calculate team 2 score
-    if (team2Lineup) {
-      team2Lineup.activeQBs.forEach(qb => {
-        const { score } = getTeamScoreAndBreakdownForWeek(qb, week);
-        team2Score += score;
-      });
-    }
-    
-    return { team1Score, team2Score };
-  };
-
-  // Helper function to get result for a team in a specific week
-  const getTeamWeekResult = (teamName: string, week: number): 'W' | 'L' | 'T' | null => {
-    const matchup = leagueData.matchups.find(m => 
-      m.week === week && 
-      (m.team1 === teamName || m.team2 === teamName)
-    );
-
-    if (!matchup) return null;
-
-    // Calculate scores dynamically
-    const { team1Score, team2Score } = calculateMatchupScoresForWeek(matchup, week);
-
-    // Only show result if there are actual scores
-    if (team1Score === 0 && team2Score === 0) {
-      return null; // No data available
-    }
-
-    if (team1Score === team2Score) {
-      return 'T'; // Tie
-    }
-
-    if (matchup.team1 === teamName) {
-      return team1Score > team2Score ? 'W' : 'L';
-    } else {
-      return team2Score > team1Score ? 'W' : 'L';
-    }
-  };
-
-  // Helper function to calculate current record for a team from matchups
-  const getCurrentRecord = (teamName: string): string => {
-    let wins = 0;
-    let losses = 0;
-    let ties = 0;
-
-    // Count wins/losses/ties from all matchups using dynamic scoring
-    leagueData.matchups.forEach(matchup => {
-      if (matchup.team1 === teamName || matchup.team2 === teamName) {
-        const { team1Score, team2Score } = calculateMatchupScoresForWeek(matchup, matchup.week);
-        
-        // Only count if there are actual scores
-        if (team1Score > 0 || team2Score > 0) {
-          if (team1Score === team2Score) {
-            ties++;
-          } else if (matchup.team1 === teamName) {
-            if (team1Score > team2Score) {
-              wins++;
-            } else {
-              losses++;
-            }
-          } else {
-            if (team2Score > team1Score) {
-              wins++;
-            } else {
-              losses++;
-            }
-          }
-        }
-      }
-    });
-
-    return `${wins}-${losses}${ties > 0 ? `-${ties}` : ''}`;
-  };
 
   return (
     <div className="space-y-6">
@@ -285,103 +55,111 @@ const Home: React.FC = () => {
 
       {/* Matchups - Top row with 4 columns */}
       <div className="space-y-4">
-        {weekMatchups.length > 0 ? (
+        {weekMatchups.length > 0 && (isWeekLocked(selectedWeek) || weekLineups.length > 0) ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {weekMatchups.map((matchup, index) => {
-              const { team1Score, team2Score, team1Breakdown, team2Breakdown } = calculateMatchupScores(matchup);
+              const { team1Score, team2Score, team1Breakdown, team2Breakdown } = calculateMatchupScore(matchup, leagueData.lineups);
               const csvData = getWeeklyCSVData(selectedWeek);
               const hasData = !!csvData;
               
               return (
                 <div key={index} className="bg-dark-card rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-3">
-                        <TeamLogo teamName={matchup.team1} size="md" showName={true} />
-                        <div className="text-3xl font-bold text-center min-w-[60px]">{team1Score}</div>
-                      </div>
+                  {/* Row 1: User 1 vs User 2 */}
+                  <div className="flex items-center justify-center mb-4">
+                    <TeamLogo teamName={matchup.team1} size="md" showName={true} />
+                    <div className="mx-4 text-gray-400 text-lg font-medium">vs</div>
+                    <TeamLogo teamName={matchup.team2} size="md" showName={true} />
+                  </div>
+
+                  {/* Row 2: Team cards and total scores */}
+                  <div className="flex items-center justify-between mb-4">
+                    {/* User 1 teams */}
+                    <div className="flex items-center space-x-2">
                       {hasData ? (
-                        <div className="flex justify-center space-x-2">
-                          {team1Breakdown.map(({ qb, breakdown }) => (
-                            <div 
-                              key={qb} 
-                              className="w-16 h-16 bg-gray-700 rounded flex flex-col items-center justify-center cursor-help hover:bg-gray-600 transition-colors relative group"
-                              title={`${qb} - ${breakdown.finalScore} points`}
-                            >
-                              <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                              <span className="text-xs font-bold text-blue-400">{breakdown.finalScore}</span>
-                              
-                              {/* Enhanced tooltip with scoring breakdown */}
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
-                                <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 max-w-xs">
-                                  <div className="font-semibold mb-2">{qb} - {breakdown.finalScore} pts</div>
-                                  <div className="space-y-1">
-                                    <div>Pass Yards: {breakdown.passYards} → {breakdown.passYardsScore} pts</div>
-                                    <div>Touchdowns: {breakdown.touchdowns} → {breakdown.touchdownsScore} pts</div>
-                                    <div>Completion %: {breakdown.completionPercent}% → {breakdown.completionScore} pts</div>
-                                    <div>Turnovers: {breakdown.interceptions + breakdown.fumbles} → {breakdown.turnoverScore} pts</div>
-                                    {breakdown.defensiveTD > 0 && <div>Def TD: {breakdown.defensiveTD} → +{breakdown.defensiveTD * 20} pts</div>}
-                                    {breakdown.safety > 0 && <div>Safety: {breakdown.safety} → +{breakdown.safety * 15} pts</div>}
-                                    {breakdown.gameEndingFumble > 0 && <div>GEF: {breakdown.gameEndingFumble} → +{breakdown.gameEndingFumble * 50} pts</div>}
-                                    {breakdown.gameWinningDrive > 0 && <div>GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>}
-                                    {breakdown.benching > 0 && <div>Benching: {breakdown.benching} → +{breakdown.benching * 35} pts</div>}
-                                    <div className="border-t border-gray-600 pt-1 mt-2">
-                                      <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
-                                    </div>
+                        team1Breakdown.map(({ qb, breakdown }) => (
+                          <div 
+                            key={qb} 
+                            className="w-16 h-16 bg-gray-700 rounded flex flex-col items-center justify-center cursor-help hover:bg-gray-600 transition-colors relative group"
+                            title={`${qb} - ${breakdown.finalScore} points`}
+                          >
+                            <TeamLogo teamName={qb} size="sm" className="mb-1" />
+                            <span className="text-xs font-bold text-blue-400">{breakdown.finalScore}</span>
+                            
+                            {/* Enhanced tooltip with scoring breakdown */}
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                              <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 min-w-max">
+                                <div className="font-semibold mb-2">{qb} - {breakdown.finalScore} pts</div>
+                                <div className="space-y-1">
+                                  <div className="whitespace-nowrap">Pass Yards: {breakdown.passYards} → {breakdown.passYardsScore} pts</div>
+                                  <div className="whitespace-nowrap">Touchdowns: {breakdown.touchdowns} → {breakdown.touchdownsScore} pts</div>
+                                  <div className="whitespace-nowrap">Completion %: {breakdown.completionPercent}% → {breakdown.completionScore} pts</div>
+                                  <div className="whitespace-nowrap">Turnovers: {breakdown.interceptions + breakdown.fumbles} → {breakdown.turnoverScore} pts</div>
+                                  {breakdown.defensiveTD > 0 && <div className="whitespace-nowrap">Def TD: {breakdown.defensiveTD} → +{breakdown.defensiveTD * 20} pts</div>}
+                                  {breakdown.safety > 0 && <div className="whitespace-nowrap">Safety: {breakdown.safety} → +{breakdown.safety * 15} pts</div>}
+                                  {breakdown.gameEndingFumble > 0 && <div className="whitespace-nowrap">GEF: {breakdown.gameEndingFumble} → +{breakdown.gameEndingFumble * 50} pts</div>}
+                                  {breakdown.gameWinningDrive > 0 && <div className="whitespace-nowrap">GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>}
+                                  {breakdown.benching > 0 && <div className="whitespace-nowrap">Benching: {breakdown.benching} → +{breakdown.benching * 35} pts</div>}
+                                  <div className="border-t border-gray-600 pt-1 mt-2">
+                                    <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))
                       ) : (
                         <div className="text-center text-gray-400 text-sm py-4">
                           Scores not available yet
                         </div>
                       )}
                     </div>
-                    
-                    <div className="mx-6 text-gray-400 text-lg font-medium">vs</div>
-                    
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="text-3xl font-bold text-center min-w-[60px]">{team2Score}</div>
-                        <TeamLogo teamName={matchup.team2} size="md" showName={true} />
-                      </div>
+
+                    {/* Total scores in center */}
+                    <div className="flex items-center space-x-4">
+                      <div className={`text-2xl font-bold text-center min-w-[60px] ${
+                        hasData && team1Score > team2Score ? 'text-green-400' : 
+                        hasData && team1Score < team2Score ? 'text-red-400' : 'text-white'
+                      }`}>{team1Score}</div>
+                      <div className={`text-2xl font-bold text-center min-w-[60px] ${
+                        hasData && team2Score > team1Score ? 'text-green-400' : 
+                        hasData && team2Score < team1Score ? 'text-red-400' : 'text-white'
+                      }`}>{team2Score}</div>
+                    </div>
+
+                    {/* User 2 teams */}
+                    <div className="flex items-center space-x-2">
                       {hasData ? (
-                        <div className="flex justify-center space-x-2">
-                          {team2Breakdown.map(({ qb, breakdown }) => (
-                            <div 
-                              key={qb} 
-                              className="w-16 h-16 bg-gray-700 rounded flex flex-col items-center justify-center cursor-help hover:bg-gray-600 transition-colors relative group"
-                              title={`${qb} - ${breakdown.finalScore} points`}
-                            >
-                              <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                              <span className="text-xs font-bold text-blue-400">{breakdown.finalScore}</span>
-                              
-                              {/* Enhanced tooltip with scoring breakdown */}
-                              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
-                                <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 max-w-xs">
-                                  <div className="font-semibold mb-2">{qb} - {breakdown.finalScore} pts</div>
-                                  <div className="space-y-1">
-                                    <div>Pass Yards: {breakdown.passYards} → {breakdown.passYardsScore} pts</div>
-                                    <div>Touchdowns: {breakdown.touchdowns} → {breakdown.touchdownsScore} pts</div>
-                                    <div>Completion %: {breakdown.completionPercent}% → {breakdown.completionScore} pts</div>
-                                    <div>Turnovers: {breakdown.interceptions + breakdown.fumbles} → {breakdown.turnoverScore} pts</div>
-                                    {breakdown.defensiveTD > 0 && <div>Def TD: {breakdown.defensiveTD} → +{breakdown.defensiveTD * 20} pts</div>}
-                                    {breakdown.safety > 0 && <div>Safety: {breakdown.safety} → +{breakdown.safety * 15} pts</div>}
-                                    {breakdown.gameEndingFumble > 0 && <div>GEF: {breakdown.gameEndingFumble} → +{breakdown.gameEndingFumble * 50} pts</div>}
-                                    {breakdown.gameWinningDrive > 0 && <div>GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>}
-                                    {breakdown.benching > 0 && <div>Benching: {breakdown.benching} → +{breakdown.benching * 35} pts</div>}
-                                    <div className="border-t border-gray-600 pt-1 mt-2">
-                                      <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
-                                    </div>
+                        team2Breakdown.map(({ qb, breakdown }) => (
+                          <div 
+                            key={qb} 
+                            className="w-16 h-16 bg-gray-700 rounded flex flex-col items-center justify-center cursor-help hover:bg-gray-600 transition-colors relative group"
+                            title={`${qb} - ${breakdown.finalScore} points`}
+                          >
+                            <TeamLogo teamName={qb} size="sm" className="mb-1" />
+                            <span className="text-xs font-bold text-blue-400">{breakdown.finalScore}</span>
+                            
+                            {/* Enhanced tooltip with scoring breakdown */}
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                              <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 min-w-max">
+                                <div className="font-semibold mb-2">{qb} - {breakdown.finalScore} pts</div>
+                                <div className="space-y-1">
+                                  <div className="whitespace-nowrap">Pass Yards: {breakdown.passYards} → {breakdown.passYardsScore} pts</div>
+                                  <div className="whitespace-nowrap">Touchdowns: {breakdown.touchdowns} → {breakdown.touchdownsScore} pts</div>
+                                  <div className="whitespace-nowrap">Completion %: {breakdown.completionPercent}% → {breakdown.completionScore} pts</div>
+                                  <div className="whitespace-nowrap">Turnovers: {breakdown.interceptions + breakdown.fumbles} → {breakdown.turnoverScore} pts</div>
+                                  {breakdown.defensiveTD > 0 && <div className="whitespace-nowrap">Def TD: {breakdown.defensiveTD} → +{breakdown.defensiveTD * 20} pts</div>}
+                                  {breakdown.safety > 0 && <div className="whitespace-nowrap">Safety: {breakdown.safety} → +{breakdown.safety * 15} pts</div>}
+                                  {breakdown.gameEndingFumble > 0 && <div className="whitespace-nowrap">GEF: {breakdown.gameEndingFumble} → +{breakdown.gameEndingFumble * 50} pts</div>}
+                                  {breakdown.gameWinningDrive > 0 && <div className="whitespace-nowrap">GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>}
+                                  {breakdown.benching > 0 && <div className="whitespace-nowrap">Benching: {breakdown.benching} → +{breakdown.benching * 35} pts</div>}
+                                  <div className="border-t border-gray-600 pt-1 mt-2">
+                                    <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))
                       ) : (
                         <div className="text-center text-gray-400 text-sm py-4">
                           Scores not available yet
@@ -389,10 +167,11 @@ const Home: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  
+
+                  {/* Row 3: Winner */}
                   {hasData && team1Score !== team2Score && (
-                    <div className="mt-3 text-center">
-                      <span className="inline-block px-3 py-1 bg-green-600 text-white rounded-full text-sm">
+                    <div className="text-center">
+                      <span className="inline-block px-4 py-2 bg-green-600 text-white rounded-full text-sm font-semibold">
                         Winner: {team1Score > team2Score ? matchup.team1 : matchup.team2}
                       </span>
                     </div>
@@ -403,7 +182,12 @@ const Home: React.FC = () => {
           </div>
         ) : (
           <div className="bg-dark-card rounded-lg p-8 text-center text-gray-400">
-            No matchups scheduled for Week {selectedWeek}
+            {weekMatchups.length === 0 
+              ? `No matchups scheduled for Week ${selectedWeek}`
+              : selectedWeek === leagueData.currentWeek 
+                ? "No lineups set yet for this week"
+                : "No lineups available for this week"
+            }
           </div>
         )}
       </div>
@@ -477,18 +261,21 @@ const Home: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-600">
                   {teams.map(teamName => {
-                    const record = getCurrentRecord(teamName);
+                    const record = getCurrentRecord(teamName, leagueData.matchups, leagueData.lineups);
                     return (
                       <tr key={teamName} className="hover:bg-gray-700">
                         <td className="px-3 py-2 text-sm font-medium">
                           <TeamLogo teamName={teamName} size="sm" showName={true} />
                         </td>
-                        {weeks.map(week => {
-                          const result = getTeamWeekResult(teamName, week);
+                        {weeks.map((week, weekIndex) => {
+                          const result = getTeamWeekResult(teamName, week, leagueData.matchups, leagueData.lineups);
+                          const matchupDetails = getTeamWeekMatchupDetails(teamName, week, leagueData.matchups, leagueData.lineups);
+                          const teamIndex = teams.indexOf(teamName);
+                          const isNearBottom = teamIndex >= teams.length - 3; // Last 3 rows show tooltip above
                           return (
                             <td key={week} className="px-1 py-2 text-center">
                               {result && (
-                                <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mx-auto ${
+                                <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mx-auto cursor-help hover:ring-2 hover:ring-blue-400 transition-all relative group ${
                                   result === 'W' 
                                     ? 'bg-green-600 text-white' 
                                     : result === 'L' 
@@ -496,6 +283,65 @@ const Home: React.FC = () => {
                                     : 'bg-yellow-500 text-black'
                                 }`}>
                                   {result}
+                                  
+                                  {/* Matchup tooltip */}
+                                  {matchupDetails && (
+                                    <div className={`absolute left-1/2 transform -translate-x-1/2 hidden group-hover:block z-[9999] ${
+                                      isNearBottom 
+                                        ? 'bottom-full mb-2' 
+                                        : 'top-full mt-2'
+                                    }`}>
+                                      <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600">
+                                        <div className="flex items-center space-x-4">
+                                          {/* Hovered team (always left side) */}
+                                          <div className="text-center">
+                                            <div className="w-8 h-8 mx-auto mb-1">
+                                              <TeamLogo teamName={teamName} size="sm" />
+                                            </div>
+                                            <div className="flex space-x-0.5 mb-1">
+                                              {matchupDetails.teamQBs.map(qb => (
+                                                <div key={qb} className="w-5 h-5">
+                                                  <TeamLogo teamName={qb} size="xs" />
+                                                </div>
+                                              ))}
+                                            </div>
+                                            <div className={`font-bold text-lg ${
+                                              matchupDetails.teamScore > matchupDetails.opponentScore 
+                                                ? 'text-green-400' 
+                                                : matchupDetails.teamScore < matchupDetails.opponentScore 
+                                                ? 'text-red-400' 
+                                                : 'text-white'
+                                            }`}>
+                                              {matchupDetails.teamScore}
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Opponent (always right side) */}
+                                          <div className="text-center">
+                                            <div className="w-8 h-8 mx-auto mb-1">
+                                              <TeamLogo teamName={matchupDetails.opponent} size="sm" />
+                                            </div>
+                                            <div className="flex space-x-0.5 mb-1">
+                                              {matchupDetails.opponentQBs.map(qb => (
+                                                <div key={qb} className="w-5 h-5">
+                                                  <TeamLogo teamName={qb} size="xs" />
+                                                </div>
+                                              ))}
+                                            </div>
+                                            <div className={`font-bold text-lg ${
+                                              matchupDetails.opponentScore > matchupDetails.teamScore 
+                                                ? 'text-green-400' 
+                                                : matchupDetails.opponentScore < matchupDetails.teamScore 
+                                                ? 'text-red-400' 
+                                                : 'text-white'
+                                            }`}>
+                                              {matchupDetails.opponentScore}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </td>

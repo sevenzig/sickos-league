@@ -12,6 +12,8 @@ interface LeagueContextType {
   setLineup: (teamName: string, week: number, activeQBs: string[]) => void;
   addMatchup: (week: number, team1: string, team2: string) => void;
   updateMatchupScores: (week: number, team1: string, team2: string, team1Score: number, team2Score: number) => void;
+  lockWeek: (week: number) => void;
+  isWeekLocked: (week: number) => boolean;
 }
 
 const LeagueContext = createContext<LeagueContextType | undefined>(undefined);
@@ -50,15 +52,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     saveLeagueData(leagueData);
   }, [leagueData]);
 
-  // Recalculate records when matchups change
-  useEffect(() => {
-    const calculatedRecords = calculateTeamRecords(leagueData.matchups, leagueData.teams);
-    // Only update if records are different to avoid infinite loop
-    const recordsChanged = JSON.stringify(calculatedRecords) !== JSON.stringify(leagueData.records);
-    if (recordsChanged) {
-      setLeagueData(prev => ({ ...prev, records: calculatedRecords }));
-    }
-  }, [leagueData.matchups, leagueData.records]);
+  // Records are now calculated dynamically, no need to store them in state
 
   const updateLeagueData = (data: LeagueData) => {
     setLeagueData(data);
@@ -165,6 +159,17 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     });
   };
 
+  const lockWeek = (week: number) => {
+    setLeagueData(prev => ({
+      ...prev,
+      lockedWeeks: [...new Set([...prev.lockedWeeks, week])]
+    }));
+  };
+
+  const isWeekLocked = (week: number) => {
+    return leagueData.lockedWeeks.includes(week);
+  };
+
   const value: LeagueContextType = {
     leagueData,
     updateLeagueData,
@@ -172,7 +177,9 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     addGameStats,
     setLineup,
     addMatchup,
-    updateMatchupScores
+    updateMatchupScores,
+    lockWeek,
+    isWeekLocked
   };
 
   return (
