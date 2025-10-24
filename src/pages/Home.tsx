@@ -24,21 +24,24 @@ const Home: React.FC = () => {
     return currentWeekMatchups.length > 0 ? leagueData.currentWeek : Math.max(1, leagueData.currentWeek - 1);
   });
 
-  // Update selected week when data loads
+  // Update selected week when data loads (only on initial load, not on manual navigation)
+  const [hasInitialized, setHasInitialized] = useState(false);
+  
   useEffect(() => {
-    if (leagueData.matchups && leagueData.matchups.length > 0) {
+    if (leagueData.matchups && leagueData.matchups.length > 0 && !hasInitialized) {
       const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
       const newSelectedWeek = currentWeekMatchups.length > 0 ? leagueData.currentWeek : Math.max(1, leagueData.currentWeek - 1);
       
-      if (newSelectedWeek !== selectedWeek) {
-        console.log(`🔄 Updating selected week from ${selectedWeek} to ${newSelectedWeek}`);
-        setSelectedWeek(newSelectedWeek);
-      }
+      console.log(`🔄 Initial data load - setting selected week to ${newSelectedWeek}`);
+      setSelectedWeek(newSelectedWeek);
+      setHasInitialized(true);
     }
-  }, [leagueData.matchups, leagueData.currentWeek, selectedWeek]);
+  }, [leagueData.matchups, leagueData.currentWeek, hasInitialized]);
 
-  // Auto-switch to current week when matchups become available
+  // Auto-switch to current week when matchups become available (only if user hasn't manually navigated)
   useEffect(() => {
+    if (!hasInitialized) return; // Don't run until initial load is complete
+    
     const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
     console.log(`📊 Week switching logic:`, {
       currentWeek: leagueData.currentWeek,
@@ -52,7 +55,7 @@ const Home: React.FC = () => {
       console.log(`🔄 Auto-switching to Week ${leagueData.currentWeek} - matchups are now available`);
       setSelectedWeek(leagueData.currentWeek);
     }
-  }, [leagueData.matchups, leagueData.currentWeek, selectedWeek]);
+  }, [leagueData.matchups, leagueData.currentWeek, selectedWeek, hasInitialized]);
 
   // Get matchups for selected week
   const weekMatchups = leagueData.matchups.filter(m => m.week === selectedWeek);
