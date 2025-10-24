@@ -25,7 +25,7 @@ export function getAvailableWeeks(): number[] {
   // Check weeks 1-18 for available data
   for (let week = 1; week <= 18; week++) {
     try {
-      // Import the function dynamically to avoid circular dependencies
+      // Import the function synchronously to avoid circular dependencies
       const { getWeeklyCSVData } = require('../data/scoringData');
       const csvData = getWeeklyCSVData(week);
       if (csvData && csvData.trim().length > 0) {
@@ -43,5 +43,6 @@ export function getAvailableWeeks(): number[] {
  * Check if CSV data is available for a specific week
  */
 export function hasCSVDataForWeek(week: number): boolean {
-  return getAvailableWeeks().includes(week);
+  const availableWeeks = getAvailableWeeks();
+  return availableWeeks.includes(week);
 }
