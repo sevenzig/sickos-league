@@ -1,0 +1,83 @@
+import React from 'react';
+import { getTeamLogo } from '../utils/teamLogos';
+
+interface TeamLogoProps {
+  teamName: string;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  className?: string;
+  showName?: boolean;
+  fallbackText?: string;
+}
+
+const TeamLogo: React.FC<TeamLogoProps> = ({ 
+  teamName, 
+  size = 'md', 
+  className = '', 
+  showName = false,
+  fallbackText 
+}) => {
+  const logoPath = getTeamLogo(teamName);
+  
+  const sizeClasses = {
+    sm: 'w-6 h-6',
+    md: 'w-8 h-8', 
+    lg: 'w-12 h-12',
+    xl: 'w-16 h-16'
+  };
+
+  const textSizeClasses = {
+    sm: 'text-xs',
+    md: 'text-sm',
+    lg: 'text-base',
+    xl: 'text-lg'
+  };
+
+  if (!logoPath) {
+    return (
+      <div className={`flex items-center ${className}`}>
+        <div className={`${sizeClasses[size]} bg-gray-600 rounded flex items-center justify-center`}>
+          <span className={`${textSizeClasses[size]} text-gray-300 font-medium`}>
+            {fallbackText || teamName.charAt(0)}
+          </span>
+        </div>
+        {showName && (
+          <span className={`ml-2 ${textSizeClasses[size]} font-medium`}>
+            {teamName}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className={`flex items-center ${className}`}>
+      <img 
+        src={logoPath} 
+        alt={`${teamName} logo`}
+        className={`${sizeClasses[size]} object-contain`}
+        onError={(e) => {
+          // Fallback to text if image fails to load
+          const target = e.target as HTMLImageElement;
+          target.style.display = 'none';
+          const parent = target.parentElement;
+          if (parent) {
+            parent.innerHTML = `
+              <div class="${sizeClasses[size]} bg-gray-600 rounded flex items-center justify-center">
+                <span class="${textSizeClasses[size]} text-gray-300 font-medium">
+                  ${fallbackText || teamName.charAt(0)}
+                </span>
+              </div>
+            `;
+          }
+        }}
+      />
+      {showName && (
+        <span className={`ml-2 ${textSizeClasses[size]} font-medium`}>
+          {teamName}
+        </span>
+      )}
+    </div>
+  );
+};
+
+export default TeamLogo;
