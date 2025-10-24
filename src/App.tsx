@@ -7,6 +7,9 @@ import Rosters from './pages/Rosters';
 import SetLineups from './pages/SetLineups';
 import EnterScores from './pages/EnterScores';
 import Rules from './pages/Rules';
+import Admin from './pages/Admin';
+import AdminImport from './pages/AdminImport';
+import AdminMigration from './pages/AdminMigration';
 
 function App() {
   return (
@@ -20,6 +23,9 @@ function App() {
               <Route path="/lineups" element={<SetLineups />} />
               <Route path="/scores" element={<EnterScores />} />
               <Route path="/rules" element={<Rules />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/import" element={<AdminImport />} />
+              <Route path="/admin/migration" element={<AdminMigration />} />
             </Routes>
           </Layout>
         </div>

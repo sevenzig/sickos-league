@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { LeagueData } from '../types';
-import { loadLeagueData, saveLeagueData } from '../utils/storage';
+import { loadLeagueData, saveLeagueData, loadLeagueDataFromLocal, hasPendingChanges, isOnline, syncToDatabase, syncFromDatabase } from '../utils/storage';
 import { calculateTeamRecords } from '../utils/scoring';
 import { getAvailableWeeks } from '../utils/csvLoader';
+import { saveLineup, updateMatchupScores, lockWeek as lockWeekDB } from '../services/database';
 
 interface LeagueContextType {
   leagueData: LeagueData;
@@ -14,6 +15,12 @@ interface LeagueContextType {
   updateMatchupScores: (week: number, team1: string, team2: string, team1Score: number, team2Score: number) => void;
   lockWeek: (week: number) => void;
   isWeekLocked: (week: number) => boolean;
+  // Sync status
+  isOnline: boolean;
+  hasPendingChanges: boolean;
+  syncStatus: 'idle' | 'syncing' | 'error';
+  syncToDatabase: () => Promise<void>;
+  syncFromDatabase: () => Promise<void>;
 }
 
 const LeagueContext = createContext<LeagueContextType | undefined>(undefined);
@@ -31,7 +38,86 @@ interface LeagueProviderProps {
 }
 
 export function LeagueProvider({ children }: LeagueProviderProps) {
-  const [leagueData, setLeagueData] = useState<LeagueData>(() => loadLeagueData());
+  const [leagueData, setLeagueData] = useState<LeagueData>(() => ({
+    teams: [],
+    lineups: [],
+    gameStats: [],
+    matchups: [],
+    currentWeek: 1,
+    records: [],
+    lockedWeeks: []
+  }));
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
+  const [isOnlineState, setIsOnlineState] = useState(isOnline());
+  const [hasPendingChangesState, setHasPendingChangesState] = useState(hasPendingChanges());
+
+  // Optional: Clear localStorage to force database sync (uncomment for first-time database migration)
+  useEffect(() => {
+    // Uncomment the line below to clear localStorage and force database sync
+    // localStorage.removeItem('bad-qb-league-data');
+    // localStorage.removeItem('bad-qb-league-data-last-sync');
+    console.log('🔧 localStorage cleanup effect ready (commented out)');
+  }, []);
+
+  // Load data from database on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setSyncStatus('syncing');
+        console.log('🔄 Loading data from database...');
+        
+        const dbData = await loadLeagueData();
+        if (dbData && dbData.teams.length > 0) {
+          setLeagueData(dbData);
+          console.log('✅ Loaded data from database:', {
+            teams: dbData.teams.length,
+            lineups: dbData.lineups.length,
+            matchups: dbData.matchups.length,
+            gameStats: dbData.gameStats.length,
+            currentWeek: dbData.currentWeek
+          });
+        } else {
+          console.log('⚠️ No database data found, using fallback');
+        }
+        setSyncStatus('idle');
+      } catch (error) {
+        console.error('❌ Failed to load from database:', error);
+        setSyncStatus('error');
+        
+        // Only fall back to localStorage if database completely fails
+        try {
+          const localData = loadLeagueDataFromLocal();
+          if (localData && localData.teams.length > 0) {
+            setLeagueData(localData);
+            console.log('📱 Using localStorage fallback data');
+          }
+        } catch (localError) {
+          console.error('❌ localStorage fallback also failed:', localError);
+        }
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Monitor online status
+  useEffect(() => {
+    const handleOnline = () => setIsOnlineState(true);
+    const handleOffline = () => setIsOnlineState(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Monitor pending changes
+  useEffect(() => {
+    setHasPendingChangesState(hasPendingChanges());
+  }, [leagueData]);
 
   // Auto-detect current week based on available CSV data
   useEffect(() => {
@@ -87,7 +173,8 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     });
   };
 
-  const setLineup = (teamName: string, week: number, activeQBs: string[]) => {
+  const setLineup = async (teamName: string, week: number, activeQBs: string[]) => {
+    // Update local state immediately
     setLeagueData(prev => {
       const existingLineupIndex = prev.lineups.findIndex(
         lineup => lineup.teamName === teamName && lineup.week === week
@@ -105,6 +192,15 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
 
       return { ...prev, lineups: newLineups };
     });
+
+    // Try to sync to database
+    if (isOnlineState) {
+      try {
+        await saveLineup(teamName, week, activeQBs);
+      } catch (error) {
+        console.warn('Failed to sync lineup to database:', error);
+      }
+    }
   };
 
   const addMatchup = (week: number, team1: string, team2: string) => {
@@ -132,7 +228,8 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     });
   };
 
-  const updateMatchupScores = (week: number, team1: string, team2: string, team1Score: number, team2Score: number) => {
+  const updateMatchupScores = async (week: number, team1: string, team2: string, team1Score: number, team2Score: number) => {
+    // Update local state immediately
     setLeagueData(prev => {
       const matchupIndex = prev.matchups.findIndex(
         matchup => matchup.week === week && 
@@ -157,17 +254,62 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
 
       return prev;
     });
+
+    // Try to sync to database
+    if (isOnlineState) {
+      try {
+        await updateMatchupScores(week, team1, team2, team1Score, team2Score);
+      } catch (error) {
+        console.warn('Failed to sync matchup scores to database:', error);
+      }
+    }
   };
 
-  const lockWeek = (week: number) => {
+  const lockWeek = async (week: number) => {
+    // Update local state immediately
     setLeagueData(prev => ({
       ...prev,
       lockedWeeks: [...new Set([...prev.lockedWeeks, week])]
     }));
+
+    // Try to sync to database
+    if (isOnlineState) {
+      try {
+        await lockWeekDB(week);
+      } catch (error) {
+        console.warn('Failed to sync locked week to database:', error);
+      }
+    }
   };
 
   const isWeekLocked = (week: number) => {
     return leagueData.lockedWeeks.includes(week);
+  };
+
+  // Sync functions
+  const handleSyncToDatabase = async () => {
+    try {
+      setSyncStatus('syncing');
+      await syncToDatabase(leagueData);
+      setSyncStatus('idle');
+    } catch (error) {
+      console.error('Sync to database failed:', error);
+      setSyncStatus('error');
+    }
+  };
+
+  const handleSyncFromDatabase = async () => {
+    try {
+      setSyncStatus('syncing');
+      const dbData = await syncFromDatabase();
+      if (dbData) {
+        setLeagueData(dbData);
+      }
+      setSyncStatus('idle');
+    } catch (error) {
+      console.error('Sync from database failed:', error);
+      setSyncStatus('error');
+    }
   };
 
   const value: LeagueContextType = {
@@ -179,7 +321,13 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     addMatchup,
     updateMatchupScores,
     lockWeek,
-    isWeekLocked
+    isWeekLocked,
+    // Sync status
+    isOnline: isOnlineState,
+    hasPendingChanges: hasPendingChangesState,
+    syncStatus,
+    syncToDatabase: handleSyncToDatabase,
+    syncFromDatabase: handleSyncFromDatabase
   };
 
   return (

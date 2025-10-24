@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
 import { 
@@ -13,8 +13,46 @@ import { getWeeklyCSVData } from '../data/scoringData';
 
 const Home: React.FC = () => {
   const { leagueData, updateLeagueData, isWeekLocked } = useLeagueData();
-  const [selectedWeek, setSelectedWeek] = useState(leagueData.currentWeek - 1);
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    // If no data loaded yet, default to week 1
+    if (!leagueData.matchups || leagueData.matchups.length === 0) {
+      return 1;
+    }
+    
+    // Show current week if matchups exist, otherwise show previous week
+    const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
+    return currentWeekMatchups.length > 0 ? leagueData.currentWeek : Math.max(1, leagueData.currentWeek - 1);
+  });
 
+  // Update selected week when data loads
+  useEffect(() => {
+    if (leagueData.matchups && leagueData.matchups.length > 0) {
+      const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
+      const newSelectedWeek = currentWeekMatchups.length > 0 ? leagueData.currentWeek : Math.max(1, leagueData.currentWeek - 1);
+      
+      if (newSelectedWeek !== selectedWeek) {
+        console.log(`🔄 Updating selected week from ${selectedWeek} to ${newSelectedWeek}`);
+        setSelectedWeek(newSelectedWeek);
+      }
+    }
+  }, [leagueData.matchups, leagueData.currentWeek, selectedWeek]);
+
+  // Auto-switch to current week when matchups become available
+  useEffect(() => {
+    const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
+    console.log(`📊 Week switching logic:`, {
+      currentWeek: leagueData.currentWeek,
+      selectedWeek,
+      currentWeekMatchups: currentWeekMatchups.length,
+      shouldSwitch: currentWeekMatchups.length > 0 && selectedWeek === leagueData.currentWeek - 1
+    });
+    
+    if (currentWeekMatchups.length > 0 && selectedWeek === leagueData.currentWeek - 1) {
+      // Current week matchups are now available, switch to showing them
+      console.log(`🔄 Auto-switching to Week ${leagueData.currentWeek} - matchups are now available`);
+      setSelectedWeek(leagueData.currentWeek);
+    }
+  }, [leagueData.matchups, leagueData.currentWeek, selectedWeek]);
 
   // Get matchups for selected week
   const weekMatchups = leagueData.matchups.filter(m => m.week === selectedWeek);
@@ -35,7 +73,19 @@ const Home: React.FC = () => {
       {/* Week Navigation */}
       <div className="bg-dark-surface rounded-lg p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Week {selectedWeek}</h2>
+          <div className="flex items-center space-x-3">
+            <h2 className="text-xl font-semibold">Week {selectedWeek}</h2>
+            {selectedWeek === leagueData.currentWeek && (
+              <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-medium">
+                Current Week
+              </span>
+            )}
+            {selectedWeek < leagueData.currentWeek && (
+              <span className="px-2 py-1 bg-gray-600 text-white text-xs rounded-full font-medium">
+                Previous Results
+              </span>
+            )}
+          </div>
           <div className="flex space-x-2">
             <button
               onClick={() => setSelectedWeek(Math.max(1, selectedWeek - 1))}
@@ -55,7 +105,7 @@ const Home: React.FC = () => {
 
       {/* Matchups - Top row with 4 columns */}
       <div className="space-y-4">
-        {weekMatchups.length > 0 && (isWeekLocked(selectedWeek) || weekLineups.length > 0) ? (
+        {weekMatchups.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {weekMatchups.map((matchup, index) => {
               const { team1Score, team2Score, team1Breakdown, team2Breakdown } = calculateMatchupScore(matchup, leagueData.lineups);
@@ -107,9 +157,33 @@ const Home: React.FC = () => {
                             </div>
                           </div>
                         ))
+                      ) : team1Breakdown.length > 0 ? (
+                        // Show empty placeholder squares when lineups are set but no CSV data
+                        <div className="flex space-x-2">
+                          {team1Breakdown.map((_, index) => (
+                            <div 
+                              key={index}
+                              className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
+                              title="Scores not available yet"
+                            >
+                              <div className="text-gray-400 text-xs">?</div>
+                              <span className="text-xs text-gray-400">--</span>
+                            </div>
+                          ))}
+                        </div>
                       ) : (
-                        <div className="text-center text-gray-400 text-sm py-4">
-                          Scores not available yet
+                        // Show empty placeholder squares when no lineups are set (2 QBs per team)
+                        <div className="flex space-x-2">
+                          {[1, 2].map((_, index) => (
+                            <div 
+                              key={index}
+                              className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
+                              title="Lineup not set yet"
+                            >
+                              <div className="text-gray-400 text-xs">?</div>
+                              <span className="text-xs text-gray-400">--</span>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -160,9 +234,33 @@ const Home: React.FC = () => {
                             </div>
                           </div>
                         ))
+                      ) : team2Breakdown.length > 0 ? (
+                        // Show empty placeholder squares when lineups are set but no CSV data
+                        <div className="flex space-x-2">
+                          {team2Breakdown.map((_, index) => (
+                            <div 
+                              key={index}
+                              className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
+                              title="Scores not available yet"
+                            >
+                              <div className="text-gray-400 text-xs">?</div>
+                              <span className="text-xs text-gray-400">--</span>
+                            </div>
+                          ))}
+                        </div>
                       ) : (
-                        <div className="text-center text-gray-400 text-sm py-4">
-                          Scores not available yet
+                        // Show empty placeholder squares when no lineups are set (2 QBs per team)
+                        <div className="flex space-x-2">
+                          {[1, 2].map((_, index) => (
+                            <div 
+                              key={index}
+                              className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
+                              title="Lineup not set yet"
+                            >
+                              <div className="text-gray-400 text-xs">?</div>
+                              <span className="text-xs text-gray-400">--</span>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -184,9 +282,7 @@ const Home: React.FC = () => {
           <div className="bg-dark-card rounded-lg p-8 text-center text-gray-400">
             {weekMatchups.length === 0 
               ? `No matchups scheduled for Week ${selectedWeek}`
-              : selectedWeek === leagueData.currentWeek 
-                ? "No lineups set yet for this week"
-                : "No lineups available for this week"
+              : "No lineups set yet for this week"
             }
           </div>
         )}
