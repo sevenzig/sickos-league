@@ -106,8 +106,8 @@ const SetLineups: React.FC = () => {
         </div>
       </div>
 
-      {/* Team Lineups - 2x4 Grid Layout */}
-      <div className="grid grid-cols-4 gap-6">
+      {/* Team Lineups - Responsive Grid Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {leagueData.teams.map(team => {
           const teamLineup = lineups[team.name] || [];
           const isComplete = teamLineup.length === 2;
