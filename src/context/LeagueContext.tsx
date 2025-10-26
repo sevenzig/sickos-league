@@ -3,7 +3,7 @@ import { LeagueData } from '../types';
 import { loadLeagueData, saveLeagueData, loadLeagueDataFromLocal, hasPendingChanges, isOnline, syncToDatabase, syncFromDatabase } from '../utils/storage';
 import { calculateTeamRecords } from '../utils/scoring';
 import { getAvailableWeeks } from '../utils/csvLoader';
-import { saveLineup, updateMatchupScores, lockWeek as lockWeekDB } from '../services/database';
+import { saveLineup, updateMatchupScores, lockWeek as lockWeekDB, lockTeamLineup as lockTeamLineupDB } from '../services/database';
 
 interface LeagueContextType {
   leagueData: LeagueData;
@@ -14,7 +14,9 @@ interface LeagueContextType {
   addMatchup: (week: number, team1: string, team2: string) => void;
   updateMatchupScores: (week: number, team1: string, team2: string, team1Score: number, team2Score: number) => void;
   lockWeek: (week: number) => void;
+  lockTeamLineup: (teamName: string, week: number) => void;
   isWeekLocked: (week: number) => boolean;
+  isTeamLineupLocked: (teamName: string, week: number) => boolean;
   // Sync status
   isOnline: boolean;
   hasPendingChanges: boolean;
@@ -269,6 +271,39 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     }
   };
 
+  const lockTeamLineup = async (teamName: string, week: number) => {
+    // Update local state immediately
+    setLeagueData(prev => {
+      const lineupIndex = prev.lineups.findIndex(
+        lineup => lineup.teamName === teamName && lineup.week === week
+      );
+
+      if (lineupIndex >= 0) {
+        const newLineups = [...prev.lineups];
+        newLineups[lineupIndex] = { ...newLineups[lineupIndex], isLocked: true };
+        return { ...prev, lineups: newLineups };
+      }
+
+      return prev;
+    });
+
+    // Try to sync to database
+    if (isOnlineState) {
+      try {
+        await lockTeamLineupDB(teamName, week);
+      } catch (error) {
+        console.warn('Failed to sync team lineup lock to database:', error);
+      }
+    }
+  };
+
+  const isTeamLineupLocked = (teamName: string, week: number) => {
+    const lineup = leagueData.lineups.find(
+      l => l.teamName === teamName && l.week === week
+    );
+    return lineup?.isLocked || false;
+  };
+
   const lockWeek = async (week: number) => {
     // Update local state immediately
     setLeagueData(prev => ({
@@ -325,7 +360,9 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     addMatchup,
     updateMatchupScores,
     lockWeek,
+    lockTeamLineup,
     isWeekLocked,
+    isTeamLineupLocked,
     // Sync status
     isOnline: isOnlineState,
     hasPendingChanges: hasPendingChangesState,

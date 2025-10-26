@@ -3,7 +3,7 @@ import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
 
 const SetLineups: React.FC = () => {
-  const { leagueData, setLineup, lockWeek, isWeekLocked } = useLeagueData();
+  const { leagueData, setLineup, lockWeek, lockTeamLineup, isWeekLocked, isTeamLineupLocked } = useLeagueData();
   const [selectedWeek, setSelectedWeek] = useState(leagueData.currentWeek);
   const [lineups, setLineups] = useState<{ [teamName: string]: string[] }>({});
 
@@ -33,14 +33,36 @@ const SetLineups: React.FC = () => {
     });
   };
 
-  const saveLineups = () => {
-    const incompleteTeams: string[] = [];
+  const handleLockTeam = async (teamName: string) => {
+    const teamLineup = lineups[teamName] || [];
+    if (teamLineup.length !== 2) {
+      alert(`${teamName} needs 2 QBs selected before locking`);
+      return;
+    }
+
+    // Save the lineup first
+    await setLineup(teamName, selectedWeek, teamLineup);
     
-    // Check all teams have 2 QBs selected
+    // Then lock it
+    await lockTeamLineup(teamName, selectedWeek);
+    
+    alert(`${teamName} lineup locked successfully!`);
+  };
+
+  const finalizeWeeklyLineups = async () => {
+    const incompleteTeams: string[] = [];
+    const unlockedTeams: string[] = [];
+    
+    // Check all teams have 2 QBs selected (only for unlocked teams)
     leagueData.teams.forEach(team => {
       const teamLineup = lineups[team.name] || [];
-      if (teamLineup.length !== 2) {
-        incompleteTeams.push(team.name);
+      const isLocked = isTeamLineupLocked(team.name, selectedWeek);
+      
+      if (!isLocked) {
+        unlockedTeams.push(team.name);
+        if (teamLineup.length !== 2) {
+          incompleteTeams.push(team.name);
+        }
       }
     });
 
@@ -49,17 +71,30 @@ const SetLineups: React.FC = () => {
       return;
     }
 
-    // Save all lineups
-    Object.entries(lineups).forEach(([teamName, activeQBs]) => {
-      setLineup(teamName, selectedWeek, activeQBs);
-    });
+    if (unlockedTeams.length === 0) {
+      alert('All teams are already locked for this week');
+      return;
+    }
 
-    // Lock the week
-    lockWeek(selectedWeek);
-    alert('All lineups saved and week locked successfully!');
+    // Save and lock all unlocked lineups
+    for (const teamName of unlockedTeams) {
+      const teamLineup = lineups[teamName] || [];
+      await setLineup(teamName, selectedWeek, teamLineup);
+      await lockTeamLineup(teamName, selectedWeek);
+    }
+
+    // Lock the week globally
+    await lockWeek(selectedWeek);
+    alert(`All ${unlockedTeams.length} remaining lineups locked and week finalized!`);
   };
 
+  const saveLineups = () => {
+
   const canEditWeek = selectedWeek >= leagueData.currentWeek && !isWeekLocked(selectedWeek);
+  
+  const getUnlockedTeamsCount = () => {
+    return leagueData.teams.filter(team => !isTeamLineupLocked(team.name, selectedWeek)).length;
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 px-4">
@@ -70,6 +105,9 @@ const SetLineups: React.FC = () => {
             <h2 className="text-lg font-semibold">Finalize Lineups</h2>
             <div className="text-sm text-gray-400">
               {Object.values(lineups).filter(qbs => qbs.length === 2).length} of {leagueData.teams.length} teams complete
+            </div>
+            <div className="text-sm text-gray-400">
+              {leagueData.teams.filter(team => isTeamLineupLocked(team.name, selectedWeek)).length} teams locked
             </div>
             {!canEditWeek && (
               <div className="px-3 py-1 bg-yellow-600 bg-opacity-20 border border-yellow-600 rounded text-yellow-200 text-sm">
@@ -96,10 +134,10 @@ const SetLineups: React.FC = () => {
             
             {canEditWeek && (
               <button
-                onClick={saveLineups}
+                onClick={finalizeWeeklyLineups}
                 className="px-4 py-1 bg-green-600 hover:bg-green-700 text-white font-medium rounded text-sm transition-colors focus-ring"
               >
-                Save All
+                Finalize Weekly Lineups ({getUnlockedTeamsCount()} remaining)
               </button>
             )}
           </div>
@@ -111,18 +149,36 @@ const SetLineups: React.FC = () => {
         {leagueData.teams.map(team => {
           const teamLineup = lineups[team.name] || [];
           const isComplete = teamLineup.length === 2;
+          const isLocked = isTeamLineupLocked(team.name, selectedWeek);
+          const canEdit = canEditWeek && !isLocked;
           
           return (
-            <div key={team.name} className="bg-gray-800 rounded-lg flex flex-col">
+            <div key={team.name} className={`bg-gray-800 rounded-lg flex flex-col ${
+              isLocked ? 'border-2 border-green-500' : ''
+            }`}>
               {/* Team Header */}
               <div className="flex items-center justify-between p-2 border-b border-gray-700">
                 <TeamLogo teamName={team.name} size="sm" showName={true} className="text-sm" />
-                <div className="flex items-center space-x-1">
-                  <span className={`text-xs px-1 py-1 rounded ${
-                    isComplete ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'
-                  }`}>
-                    {teamLineup.length}/2
-                  </span>
+                <div className="flex items-center space-x-2">
+                  {isLocked ? (
+                    <span className="text-xs px-2 py-1 rounded bg-green-600 text-white">
+                      Locked ✓
+                    </span>
+                  ) : (
+                    <span className={`text-xs px-1 py-1 rounded ${
+                      isComplete ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'
+                    }`}>
+                      {teamLineup.length}/2
+                    </span>
+                  )}
+                  {isComplete && !isLocked && canEditWeek && (
+                    <button
+                      onClick={() => handleLockTeam(team.name)}
+                      className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                    >
+                      Lock
+                    </button>
+                  )}
                 </div>
               </div>
               
@@ -135,8 +191,8 @@ const SetLineups: React.FC = () => {
                   return (
                     <button
                       key={qb}
-                      onClick={() => canEditWeek && handleQBSelection(team.name, qb, !isSelected)}
-                      disabled={!canEditWeek || (!isSelected && !canSelect)}
+                      onClick={() => canEdit && handleQBSelection(team.name, qb, !isSelected)}
+                      disabled={!canEdit || (!isSelected && !canSelect)}
                       className={`rounded text-left transition-colors flex flex-col items-center justify-center ${
                         isSelected
                           ? 'bg-green-600 text-white'

@@ -26,6 +26,7 @@ export async function loadLineups(): Promise<WeeklyLineup[]> {
     .select(`
       week,
       active_qbs,
+      is_locked,
       teams!inner(name)
     `)
     .order('week')
@@ -38,7 +39,8 @@ export async function loadLineups(): Promise<WeeklyLineup[]> {
   return data?.map((lineup: any) => ({
     teamName: lineup.teams.name,
     week: lineup.week,
-    activeQBs: lineup.active_qbs
+    activeQBs: lineup.active_qbs,
+    isLocked: lineup.is_locked || false
   })) || []
 }
 
@@ -147,12 +149,21 @@ export async function saveLineup(teamName: string, week: number, activeQBs: stri
     throw new Error(`Team ${teamName} not found`)
   }
 
+  // Get existing lineup to preserve lock status
+  const { data: existingLineup } = await supabase
+    .from('lineups')
+    .select('is_locked')
+    .eq('team_id', team.id)
+    .eq('week', week)
+    .single()
+
   const { error } = await supabase
     .from('lineups')
     .upsert({
       team_id: team.id,
       week,
-      active_qbs: activeQBs
+      active_qbs: activeQBs,
+      is_locked: existingLineup?.is_locked || false
     })
 
   if (error) {
@@ -200,6 +211,30 @@ export async function updateMatchupScores(
 
   if (error) {
     console.error('Error updating matchup scores:', error)
+    throw error
+  }
+}
+
+export async function lockTeamLineup(teamName: string, week: number): Promise<void> {
+  // First get team ID
+  const { data: team, error: teamError } = await supabase
+    .from('teams')
+    .select('id')
+    .eq('name', teamName)
+    .single()
+
+  if (teamError || !team) {
+    throw new Error(`Team ${teamName} not found`)
+  }
+
+  const { error } = await supabase
+    .from('lineups')
+    .update({ is_locked: true })
+    .eq('team_id', team.id)
+    .eq('week', week)
+
+  if (error) {
+    console.error('Error locking team lineup:', error)
     throw error
   }
 }

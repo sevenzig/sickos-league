@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS lineups (
   team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   week INTEGER NOT NULL,
   active_qbs TEXT[] NOT NULL,
+  is_locked BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(team_id, week)
 );

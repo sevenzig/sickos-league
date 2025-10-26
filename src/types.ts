@@ -9,6 +9,7 @@ export interface WeeklyLineup {
   teamName: string;
   week: number;
   activeQBs: string[]; // Exactly 2 NFL team names
+  isLocked?: boolean; // Add this field
 }
 
 export interface GameStats {
