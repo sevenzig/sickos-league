@@ -55,11 +55,12 @@ const SetLineups: React.FC = () => {
     
     // Check all teams have 2 QBs selected (only for unlocked teams)
     leagueData.teams.forEach(team => {
-      const teamLineup = lineups[team.name] || [];
       const isLocked = isTeamLineupLocked(team.name, selectedWeek);
       
       if (!isLocked) {
         unlockedTeams.push(team.name);
+        // For unlocked teams, check the local lineups state
+        const teamLineup = lineups[team.name] || [];
         if (teamLineup.length !== 2) {
           incompleteTeams.push(team.name);
         }
@@ -88,7 +89,16 @@ const SetLineups: React.FC = () => {
     alert(`All ${unlockedTeams.length} remaining lineups locked and week finalized!`);
   };
 
-  const saveLineups = () => {
+  const saveLineups = async () => {
+    // Save all current lineup selections without locking them
+    for (const teamName of leagueData.teams.map(team => team.name)) {
+      const teamLineup = lineups[teamName] || [];
+      if (teamLineup.length === 2) {
+        await setLineup(teamName, selectedWeek, teamLineup);
+      }
+    }
+    alert('Lineups saved successfully!');
+  };
 
   const canEditWeek = selectedWeek >= leagueData.currentWeek && !isWeekLocked(selectedWeek);
   
@@ -133,19 +143,27 @@ const SetLineups: React.FC = () => {
             </div>
             
             {canEditWeek && (
-              <button
-                onClick={finalizeWeeklyLineups}
-                className="px-4 py-1 bg-green-600 hover:bg-green-700 text-white font-medium rounded text-sm transition-colors focus-ring"
-              >
-                Finalize Weekly Lineups ({getUnlockedTeamsCount()} remaining)
-              </button>
+              <>
+                <button
+                  onClick={saveLineups}
+                  className="px-4 py-1 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded text-sm transition-colors focus-ring"
+                >
+                  Save Lineups
+                </button>
+                <button
+                  onClick={finalizeWeeklyLineups}
+                  className="px-4 py-1 bg-green-600 hover:bg-green-700 text-white font-medium rounded text-sm transition-colors focus-ring"
+                >
+                  Finalize Weekly Lineups ({getUnlockedTeamsCount()} remaining)
+                </button>
+              </>
             )}
           </div>
         </div>
       </div>
 
       {/* Team Lineups - Responsive Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {leagueData.teams.map(team => {
           const teamLineup = lineups[team.name] || [];
           const isComplete = teamLineup.length === 2;
@@ -193,14 +211,13 @@ const SetLineups: React.FC = () => {
                       key={qb}
                       onClick={() => canEdit && handleQBSelection(team.name, qb, !isSelected)}
                       disabled={!canEdit || (!isSelected && !canSelect)}
-                      className={`rounded text-left transition-colors flex flex-col items-center justify-center ${
+                      className={`rounded text-left transition-colors flex flex-col items-center justify-center w-24 h-24 md:w-32 md:h-32 ${
                         isSelected
                           ? 'bg-green-600 text-white'
                           : canSelect
                           ? 'bg-gray-600 hover:bg-gray-500 text-white'
                           : 'bg-gray-700 text-gray-400 cursor-not-allowed'
                       }`}
-                      style={{width: '128px', height: '128px', minWidth: '128px', minHeight: '128px'}}
                     >
                       <TeamLogo teamName={qb} size="sm" className="mb-1" />
                       <span className="text-xs font-medium text-center leading-tight">{qb}</span>

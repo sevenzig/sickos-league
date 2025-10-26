@@ -187,15 +187,15 @@ const Home: React.FC = () => {
                           </div>
                         ))
                       ) : team1Breakdown.length > 0 ? (
-                        // Show empty placeholder squares when lineups are set but no CSV data
+                        // Show actual QB logos when lineups are set but no CSV data
                         <div className="flex space-x-2">
-                          {team1Breakdown.map((_, index) => (
+                          {team1Breakdown.map(({ qb }, index) => (
                             <div 
                               key={index}
                               className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
                               title="Scores not available yet"
                             >
-                              <div className="text-gray-400 text-xs">?</div>
+                              <TeamLogo teamName={qb} size="sm" className="mb-1" />
                               <span className="text-xs text-gray-400">--</span>
                             </div>
                           ))}
@@ -264,15 +264,15 @@ const Home: React.FC = () => {
                           </div>
                         ))
                       ) : team2Breakdown.length > 0 ? (
-                        // Show empty placeholder squares when lineups are set but no CSV data
+                        // Show actual QB logos when lineups are set but no CSV data
                         <div className="flex space-x-2">
-                          {team2Breakdown.map((_, index) => (
+                          {team2Breakdown.map(({ qb }, index) => (
                             <div 
                               key={index}
                               className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
                               title="Scores not available yet"
                             >
-                              <div className="text-gray-400 text-xs">?</div>
+                              <TeamLogo teamName={qb} size="sm" className="mb-1" />
                               <span className="text-xs text-gray-400">--</span>
                             </div>
                           ))}

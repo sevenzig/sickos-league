@@ -17,7 +17,9 @@ export function calculateTeamScoreForWeek(
 
   const csvData = getWeeklyCSVData(week);
   if (!csvData) {
-    return { totalScore: 0, qbBreakdown: [] };
+    // Return QB names even when there's no CSV data
+    const qbBreakdown = teamLineup.activeQBs.map(qb => ({ qb, breakdown: null }));
+    return { totalScore: 0, qbBreakdown };
   }
 
   const weeklyData = parseWeeklyCSV(csvData, week);

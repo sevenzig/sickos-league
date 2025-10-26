@@ -278,13 +278,18 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
         lineup => lineup.teamName === teamName && lineup.week === week
       );
 
+      let newLineups;
       if (lineupIndex >= 0) {
-        const newLineups = [...prev.lineups];
+        // Update existing lineup
+        newLineups = [...prev.lineups];
         newLineups[lineupIndex] = { ...newLineups[lineupIndex], isLocked: true };
-        return { ...prev, lineups: newLineups };
+      } else {
+        // Create new lineup entry (this shouldn't happen if setLineup was called first)
+        console.warn(`No lineup found for ${teamName} week ${week} when trying to lock`);
+        return prev;
       }
 
-      return prev;
+      return { ...prev, lineups: newLineups };
     });
 
     // Try to sync to database
