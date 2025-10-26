@@ -2,6 +2,7 @@ import { LeagueData } from '../types';
 import { initialLeagueData } from '../data/initialData';
 import { getAvailableWeeks } from './csvLoader';
 import { loadFullLeagueData } from '../services/database';
+import { migrateHistoricalData, checkMigrationStatus } from '../services/migration';
 
 const STORAGE_KEY = 'bad-qb-league-data';
 
@@ -29,15 +30,38 @@ function determineLockedWeeks(data: LeagueData): number[] {
  */
 export async function loadLeagueData(): Promise<LeagueData> {
   try {
-    // Try to load from database first
+    // Check if database is migrated
+    const migrationStatus = await checkMigrationStatus();
+    
+    if (!migrationStatus.isMigrated) {
+      console.log('Database not migrated, attempting to migrate data...');
+      try {
+        const migrationResult = await migrateHistoricalData();
+        if (migrationResult.success) {
+          console.log('Migration successful, loading data from database');
+        } else {
+          console.error('Migration failed:', migrationResult.errors);
+          throw new Error('Migration failed');
+        }
+      } catch (migrationError) {
+        console.error('Migration error:', migrationError);
+        throw new Error('Migration failed');
+      }
+    }
+    
+    // Try to load from database
     const dbData = await loadFullLeagueData();
     if (dbData && dbData.teams.length > 0) {
       // Save to localStorage for offline access
       saveLeagueDataToLocal(dbData);
       return dbData;
     }
+    
+    // If database is still empty after migration attempt
+    console.log('Database is still empty after migration attempt');
+    throw new Error('Database is empty');
   } catch (error) {
-    console.warn('Database not available, falling back to localStorage:', error);
+    console.warn('Database not available or empty, falling back to localStorage:', error);
   }
 
   // Fallback to localStorage

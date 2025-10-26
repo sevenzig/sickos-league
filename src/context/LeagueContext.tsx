@@ -119,15 +119,19 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     setHasPendingChangesState(hasPendingChanges());
   }, [leagueData]);
 
-  // Auto-detect current week based on available CSV data
+  // Auto-detect current week based on available CSV data (only if not loaded from database)
   useEffect(() => {
+    // Only auto-detect if we're using fallback data (not from database)
+    if (leagueData.teams.length === 0) return;
+    
     const availableWeeks = getAvailableWeeks();
     if (availableWeeks.length > 0) {
       const lastAvailableWeek = Math.max(...availableWeeks);
       const nextWeek = lastAvailableWeek + 1;
       
       // Only update if the calculated week is different from current
-      if (nextWeek !== leagueData.currentWeek) {
+      // and we're not using database data (which should have correct currentWeek)
+      if (nextWeek !== leagueData.currentWeek && leagueData.currentWeek === 1) {
         setLeagueData(prev => ({ ...prev, currentWeek: nextWeek }));
       }
     }

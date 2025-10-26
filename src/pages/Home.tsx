@@ -50,7 +50,14 @@ const Home: React.FC = () => {
       shouldSwitch: currentWeekMatchups.length > 0 && selectedWeek === leagueData.currentWeek - 1
     });
     
-    if (currentWeekMatchups.length > 0 && selectedWeek === leagueData.currentWeek - 1) {
+    // Only auto-switch if we're on the previous week and current week matchups are now available
+    // AND there's actual scoring data for the current week
+    // AND we haven't manually navigated to a different week
+    const hasCurrentWeekData = getWeeklyCSVData(leagueData.currentWeek) !== '';
+    const isOnPreviousWeek = selectedWeek === leagueData.currentWeek - 1;
+    const hasCurrentWeekMatchups = currentWeekMatchups.length > 0;
+    
+    if (hasCurrentWeekMatchups && isOnPreviousWeek && hasCurrentWeekData) {
       // Current week matchups are now available, switch to showing them
       console.log(`🔄 Auto-switching to Week ${leagueData.currentWeek} - matchups are now available`);
       setSelectedWeek(leagueData.currentWeek);
