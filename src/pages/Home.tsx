@@ -26,6 +26,7 @@ const Home: React.FC = () => {
 
   // Update selected week when data loads (only on initial load, not on manual navigation)
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [hasManuallyNavigated, setHasManuallyNavigated] = useState(false);
   
   useEffect(() => {
     if (leagueData.matchups && leagueData.matchups.length > 0 && !hasInitialized) {
@@ -40,14 +41,15 @@ const Home: React.FC = () => {
 
   // Auto-switch to current week when matchups become available (only if user hasn't manually navigated)
   useEffect(() => {
-    if (!hasInitialized) return; // Don't run until initial load is complete
+    if (!hasInitialized || hasManuallyNavigated) return; // Don't run if user has manually navigated
     
     const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
     console.log(`📊 Week switching logic:`, {
       currentWeek: leagueData.currentWeek,
       selectedWeek,
       currentWeekMatchups: currentWeekMatchups.length,
-      shouldSwitch: currentWeekMatchups.length > 0 && selectedWeek === leagueData.currentWeek - 1
+      hasManuallyNavigated,
+      shouldSwitch: currentWeekMatchups.length > 0 && selectedWeek === leagueData.currentWeek - 1 && !hasManuallyNavigated
     });
     
     // Only auto-switch if we're on the previous week and current week matchups are now available
@@ -57,12 +59,12 @@ const Home: React.FC = () => {
     const isOnPreviousWeek = selectedWeek === leagueData.currentWeek - 1;
     const hasCurrentWeekMatchups = currentWeekMatchups.length > 0;
     
-    if (hasCurrentWeekMatchups && isOnPreviousWeek && hasCurrentWeekData) {
+    if (hasCurrentWeekMatchups && isOnPreviousWeek && hasCurrentWeekData && !hasManuallyNavigated) {
       // Current week matchups are now available, switch to showing them
       console.log(`🔄 Auto-switching to Week ${leagueData.currentWeek} - matchups are now available`);
       setSelectedWeek(leagueData.currentWeek);
     }
-  }, [leagueData.matchups, leagueData.currentWeek, selectedWeek, hasInitialized]);
+  }, [leagueData.matchups, leagueData.currentWeek, selectedWeek, hasInitialized, hasManuallyNavigated]);
 
   // Get matchups for selected week
   const weekMatchups = leagueData.matchups.filter(m => m.week === selectedWeek);
@@ -98,17 +100,34 @@ const Home: React.FC = () => {
           </div>
           <div className="flex space-x-2">
             <button
-              onClick={() => setSelectedWeek(Math.max(1, selectedWeek - 1))}
+              onClick={() => {
+                setSelectedWeek(Math.max(1, selectedWeek - 1));
+                setHasManuallyNavigated(true);
+              }}
               className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
             >
               Previous
             </button>
             <button
-              onClick={() => setSelectedWeek(Math.min(18, selectedWeek + 1))}
+              onClick={() => {
+                setSelectedWeek(Math.min(18, selectedWeek + 1));
+                setHasManuallyNavigated(true);
+              }}
               className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
             >
               Next
             </button>
+            {selectedWeek !== leagueData.currentWeek && (
+              <button
+                onClick={() => {
+                  setSelectedWeek(leagueData.currentWeek);
+                  setHasManuallyNavigated(false); // Reset manual navigation flag
+                }}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+              >
+                Current Week
+              </button>
+            )}
           </div>
         </div>
       </div>
