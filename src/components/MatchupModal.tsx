@@ -287,10 +287,9 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                         team1Won ? 'bg-emerald-500/5' : team2Won ? 'bg-red-500/5' : 'bg-blue-500/5'
                       }`}>
                         <div className="flex flex-col items-center gap-2">
-                          <div className="flex items-center gap-1 md:gap-2">
-                            <TeamLogo teamName={qb} size="xs" />
-                            <span className="text-xs md:text-sm font-bold text-slate-200 hidden md:inline">{qb}</span>
-                          </div>
+                        <div className="flex items-center justify-center">
+                          <TeamLogo teamName={qb} size="lg" />
+                        </div>
                           <div className={`inline-flex items-center gap-1 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-bold ${
                             breakdown && breakdown.finalScore > 0 
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
@@ -306,10 +305,9 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                         team2Won ? 'bg-emerald-500/5' : team1Won ? 'bg-red-500/5' : 'bg-purple-500/5'
                       }`}>
                         <div className="flex flex-col items-center gap-2">
-                          <div className="flex items-center gap-1 md:gap-2">
-                            <TeamLogo teamName={qb} size="xs" />
-                            <span className="text-xs md:text-sm font-bold text-slate-200 hidden md:inline">{qb}</span>
-                          </div>
+                        <div className="flex items-center justify-center">
+                          <TeamLogo teamName={qb} size="lg" />
+                        </div>
                           <div className={`inline-flex items-center gap-1 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-bold ${
                             breakdown && breakdown.finalScore > 0 
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
@@ -411,14 +409,18 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                         <th key={`team1-${index}`} className={`py-3 px-2 md:px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30 w-1/4 ${
                           team1Won ? 'bg-emerald-500/5' : team2Won ? 'bg-red-500/5' : 'bg-blue-500/5'
                         }`}>
-                          <TeamLogo teamName={qb} size="xs" />
+                          <div className="flex items-center justify-center">
+                            <TeamLogo teamName={qb} size="lg" />
+                          </div>
                         </th>
                       ))}
                       {team2Breakdown.map(({ qb }, index) => (
                         <th key={`team2-${index}`} className={`py-3 px-2 md:px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30 w-1/4 ${
                           team2Won ? 'bg-emerald-500/5' : team1Won ? 'bg-red-500/5' : 'bg-purple-500/5'
                         }`}>
-                          <TeamLogo teamName={qb} size="xs" />
+                          <div className="flex items-center justify-center">
+                            <TeamLogo teamName={qb} size="lg" />
+                          </div>
                         </th>
                       ))}
                     </tr>
