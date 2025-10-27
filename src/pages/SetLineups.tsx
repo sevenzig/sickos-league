@@ -10,6 +10,7 @@ const SetLineups: React.FC = () => {
   });
   const [lineups, setLineups] = useState<{ [teamName: string]: string[] }>({});
   const [hasManuallyNavigated, setHasManuallyNavigated] = useState(false);
+  const [showMobileInfo, setShowMobileInfo] = useState(false);
 
   // Sync selectedWeek with leagueData.currentWeek on initial load (only if user hasn't manually navigated)
   React.useEffect(() => {
@@ -171,8 +172,75 @@ const SetLineups: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-6 px-4">
       {/* Week Selection and Finalize Section */}
-      <div className="bg-dark-surface rounded-lg p-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-dark-surface rounded-lg p-3 sm:p-4">
+        {/* Mobile Layout */}
+        <div className="sm:hidden">
+          {/* Top row: Title and Info button */}
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">Finalize Lineups</h2>
+            <button
+              onClick={() => setShowMobileInfo(!showMobileInfo)}
+              className="p-1 text-gray-400 hover:text-white transition-colors"
+              title="Show lineup status"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Collapsible info section */}
+          {showMobileInfo && (
+            <div className="mb-3 space-y-2 text-sm text-gray-400">
+              <div>{Object.values(lineups).filter(qbs => qbs.length === 2).length} of {leagueData.teams.length} teams complete</div>
+              <div>{leagueData.teams.filter(team => isTeamLineupLocked(team.name, selectedWeek)).length} teams locked</div>
+              {!canEditWeek && (
+                <div className="px-3 py-1 bg-yellow-600 bg-opacity-20 border border-yellow-600 rounded text-yellow-200 text-sm inline-block">
+                  Lineups locked
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Main controls row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <label className="text-sm font-medium">Week:</label>
+              <select
+                value={selectedWeek}
+                onChange={(e) => {
+                  setSelectedWeek(Number(e.target.value));
+                  setHasManuallyNavigated(true);
+                }}
+                className="bg-gray-700 text-white rounded px-2 py-1 text-sm focus-ring"
+              >
+                {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
+                  <option key={week} value={week}>Week {week}</option>
+                ))}
+              </select>
+            </div>
+            
+            {canEditWeek && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={saveLineups}
+                  className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded text-xs transition-colors focus-ring"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={finalizeWeeklyLineups}
+                  className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white font-medium rounded text-xs transition-colors focus-ring"
+                >
+                  Finalize ({getUnlockedTeamsCount()})
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Desktop Layout */}
+        <div className="hidden sm:flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <h2 className="text-lg font-semibold">Finalize Lineups</h2>
             <div className="text-sm text-gray-400">
