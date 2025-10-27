@@ -1,11 +1,13 @@
 import { supabase } from '../utils/supabase'
 import { parseWeeklyCSV } from '../utils/csvParser'
+import { updateCurrentWeek } from './database'
 
 export interface ImportResult {
   success: boolean
   recordsImported: number
   errors: string[]
   week: number
+  newCurrentWeek?: number
 }
 
 export async function importWeeklyCSV(csvData: string, week: number, season: number = 2025): Promise<ImportResult> {
@@ -94,6 +96,28 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
 
     result.success = true
     result.recordsImported = insertedData?.length || 0
+
+    // Auto-advance current week if we just imported data for the current week
+    try {
+      const { data: currentSettings } = await supabase
+        .from('league_settings')
+        .select('current_week')
+        .order('id', { ascending: false })
+        .limit(1)
+        .single()
+
+      const currentWeek = currentSettings?.current_week || 1
+      
+      if (week === currentWeek) {
+        const newCurrentWeek = week + 1
+        await updateCurrentWeek(newCurrentWeek)
+        result.newCurrentWeek = newCurrentWeek
+        console.log(`🔄 Auto-advanced current week from ${currentWeek} to ${newCurrentWeek}`)
+      }
+    } catch (error) {
+      console.warn('Failed to auto-advance current week:', error)
+      // Don't fail the import if week advancement fails
+    }
 
     return result
 

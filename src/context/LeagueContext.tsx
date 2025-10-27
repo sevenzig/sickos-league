@@ -3,7 +3,7 @@ import { LeagueData } from '../types';
 import { loadLeagueData, saveLeagueData, loadLeagueDataFromLocal, hasPendingChanges, isOnline, syncToDatabase, syncFromDatabase } from '../utils/storage';
 import { calculateTeamRecords } from '../utils/scoring';
 import { getAvailableWeeks } from '../utils/csvLoader';
-import { saveLineup, updateMatchupScores, lockWeek as lockWeekDB, lockTeamLineup as lockTeamLineupDB } from '../services/database';
+import { saveLineup, updateMatchupScores, lockWeek as lockWeekDB, lockTeamLineup as lockTeamLineupDB, updateCurrentWeek } from '../services/database';
 
 interface LeagueContextType {
   leagueData: LeagueData;
@@ -150,8 +150,26 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     setLeagueData(data);
   };
 
-  const setCurrentWeek = (week: number) => {
-    setLeagueData(prev => ({ ...prev, currentWeek: week }));
+  const setCurrentWeek = async (week: number) => {
+    // Try to sync to database first
+    if (isOnlineState) {
+      try {
+        await updateCurrentWeek(week);
+        
+        // Only update local state after successful database save
+        setLeagueData(prev => ({ ...prev, currentWeek: week }));
+      } catch (error) {
+        console.error('Failed to update current week in database:', error);
+        throw new Error(`Failed to update current week to ${week}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    } else {
+      // Offline mode - update local state only
+      console.warn('Offline mode: Updating current week locally only');
+      setLeagueData(prev => ({ ...prev, currentWeek: week }));
+      
+      // Save to localStorage for offline access
+      saveLeagueData(leagueData);
+    }
   };
 
   const addGameStats = (teamName: string, week: number, qbStats: any) => {

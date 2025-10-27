@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { importWeeklyCSV, getImportHistory, deleteWeekData } from '../services/csvImporter';
+import { useLeagueData } from '../context/LeagueContext';
 
 interface ImportResult {
   success: boolean;
   recordsImported: number;
   errors: string[];
   week: number;
+  newCurrentWeek?: number;
 }
 
 interface ImportHistoryItem {
@@ -16,6 +18,7 @@ interface ImportHistoryItem {
 }
 
 export default function AdminImport() {
+  const { syncFromDatabase } = useLeagueData();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [isImporting, setIsImporting] = useState(false);
@@ -54,6 +57,15 @@ export default function AdminImport() {
         // Reset file input
         const fileInput = document.getElementById('csv-file') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
+        
+        // If week was auto-advanced, refresh the league data
+        if (result.newCurrentWeek) {
+          try {
+            await syncFromDatabase();
+          } catch (error) {
+            console.warn('Failed to refresh league data after week advancement:', error);
+          }
+        }
       }
     } catch (error) {
       console.error('Import failed:', error);
@@ -154,6 +166,11 @@ export default function AdminImport() {
               {importResult.success ? 'Import Successful' : 'Import Failed'}
             </h3>
             <p>Records imported: {importResult.recordsImported}</p>
+            {importResult.newCurrentWeek && (
+              <p className="text-blue-600 font-medium">
+                Current week automatically advanced to Week {importResult.newCurrentWeek}
+              </p>
+            )}
             {importResult.errors.length > 0 && (
               <div className="mt-2">
                 <p className="font-semibold">Errors:</p>

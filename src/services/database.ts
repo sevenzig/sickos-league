@@ -314,6 +314,47 @@ export async function lockWeek(week: number): Promise<void> {
   }
 }
 
+export async function updateCurrentWeek(week: number): Promise<void> {
+  console.log(`🔄 Updating current week to ${week}`);
+  
+  const { data: settings, error: fetchError } = await supabase
+    .from('league_settings')
+    .select('*')
+    .order('id', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (fetchError) {
+    console.log('📝 No existing league settings found, creating new settings');
+    // Create new settings if none exist
+    const { error: insertError } = await supabase
+      .from('league_settings')
+      .insert({
+        current_week: week,
+        locked_weeks: [],
+        season: 2025
+      })
+
+    if (insertError) {
+      console.error('❌ Error creating league settings:', insertError)
+      throw new Error(`Failed to create league settings: ${insertError.message}`)
+    }
+    console.log(`✅ Successfully created league settings with current week ${week}`);
+  } else {
+    const { error: updateError } = await supabase
+      .from('league_settings')
+      .update({ current_week: week })
+      .order('id', { ascending: false })
+      .limit(1)
+
+    if (updateError) {
+      console.error('❌ Error updating current week:', updateError)
+      throw new Error(`Failed to update current week to ${week}: ${updateError.message}`)
+    }
+    console.log(`✅ Successfully updated current week to ${week}`);
+  }
+}
+
 export async function loadFullLeagueData(): Promise<LeagueData> {
   const [teams, lineups, matchups, gameStats, settings] = await Promise.all([
     loadTeams(),

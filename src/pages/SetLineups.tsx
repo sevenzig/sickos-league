@@ -4,8 +4,19 @@ import TeamLogo from '../components/TeamLogo';
 
 const SetLineups: React.FC = () => {
   const { leagueData, setLineup, lockWeek, lockTeamLineup, isWeekLocked, isTeamLineupLocked } = useLeagueData();
-  const [selectedWeek, setSelectedWeek] = useState(leagueData.currentWeek);
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    // Initialize with current week if data is available, otherwise default to 1
+    return leagueData.currentWeek || 1;
+  });
   const [lineups, setLineups] = useState<{ [teamName: string]: string[] }>({});
+  const [hasManuallyNavigated, setHasManuallyNavigated] = useState(false);
+
+  // Sync selectedWeek with leagueData.currentWeek on initial load (only if user hasn't manually navigated)
+  React.useEffect(() => {
+    if (!hasManuallyNavigated && leagueData.currentWeek && leagueData.currentWeek !== selectedWeek) {
+      setSelectedWeek(leagueData.currentWeek);
+    }
+  }, [leagueData.currentWeek, hasManuallyNavigated, selectedWeek]);
 
   // Initialize lineups state with existing data
   React.useEffect(() => {
@@ -184,6 +195,7 @@ const SetLineups: React.FC = () => {
                 value={selectedWeek}
                 onChange={(e) => {
                   setSelectedWeek(Number(e.target.value));
+                  setHasManuallyNavigated(true);
                 }}
                 className="bg-gray-700 text-white rounded px-2 py-1 text-sm focus-ring"
               >
