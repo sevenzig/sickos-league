@@ -221,7 +221,7 @@ const Home: React.FC = () => {
       {/* Matchups - Top row with 4 columns */}
       <div className="space-y-6">
         {weekMatchups.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 xl:gap-6">
             {weekMatchups.map((matchup, index) => {
               const { team1Score, team2Score, team1Breakdown, team2Breakdown } = calculateMatchupScore(matchup, leagueData.lineups);
               const csvData = getWeeklyCSVData(selectedWeek);
@@ -230,29 +230,47 @@ const Home: React.FC = () => {
               return (
                 <div 
                   key={index} 
-                  className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-6 cursor-pointer hover:bg-slate-700/20 hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] hover:scale-[1.02] transition-all duration-200"
+                  className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-5 lg:p-4 xl:p-6 cursor-pointer hover:bg-slate-700/20 hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] hover:scale-[1.02] transition-all duration-200"
                   onClick={() => openMatchupModal(matchup, selectedWeek)}
                 >
-                  {/* Row 1: User 1 vs User 2 */}
-                  <div className="flex items-center justify-center mb-6">
-                    <TeamLogo teamName={matchup.team1} size="md" showName={true} />
-                    <div className="mx-6 text-slate-400 text-lg font-bold tracking-tight">VS</div>
-                    <TeamLogo teamName={matchup.team2} size="md" showName={true} />
+                  {/* Row 1: Player Names */}
+                  <div className="flex items-center justify-center mb-3 lg:mb-2 xl:mb-4">
+                    <TeamLogo teamName={matchup.team1} size="md" showName={true} className="lg:text-xs xl:text-sm" />
+                    <div className="mx-4 lg:mx-3 xl:mx-6 text-slate-400 text-base lg:text-sm xl:text-lg font-bold tracking-tight">VS</div>
+                    <TeamLogo teamName={matchup.team2} size="md" showName={true} className="lg:text-xs xl:text-sm" />
                   </div>
 
-                  {/* Row 2: Team cards and total scores */}
-                  <div className="flex items-center justify-between mb-6">
-                    {/* User 1 teams */}
-                    <div className="flex items-center gap-2">
+                  {/* Row 2: Subtotal Scores */}
+                  <div className="flex items-center justify-around mb-3 lg:mb-2 xl:mb-4">
+                    {/* Team 1 Subtotal */}
+                    <div className={`text-xl lg:text-lg xl:text-2xl font-black text-center tabular-nums ${
+                      hasData && team1Score > team2Score ? 'text-emerald-400' : 
+                      hasData && team1Score < team2Score ? 'text-rose-400' : 'text-slate-200'
+                    } ${hasData && team1Score < 0 ? 'text-rose-400' : ''}`}>{team1Score}</div>
+                    
+                    {/* Team 2 Subtotal */}
+                    <div className={`text-xl lg:text-lg xl:text-2xl font-black text-center tabular-nums ${
+                      hasData && team2Score > team1Score ? 'text-emerald-400' : 
+                      hasData && team2Score < team1Score ? 'text-rose-400' : 'text-slate-200'
+                    } ${hasData && team2Score < 0 ? 'text-rose-400' : ''}`}>{team2Score}</div>
+                  </div>
+
+                  {/* Row 3: Team QB cards - Centered flow with divider */}
+                  <div className="flex items-center justify-around mb-4 lg:mb-3 xl:mb-6">
+                    {/* P1 Teams */}
+                    <div className="flex items-center gap-3 lg:gap-2 xl:gap-4">
                       {hasData ? (
-                        team1Breakdown.map(({ qb, breakdown }) => (
+                        team1Breakdown.map(({ qb, breakdown }, index) => (
                           <div 
                             key={qb} 
-                            className="w-16 h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
+                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
                             title={`${qb} - ${breakdown.finalScore} points`}
                           >
-                            <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                            <span className="text-xs font-bold text-emerald-400 tabular-nums">{breakdown.finalScore}</span>
+                            <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
+                            <span className={`text-xs lg:text-[10px] xl:text-xs font-bold tabular-nums ${
+                              breakdown.finalScore > 0 ? 'text-emerald-400' : 
+                              breakdown.finalScore < 0 ? 'text-rose-400' : 'text-slate-400'
+                            }`}>{breakdown.finalScore}</span>
                             
                             {/* Enhanced tooltip with scoring breakdown */}
                             <div 
@@ -315,58 +333,48 @@ const Home: React.FC = () => {
                         ))
                       ) : team1Breakdown.length > 0 ? (
                         // Show actual QB logos when lineups are set but no CSV data
-                        <div className="flex gap-2">
-                          {team1Breakdown.map(({ qb }, index) => (
-                            <div 
-                              key={index}
-                              className="w-16 h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
-                              title="Scores not available yet"
-                            >
-                              <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                              <span className="text-xs text-slate-500">--</span>
-                            </div>
-                          ))}
-                        </div>
+                        team1Breakdown.map(({ qb }, index) => (
+                          <div 
+                            key={index}
+                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
+                            title="Scores not available yet"
+                          >
+                            <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
+                            <span className="text-xs lg:text-[10px] xl:text-xs text-slate-500">--</span>
+                          </div>
+                        ))
                       ) : (
-                        // Show empty placeholder squares when no lineups are set (2 QBs per team)
-                        <div className="flex space-x-2">
-                          {[1, 2].map((_, index) => (
-                            <div 
-                              key={index}
-                              className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
-                              title="Lineup not set yet"
-                            >
-                              <div className="text-gray-400 text-xs">?</div>
-                              <span className="text-xs text-gray-400">--</span>
-                            </div>
-                          ))}
-                        </div>
+                        // Show empty placeholder squares when no lineups are set (2 QBs for P1)
+                        [1, 2].map((_, index) => (
+                          <div 
+                            key={index}
+                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
+                            title="Lineup not set yet"
+                          >
+                            <div className="text-gray-400 text-xs lg:text-[10px] xl:text-xs">?</div>
+                            <span className="text-xs lg:text-[10px] xl:text-xs text-gray-400">--</span>
+                          </div>
+                        ))
                       )}
                     </div>
-
-                    {/* Total scores in center */}
-                    <div className="flex items-center gap-6">
-                      <div className={`text-3xl font-black text-center min-w-[70px] tabular-nums ${
-                        hasData && team1Score > team2Score ? 'text-emerald-400' : 
-                        hasData && team1Score < team2Score ? 'text-rose-400' : 'text-slate-200'
-                      }`}>{team1Score}</div>
-                      <div className={`text-3xl font-black text-center min-w-[70px] tabular-nums ${
-                        hasData && team2Score > team1Score ? 'text-emerald-400' : 
-                        hasData && team2Score < team1Score ? 'text-rose-400' : 'text-slate-200'
-                      }`}>{team2Score}</div>
-                    </div>
-
-                    {/* User 2 teams */}
-                    <div className="flex items-center gap-2">
+                    
+                    {/* Divider between P1 and P2 teams */}
+                    <div className="w-px h-12 lg:h-10 xl:h-12 bg-slate-700/50 mx-2"></div>
+                    
+                    {/* P2 Teams */}
+                    <div className="flex items-center gap-3 lg:gap-2 xl:gap-4">
                       {hasData ? (
                         team2Breakdown.map(({ qb, breakdown }) => (
                           <div 
                             key={qb} 
-                            className="w-16 h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
+                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
                             title={`${qb} - ${breakdown.finalScore} points`}
                           >
-                            <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                            <span className="text-xs font-bold text-emerald-400 tabular-nums">{breakdown.finalScore}</span>
+                            <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
+                            <span className={`text-xs lg:text-[10px] xl:text-xs font-bold tabular-nums ${
+                              breakdown.finalScore > 0 ? 'text-emerald-400' : 
+                              breakdown.finalScore < 0 ? 'text-rose-400' : 'text-slate-400'
+                            }`}>{breakdown.finalScore}</span>
                             
                             {/* Enhanced tooltip with scoring breakdown */}
                             <div 
@@ -429,40 +437,36 @@ const Home: React.FC = () => {
                         ))
                       ) : team2Breakdown.length > 0 ? (
                         // Show actual QB logos when lineups are set but no CSV data
-                        <div className="flex gap-2">
-                          {team2Breakdown.map(({ qb }, index) => (
-                            <div 
-                              key={index}
-                              className="w-16 h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
-                              title="Scores not available yet"
-                            >
-                              <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                              <span className="text-xs text-slate-500">--</span>
-                            </div>
-                          ))}
-                        </div>
+                        team2Breakdown.map(({ qb }, index) => (
+                          <div 
+                            key={index}
+                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
+                            title="Scores not available yet"
+                          >
+                            <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
+                            <span className="text-xs lg:text-[10px] xl:text-xs text-slate-500">--</span>
+                          </div>
+                        ))
                       ) : (
-                        // Show empty placeholder squares when no lineups are set (2 QBs per team)
-                        <div className="flex space-x-2">
-                          {[1, 2].map((_, index) => (
-                            <div 
-                              key={index}
-                              className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
-                              title="Lineup not set yet"
-                            >
-                              <div className="text-gray-400 text-xs">?</div>
-                              <span className="text-xs text-gray-400">--</span>
-                            </div>
-                          ))}
-                        </div>
+                        // Show empty placeholder squares when no lineups are set (2 QBs for P2)
+                        [1, 2].map((_, index) => (
+                          <div 
+                            key={index}
+                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
+                            title="Lineup not set yet"
+                          >
+                            <div className="text-gray-400 text-xs lg:text-[10px] xl:text-xs">?</div>
+                            <span className="text-xs lg:text-[10px] xl:text-xs text-gray-400">--</span>
+                          </div>
+                        ))
                       )}
                     </div>
                   </div>
 
-                  {/* Row 3: Winner */}
+                  {/* Row 4: Winner - Centered */}
                   {hasData && team1Score !== team2Score && (
-                    <div className="text-center">
-                      <span className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-sm font-bold uppercase tracking-wider">
+                    <div className="flex items-center justify-center">
+                      <span className="inline-flex items-center gap-2 px-3 py-1.5 lg:px-2 lg:py-1 xl:px-4 xl:py-2 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-xs lg:text-[10px] xl:text-sm font-bold uppercase tracking-wider">
                         Winner: {team1Score > team2Score ? matchup.team1 : matchup.team2}
                       </span>
                     </div>
@@ -482,7 +486,7 @@ const Home: React.FC = () => {
       </div>
 
       {/* Bottom row - League Standings and W/L/T Chart side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 xl:gap-8">
         {/* League Standings - Left side (1/3 width) */}
         <div className="space-y-6">
           <h3 className="text-xl font-black text-slate-50 tracking-tight">League Standings</h3>
@@ -517,7 +521,7 @@ const Home: React.FC = () => {
         </div>
 
         {/* Season W/L/T Chart - Right side (2/3 width) */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-xl font-black text-slate-50 tracking-tight">Season W/L/T Chart</h3>
             {/* Legend */}
@@ -541,13 +545,13 @@ const Home: React.FC = () => {
               <table className="w-full min-w-max">
                 <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
                   <tr>
-                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider w-32 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">Team</th>
+                    <th className="px-3 py-3 lg:px-2 lg:py-2 xl:px-4 xl:py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider w-32 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">Team</th>
                     {weeks.map(week => (
-                      <th key={week} className="px-2 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-8">
+                      <th key={week} className="px-2 py-3 lg:px-1 lg:py-2 xl:px-2 xl:py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-8">
                         {week}
                       </th>
                     ))}
-                    <th className="px-4 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-16">Record</th>
+                    <th className="px-4 py-3 lg:px-2 lg:py-2 xl:px-4 xl:py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-16">Record</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/30">
@@ -557,18 +561,18 @@ const Home: React.FC = () => {
                       <tr key={teamName} className={`hover:bg-slate-700/20 transition-colors duration-150 ${
                         teamIndex % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
                       }`}>
-                        <td className="px-4 py-4 text-sm font-medium text-slate-200 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">
-                          <TeamLogo teamName={teamName} size="sm" showName={true} />
+                        <td className="px-3 py-3 lg:px-2 lg:py-2 xl:px-4 xl:py-4 text-sm font-medium text-slate-200 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">
+                          <TeamLogo teamName={teamName} size="sm" showName={true} className="lg:text-xs xl:text-sm" />
                         </td>
                         {weeks.map((week, weekIndex) => {
                           const result = getTeamWeekResult(teamName, week, leagueData.matchups, leagueData.lineups);
                           const matchupDetails = getTeamWeekMatchupDetails(teamName, week, leagueData.matchups, leagueData.lineups);
                           const isNearBottom = teamIndex >= teams.length - 3; // Last 3 rows show tooltip above
                           return (
-                            <td key={week} className="px-2 py-4 text-center">
+                            <td key={week} className="px-2 py-3 lg:py-2 xl:py-4 text-center">
                               {result && (
                                 <div 
-                                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 ${
+                                  className={`w-7 h-7 lg:w-6 lg:h-6 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 ${
                                     result === 'W' 
                                       ? 'bg-emerald-500 text-white hover:bg-emerald-400' 
                                       : result === 'L' 
@@ -588,7 +592,7 @@ const Home: React.FC = () => {
                             </td>
                           );
                         })}
-                        <td className="px-4 py-4 text-center text-sm font-bold text-emerald-400 tabular-nums">{record}</td>
+                        <td className="px-4 py-3 lg:py-2 xl:py-4 text-center text-sm font-bold text-emerald-400 tabular-nums">{record}</td>
                       </tr>
                     );
                   })}

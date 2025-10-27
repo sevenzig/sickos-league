@@ -308,7 +308,7 @@ const SetLineups: React.FC = () => {
       </div>
 
       {/* Team Lineups - Responsive Grid Layout */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 xl:gap-6">
         {leagueData.teams.map(team => {
           const teamLineup = lineups[team.name] || [];
           const isComplete = teamLineup.length === 2;
@@ -320,8 +320,8 @@ const SetLineups: React.FC = () => {
               isLocked ? 'border-emerald-500/50 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.2)]' : ''
             }`}>
               {/* Team Header */}
-              <div className="flex items-center justify-between p-4 border-b border-slate-700/30">
-                <TeamLogo teamName={team.name} size="sm" showName={true} className="text-sm" />
+              <div className="flex items-center justify-between p-3 lg:p-2.5 xl:p-4 border-b border-slate-700/30">
+                <TeamLogo teamName={team.name} size="sm" showName={true} className="text-xs lg:text-[11px] xl:text-sm" />
                 <div className="flex items-center gap-2">
                   {isLocked ? (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
@@ -349,7 +349,7 @@ const SetLineups: React.FC = () => {
               </div>
               
               {/* QB Grid - 2x2 within each team card */}
-              <div className="grid grid-cols-2 gap-3 flex-1 p-4">
+              <div className="grid grid-cols-2 gap-2 lg:gap-1.5 xl:gap-3 flex-1 p-3 lg:p-2.5 xl:p-4">
                 {team.rosters.map(qb => {
                   const isSelected = teamLineup.includes(qb);
                   const canSelect = !isSelected && teamLineup.length < 2;
@@ -359,7 +359,7 @@ const SetLineups: React.FC = () => {
                       key={qb}
                       onClick={() => canEdit && handleQBSelection(team.name, qb, !isSelected)}
                       disabled={!canEdit || (!isSelected && !canSelect)}
-                      className={`rounded-lg text-left transition-all duration-200 flex flex-col items-center justify-center w-24 h-24 md:w-32 md:h-32 border ${
+                      className={`rounded-lg text-left transition-all duration-200 flex flex-col items-center justify-center w-24 h-24 md:w-28 md:h-28 lg:w-20 lg:h-20 xl:w-32 xl:h-32 border ${
                         isSelected
                           ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
                           : canSelect
@@ -367,11 +367,11 @@ const SetLineups: React.FC = () => {
                           : 'bg-slate-800/20 text-slate-500 border-slate-700/20 cursor-not-allowed'
                       }`}
                     >
-                      <TeamLogo teamName={qb} size="sm" className="mb-2" />
-                      <span className="text-xs font-medium text-center leading-tight">{qb}</span>
+                      <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0.5 xl:mb-2" />
+                      <span className="text-xs lg:text-[10px] xl:text-xs font-medium text-center leading-tight">{qb}</span>
                       {isSelected && (
-                        <span className="text-emerald-400 text-xs mt-1">
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <span className="text-emerald-400 text-xs lg:text-[10px] xl:text-xs mt-0.5 lg:mt-0 xl:mt-1">
+                          <svg className="w-3 h-3 lg:w-2 lg:h-2 xl:w-3 xl:h-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         </span>
