@@ -130,8 +130,13 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
     };
   };
 
+  // Determine winner for color coding
+  const team1Won = hasData && team1Score > team2Score;
+  const team2Won = hasData && team2Score > team1Score;
+  const isDraw = hasData && team1Score === team2Score;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center md:p-8">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -139,10 +144,10 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-[1400px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-slate-700/50">
+      <div className="relative w-full max-w-[1400px] max-h-[90vh] md:max-h-[90vh] h-full md:h-auto overflow-y-auto bg-gradient-to-b from-slate-800/90 to-slate-900/90 backdrop-blur-xl md:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] md:border border-slate-700/50">
         
         {/* Header with gradient accent */}
-        <div className="relative bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-8 py-5 border-b border-slate-600/30">
+        <div className="relative bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-4 md:px-8 py-5 border-b border-slate-600/30">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-blue-500/5"></div>
           <div className="relative flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -241,51 +246,52 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
         </div>
 
         {/* Main Stats Table */}
-        <div className="px-8 py-8">
+        <div className="px-2 md:px-8 py-4 md:py-8">
           <div className="rounded-2xl border border-slate-700/50 overflow-hidden bg-slate-800/40 backdrop-blur-sm">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   {/* Owner Header Row */}
                   <tr className="bg-gradient-to-r from-slate-800 to-slate-800/80">
-                    <th className="py-3 px-6 text-left text-xs font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800 z-10">
+                    <th className="py-3 px-3 md:px-6 text-left text-xs font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800 z-10">
                       {/* Empty cell for statistic column */}
                     </th>
                     {team1Breakdown.length > 0 && (
-                      <th colSpan={team1Breakdown.length} className="py-3 px-4 text-center border-l-4 border-blue-500 bg-blue-500/10">
+                      <th colSpan={team1Breakdown.length} className={`py-3 px-2 md:px-4 text-center border-l-4 w-1/2 ${
+                        team1Won ? 'border-emerald-500 bg-emerald-500/10' : team2Won ? 'border-red-500 bg-red-500/10' : 'border-blue-500 bg-blue-500/10'
+                      }`}>
                         <div className="flex items-center justify-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                          <span className="text-sm font-bold text-slate-100">{team1}</span>
+                          <TeamLogo teamName={team1} size="xs" />
+                          <span className="text-xs md:text-sm font-bold text-slate-100 hidden md:inline">{team1}</span>
                         </div>
                       </th>
                     )}
-                    {team2Breakdown.length > 0 && team1Breakdown.length > 0 && (
-                      <th className="py-3 px-3 border-l-4 border-slate-600/30">
-                        <div className="text-xs font-bold text-slate-500 uppercase">VS</div>
-                      </th>
-                    )}
                     {team2Breakdown.length > 0 && (
-                      <th colSpan={team2Breakdown.length} className="py-3 px-4 text-center border-r-4 border-purple-500 bg-purple-500/10">
+                      <th colSpan={team2Breakdown.length} className={`py-3 px-2 md:px-4 text-center border-r-4 w-1/2 ${
+                        team2Won ? 'border-emerald-500 bg-emerald-500/10' : team1Won ? 'border-red-500 bg-red-500/10' : 'border-purple-500 bg-purple-500/10'
+                      }`}>
                         <div className="flex items-center justify-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                          <span className="text-sm font-bold text-slate-100">{team2}</span>
+                          <TeamLogo teamName={team2} size="xs" />
+                          <span className="text-xs md:text-sm font-bold text-slate-100 hidden md:inline">{team2}</span>
                         </div>
                       </th>
                     )}
                   </tr>
                   {/* QB Header Row */}
                   <tr className="bg-gradient-to-r from-slate-800 to-slate-800/80 border-t border-slate-700/30">
-                    <th className="py-4 px-6 text-left text-xs font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800 z-10">
+                    <th className="py-4 px-3 md:px-6 text-left text-xs font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800 z-10">
                       Statistic
                     </th>
                     {team1Breakdown.map(({ qb, breakdown }, index) => (
-                      <th key={`team1-${index}`} className="py-4 px-4 text-center border-l border-slate-700/30 bg-blue-500/5">
+                      <th key={`team1-${index}`} className={`py-4 px-2 md:px-4 text-center border-l border-slate-700/30 w-1/4 ${
+                        team1Won ? 'bg-emerald-500/5' : team2Won ? 'bg-red-500/5' : 'bg-blue-500/5'
+                      }`}>
                         <div className="flex flex-col items-center gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 md:gap-2">
                             <TeamLogo teamName={qb} size="xs" />
-                            <span className="text-sm font-bold text-slate-200">{qb}</span>
+                            <span className="text-xs md:text-sm font-bold text-slate-200 hidden md:inline">{qb}</span>
                           </div>
-                          <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
+                          <div className={`inline-flex items-center gap-1 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-bold ${
                             breakdown && breakdown.finalScore > 0 
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                               : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
@@ -295,19 +301,16 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                         </div>
                       </th>
                     ))}
-                    {team1Breakdown.length > 0 && team2Breakdown.length > 0 && (
-                      <th className="py-4 px-3 border-x-2 border-slate-600/50 sticky bg-slate-800 z-10">
-                        {/* Separator column */}
-                      </th>
-                    )}
                     {team2Breakdown.map(({ qb, breakdown }, index) => (
-                      <th key={`team2-${index}`} className="py-4 px-4 text-center border-l border-slate-700/30 bg-purple-500/5">
+                      <th key={`team2-${index}`} className={`py-4 px-2 md:px-4 text-center border-l border-slate-700/30 w-1/4 ${
+                        team2Won ? 'bg-emerald-500/5' : team1Won ? 'bg-red-500/5' : 'bg-purple-500/5'
+                      }`}>
                         <div className="flex flex-col items-center gap-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 md:gap-2">
                             <TeamLogo teamName={qb} size="xs" />
-                            <span className="text-sm font-bold text-slate-200">{qb}</span>
+                            <span className="text-xs md:text-sm font-bold text-slate-200 hidden md:inline">{qb}</span>
                           </div>
-                          <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
+                          <div className={`inline-flex items-center gap-1 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-bold ${
                             breakdown && breakdown.finalScore > 0 
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                               : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
@@ -327,15 +330,17 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                         idx % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
                       }`}
                     >
-                      <td className="py-2 px-6 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">
+                      <td className="py-2 px-3 md:px-6 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-slate-300">{category.label}</span>
+                          <span className="text-xs md:text-sm font-medium text-slate-300">{category.label}</span>
                         </div>
                       </td>
                       {team1Breakdown.map(({ qb, breakdown }, index) => {
                         const stats = getQBStats(breakdown);
                         return (
-                          <td key={`team1-${index}`} className="border-l border-slate-700/30 bg-blue-500/5">
+                          <td key={`team1-${index}`} className={`border-l border-slate-700/30 w-1/4 ${
+                            team1Won ? 'bg-emerald-500/5' : team2Won ? 'bg-red-500/5' : 'bg-blue-500/5'
+                          }`}>
                             <StatCell 
                               value={stats[category.key as keyof QBStatsDisplay]?.value}
                               points={stats[category.key as keyof QBStatsDisplay]?.points || 0}
@@ -343,15 +348,12 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                           </td>
                         );
                       })}
-                      {team1Breakdown.length > 0 && team2Breakdown.length > 0 && (
-                        <td className="border-x-2 border-slate-600/50 bg-slate-800 z-10">
-                          {/* Separator column */}
-                        </td>
-                      )}
                       {team2Breakdown.map(({ qb, breakdown }, index) => {
                         const stats = getQBStats(breakdown);
                         return (
-                          <td key={`team2-${index}`} className="border-l border-slate-700/30 bg-purple-500/5">
+                          <td key={`team2-${index}`} className={`border-l border-slate-700/30 w-1/4 ${
+                            team2Won ? 'bg-emerald-500/5' : team1Won ? 'bg-red-500/5' : 'bg-purple-500/5'
+                          }`}>
                             <StatCell 
                               value={stats[category.key as keyof QBStatsDisplay]?.value}
                               points={stats[category.key as keyof QBStatsDisplay]?.points || 0}
@@ -378,44 +380,46 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                   <thead>
                     {/* Owner Header Row */}
                     <tr className="border-b border-slate-700/30 bg-slate-800/20">
-                      <th className="py-3 px-6 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      <th className="py-3 px-3 md:px-6 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
                         {/* Empty cell for event type column */}
                       </th>
                       {team1Breakdown.length > 0 && (
-                        <th colSpan={team1Breakdown.length} className="py-3 px-4 text-center border-l-4 border-blue-500 bg-blue-500/10">
+                        <th colSpan={team1Breakdown.length} className={`py-3 px-2 md:px-4 text-center border-l-4 w-1/2 ${
+                          team1Won ? 'border-emerald-500 bg-emerald-500/10' : team2Won ? 'border-red-500 bg-red-500/10' : 'border-blue-500 bg-blue-500/10'
+                        }`}>
                           <div className="flex items-center justify-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                            <span className="text-xs font-bold text-slate-100">{team1}</span>
+                            <TeamLogo teamName={team1} size="xs" />
+                            <span className="text-xs font-bold text-slate-100 hidden md:inline">{team1}</span>
                           </div>
                         </th>
                       )}
-                      {team2Breakdown.length > 0 && team1Breakdown.length > 0 && (
-                        <th className="py-3 px-3 border-l-4 border-slate-600/30">
-                          <div className="text-xs font-bold text-slate-500 uppercase">VS</div>
-                        </th>
-                      )}
                       {team2Breakdown.length > 0 && (
-                        <th colSpan={team2Breakdown.length} className="py-3 px-4 text-center border-r-4 border-purple-500 bg-purple-500/10">
+                        <th colSpan={team2Breakdown.length} className={`py-3 px-2 md:px-4 text-center border-r-4 w-1/2 ${
+                          team2Won ? 'border-emerald-500 bg-emerald-500/10' : team1Won ? 'border-red-500 bg-red-500/10' : 'border-purple-500 bg-purple-500/10'
+                        }`}>
                           <div className="flex items-center justify-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                            <span className="text-xs font-bold text-slate-100">{team2}</span>
+                            <TeamLogo teamName={team2} size="xs" />
+                            <span className="text-xs font-bold text-slate-100 hidden md:inline">{team2}</span>
                           </div>
                         </th>
                       )}
                     </tr>
                     {/* QB Header Row */}
                     <tr className="border-b border-slate-700/30 bg-slate-800/20">
-                      <th className="py-3 px-6 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Event Type</th>
+                      <th className="py-3 px-3 md:px-6 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Event Type</th>
                       {team1Breakdown.map(({ qb }, index) => (
-                        <th key={`team1-${index}`} className="py-3 px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30 bg-blue-500/5">{qb}</th>
-                      ))}
-                      {team1Breakdown.length > 0 && team2Breakdown.length > 0 && (
-                        <th className="py-3 px-3 border-x-2 border-slate-600/50">
-                          {/* Separator column */}
+                        <th key={`team1-${index}`} className={`py-3 px-2 md:px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30 w-1/4 ${
+                          team1Won ? 'bg-emerald-500/5' : team2Won ? 'bg-red-500/5' : 'bg-blue-500/5'
+                        }`}>
+                          <TeamLogo teamName={qb} size="xs" />
                         </th>
-                      )}
+                      ))}
                       {team2Breakdown.map(({ qb }, index) => (
-                        <th key={`team2-${index}`} className="py-3 px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30 bg-purple-500/5">{qb}</th>
+                        <th key={`team2-${index}`} className={`py-3 px-2 md:px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30 w-1/4 ${
+                          team2Won ? 'bg-emerald-500/5' : team1Won ? 'bg-red-500/5' : 'bg-purple-500/5'
+                        }`}>
+                          <TeamLogo teamName={qb} size="xs" />
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -436,13 +440,15 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                             idx % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
                           }`}
                         >
-                          <td className="py-4 px-6 sticky left-0 bg-slate-800/95 backdrop-blur-sm">
-                            <span className="text-sm font-medium text-slate-300">{eventType}</span>
+                          <td className="py-4 px-3 md:px-6 sticky left-0 bg-slate-800/95 backdrop-blur-sm">
+                            <span className="text-xs md:text-sm font-medium text-slate-300">{eventType}</span>
                           </td>
                           {team1Breakdown.map(({ qb, breakdown }, teamIdx) => {
                             if (!breakdown) {
                               return (
-                                <td key={teamIdx} className="py-4 px-4 border-l border-slate-700/30 bg-blue-500/5">
+                                <td key={teamIdx} className={`py-4 px-2 md:px-4 border-l border-slate-700/30 w-1/4 ${
+                                  team1Won ? 'bg-emerald-500/5' : team2Won ? 'bg-red-500/5' : 'bg-blue-500/5'
+                                }`}>
                                   <span className="text-slate-600 text-xs">—</span>
                                 </td>
                               );
@@ -462,10 +468,12 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                             })() : 0;
                             
                             return (
-                              <td key={teamIdx} className="py-4 px-4 border-l border-slate-700/30 bg-blue-500/5">
+                              <td key={teamIdx} className={`py-4 px-2 md:px-4 border-l border-slate-700/30 w-1/4 ${
+                                team1Won ? 'bg-emerald-500/5' : team2Won ? 'bg-red-500/5' : 'bg-blue-500/5'
+                              }`}>
                                 {eventCount > 0 ? (
                                   <div className="flex flex-col items-center gap-1">
-                                    <span className="text-base font-semibold text-slate-100 tabular-nums">×{eventCount}</span>
+                                    <span className="text-sm md:text-base font-semibold text-slate-100 tabular-nums">×{eventCount}</span>
                                     <PointsDisplay points={eventPoints} />
                                   </div>
                                 ) : (
@@ -474,15 +482,12 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                               </td>
                             );
                           })}
-                          {team1Breakdown.length > 0 && team2Breakdown.length > 0 && (
-                            <td className="py-4 px-3 border-x-2 border-slate-600/50 bg-slate-800 z-10">
-                              {/* Separator column */}
-                            </td>
-                          )}
                           {team2Breakdown.map(({ qb, breakdown }, teamIdx) => {
                             if (!breakdown) {
                               return (
-                                <td key={`team2-${teamIdx}`} className="py-4 px-4 border-l border-slate-700/30 bg-purple-500/5">
+                                <td key={`team2-${teamIdx}`} className={`py-4 px-2 md:px-4 border-l border-slate-700/30 w-1/4 ${
+                                  team2Won ? 'bg-emerald-500/5' : team1Won ? 'bg-red-500/5' : 'bg-purple-500/5'
+                                }`}>
                                   <span className="text-slate-600 text-xs">—</span>
                                 </td>
                               );
@@ -502,10 +507,12 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                             })() : 0;
                             
                             return (
-                              <td key={`team2-${teamIdx}`} className="py-4 px-4 border-l border-slate-700/30 bg-purple-500/5">
+                              <td key={`team2-${teamIdx}`} className={`py-4 px-2 md:px-4 border-l border-slate-700/30 w-1/4 ${
+                                team2Won ? 'bg-emerald-500/5' : team1Won ? 'bg-red-500/5' : 'bg-purple-500/5'
+                              }`}>
                                 {eventCount > 0 ? (
                                   <div className="flex flex-col items-center gap-1">
-                                    <span className="text-base font-semibold text-slate-100 tabular-nums">×{eventCount}</span>
+                                    <span className="text-sm md:text-base font-semibold text-slate-100 tabular-nums">×{eventCount}</span>
                                     <PointsDisplay points={eventPoints} />
                                   </div>
                                 ) : (
