@@ -40,13 +40,18 @@ const SetLineups: React.FC = () => {
       return;
     }
 
-    // Save the lineup first
-    await setLineup(teamName, selectedWeek, teamLineup);
-    
-    // Then lock it
-    await lockTeamLineup(teamName, selectedWeek);
-    
-    alert(`${teamName} lineup locked successfully!`);
+    try {
+      // Save the lineup first
+      await setLineup(teamName, selectedWeek, teamLineup);
+      
+      // Then lock it
+      await lockTeamLineup(teamName, selectedWeek);
+      
+      alert(`${teamName} lineup locked successfully!`);
+    } catch (error) {
+      console.error('Failed to lock team lineup:', error);
+      alert(`Failed to lock ${teamName} lineup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const finalizeWeeklyLineups = async () => {
@@ -77,27 +82,49 @@ const SetLineups: React.FC = () => {
       return;
     }
 
-    // Save and lock all unlocked lineups
-    for (const teamName of unlockedTeams) {
-      const teamLineup = lineups[teamName] || [];
-      await setLineup(teamName, selectedWeek, teamLineup);
-      await lockTeamLineup(teamName, selectedWeek);
-    }
+    try {
+      // Save and lock all unlocked lineups
+      for (const teamName of unlockedTeams) {
+        const teamLineup = lineups[teamName] || [];
+        await setLineup(teamName, selectedWeek, teamLineup);
+        await lockTeamLineup(teamName, selectedWeek);
+      }
 
-    // Lock the week globally
-    await lockWeek(selectedWeek);
-    alert(`All ${unlockedTeams.length} remaining lineups locked and week finalized!`);
+      // Lock the week globally
+      await lockWeek(selectedWeek);
+      alert(`All ${unlockedTeams.length} remaining lineups locked and week finalized!`);
+    } catch (error) {
+      console.error('Failed to finalize weekly lineups:', error);
+      alert(`Failed to finalize lineups: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const saveLineups = async () => {
-    // Save all current lineup selections without locking them
-    for (const teamName of leagueData.teams.map(team => team.name)) {
-      const teamLineup = lineups[teamName] || [];
-      if (teamLineup.length === 2) {
-        await setLineup(teamName, selectedWeek, teamLineup);
+    const failedTeams: string[] = [];
+    
+    try {
+      // Save all current lineup selections without locking them
+      for (const teamName of leagueData.teams.map(team => team.name)) {
+        const teamLineup = lineups[teamName] || [];
+        if (teamLineup.length === 2) {
+          try {
+            await setLineup(teamName, selectedWeek, teamLineup);
+          } catch (error) {
+            console.error(`Failed to save ${teamName} lineup:`, error);
+            failedTeams.push(teamName);
+          }
+        }
       }
+      
+      if (failedTeams.length > 0) {
+        alert(`Failed to save lineups for: ${failedTeams.join(', ')}`);
+      } else {
+        alert('Lineups saved successfully!');
+      }
+    } catch (error) {
+      console.error('Failed to save lineups:', error);
+      alert(`Failed to save lineups: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    alert('Lineups saved successfully!');
   };
 
   const canEditWeek = selectedWeek >= leagueData.currentWeek && !isWeekLocked(selectedWeek);

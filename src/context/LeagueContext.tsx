@@ -180,32 +180,56 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   };
 
   const setLineup = async (teamName: string, week: number, activeQBs: string[]) => {
-    // Update local state immediately
-    setLeagueData(prev => {
-      const existingLineupIndex = prev.lineups.findIndex(
-        lineup => lineup.teamName === teamName && lineup.week === week
-      );
-
-      const newLineup = { teamName, week, activeQBs };
-
-      let newLineups;
-      if (existingLineupIndex >= 0) {
-        newLineups = [...prev.lineups];
-        newLineups[existingLineupIndex] = newLineup;
-      } else {
-        newLineups = [...prev.lineups, newLineup];
-      }
-
-      return { ...prev, lineups: newLineups };
-    });
-
-    // Try to sync to database
+    // Try to sync to database first
     if (isOnlineState) {
       try {
         await saveLineup(teamName, week, activeQBs);
+        
+        // Only update local state after successful database save
+        setLeagueData(prev => {
+          const existingLineupIndex = prev.lineups.findIndex(
+            lineup => lineup.teamName === teamName && lineup.week === week
+          );
+
+          const newLineup = { teamName, week, activeQBs };
+
+          let newLineups;
+          if (existingLineupIndex >= 0) {
+            newLineups = [...prev.lineups];
+            newLineups[existingLineupIndex] = newLineup;
+          } else {
+            newLineups = [...prev.lineups, newLineup];
+          }
+
+          return { ...prev, lineups: newLineups };
+        });
       } catch (error) {
-        console.warn('Failed to sync lineup to database:', error);
+        console.error('Failed to save lineup to database:', error);
+        throw new Error(`Failed to save ${teamName} lineup for week ${week}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    } else {
+      // Offline mode - save to localStorage only
+      console.warn('Offline mode: Saving lineup locally only');
+      setLeagueData(prev => {
+        const existingLineupIndex = prev.lineups.findIndex(
+          lineup => lineup.teamName === teamName && lineup.week === week
+        );
+
+        const newLineup = { teamName, week, activeQBs };
+
+        let newLineups;
+        if (existingLineupIndex >= 0) {
+          newLineups = [...prev.lineups];
+          newLineups[existingLineupIndex] = newLineup;
+        } else {
+          newLineups = [...prev.lineups, newLineup];
+        }
+
+        return { ...prev, lineups: newLineups };
+      });
+      
+      // Save to localStorage for offline access
+      saveLeagueData(leagueData);
     }
   };
 
@@ -272,33 +296,58 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   };
 
   const lockTeamLineup = async (teamName: string, week: number) => {
-    // Update local state immediately
-    setLeagueData(prev => {
-      const lineupIndex = prev.lineups.findIndex(
-        lineup => lineup.teamName === teamName && lineup.week === week
-      );
-
-      let newLineups;
-      if (lineupIndex >= 0) {
-        // Update existing lineup
-        newLineups = [...prev.lineups];
-        newLineups[lineupIndex] = { ...newLineups[lineupIndex], isLocked: true };
-      } else {
-        // Create new lineup entry (this shouldn't happen if setLineup was called first)
-        console.warn(`No lineup found for ${teamName} week ${week} when trying to lock`);
-        return prev;
-      }
-
-      return { ...prev, lineups: newLineups };
-    });
-
-    // Try to sync to database
+    // Try to sync to database first
     if (isOnlineState) {
       try {
         await lockTeamLineupDB(teamName, week);
+        
+        // Only update local state after successful database save
+        setLeagueData(prev => {
+          const lineupIndex = prev.lineups.findIndex(
+            lineup => lineup.teamName === teamName && lineup.week === week
+          );
+
+          let newLineups;
+          if (lineupIndex >= 0) {
+            // Update existing lineup
+            newLineups = [...prev.lineups];
+            newLineups[lineupIndex] = { ...newLineups[lineupIndex], isLocked: true };
+          } else {
+            // Create new lineup entry (this shouldn't happen if setLineup was called first)
+            console.warn(`No lineup found for ${teamName} week ${week} when trying to lock`);
+            return prev;
+          }
+
+          return { ...prev, lineups: newLineups };
+        });
       } catch (error) {
-        console.warn('Failed to sync team lineup lock to database:', error);
+        console.error('Failed to lock team lineup in database:', error);
+        throw new Error(`Failed to lock ${teamName} lineup for week ${week}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    } else {
+      // Offline mode - update local state only
+      console.warn('Offline mode: Locking lineup locally only');
+      setLeagueData(prev => {
+        const lineupIndex = prev.lineups.findIndex(
+          lineup => lineup.teamName === teamName && lineup.week === week
+        );
+
+        let newLineups;
+        if (lineupIndex >= 0) {
+          // Update existing lineup
+          newLineups = [...prev.lineups];
+          newLineups[lineupIndex] = { ...newLineups[lineupIndex], isLocked: true };
+        } else {
+          // Create new lineup entry (this shouldn't happen if setLineup was called first)
+          console.warn(`No lineup found for ${teamName} week ${week} when trying to lock`);
+          return prev;
+        }
+
+        return { ...prev, lineups: newLineups };
+      });
+      
+      // Save to localStorage for offline access
+      saveLeagueData(leagueData);
     }
   };
 
@@ -310,19 +359,30 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
   };
 
   const lockWeek = async (week: number) => {
-    // Update local state immediately
-    setLeagueData(prev => ({
-      ...prev,
-      lockedWeeks: [...new Set([...prev.lockedWeeks, week])]
-    }));
-
-    // Try to sync to database
+    // Try to sync to database first
     if (isOnlineState) {
       try {
         await lockWeekDB(week);
+        
+        // Only update local state after successful database save
+        setLeagueData(prev => ({
+          ...prev,
+          lockedWeeks: [...new Set([...prev.lockedWeeks, week])]
+        }));
       } catch (error) {
-        console.warn('Failed to sync locked week to database:', error);
+        console.error('Failed to lock week in database:', error);
+        throw new Error(`Failed to lock week ${week}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    } else {
+      // Offline mode - update local state only
+      console.warn('Offline mode: Locking week locally only');
+      setLeagueData(prev => ({
+        ...prev,
+        lockedWeeks: [...new Set([...prev.lockedWeeks, week])]
+      }));
+      
+      // Save to localStorage for offline access
+      saveLeagueData(leagueData);
     }
   };
 
