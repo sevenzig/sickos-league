@@ -22,26 +22,69 @@ interface MatchupModalProps {
   } | null;
 }
 
+// Helper component for displaying points with icons
+const PointsDisplay = ({ points }: { points: number }) => {
+  if (points === 0) return <span className="text-slate-500 text-xs font-medium">—</span>;
+  
+  const isPositive = points > 0;
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md text-xs font-bold ${
+      isPositive 
+        ? 'bg-emerald-500/10 text-emerald-400' 
+        : 'bg-rose-500/10 text-rose-400'
+    }`}>
+      {isPositive && (
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+        </svg>
+      )}
+      {!isPositive && points !== 0 && (
+        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+        </svg>
+      )}
+      {points > 0 ? '+' : ''}{points}
+    </span>
+  );
+};
+
+// Helper component for table cells
+const StatCell = ({ value, points }: { value: any; points: number }) => (
+  <div className="flex flex-col items-center gap-1 py-3">
+    <div className="text-base font-semibold text-slate-100 tabular-nums">
+      {value ?? '—'}
+    </div>
+    <PointsDisplay points={points} />
+  </div>
+);
+
 const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupData }) => {
   if (!isOpen || !matchupData) return null;
 
   const { week, team1, team2, team1Score, team2Score, team1Breakdown, team2Breakdown } = matchupData;
   const hasData = team1Breakdown.length > 0 && team1Breakdown[0].breakdown !== null;
 
-  const QBDetailCard: React.FC<{ qb: string; breakdown: any; teamName: string }> = ({ qb, breakdown, teamName }) => {
-    if (!breakdown) {
-      return (
-        <div className="bg-gray-700 rounded-lg p-4 border-2 border-dashed border-gray-500">
-          <div className="flex items-center justify-center mb-2">
-            <TeamLogo teamName={qb} size="md" />
-          </div>
-          <div className="text-center text-gray-400 text-sm">Scores not available yet</div>
-        </div>
-      );
-    }
+  // Define stat categories for the table
+  const statCategories = [
+    { key: 'netPassYards', label: 'Net Pass Yards' },
+    { key: 'touchdowns', label: 'Touchdowns' },
+    { key: 'completionPercent', label: 'Completion %' },
+    { key: 'turnovers', label: 'Turnovers' },
+    { key: 'interceptions', label: 'Interceptions' },
+    { key: 'fumbles', label: 'Fumbles' },
+    { key: 'longestPlay', label: 'Longest Play' },
+    { key: 'rushYards', label: 'Rush Yards' }
+  ];
 
+  // Helper function to get QB stats for table display
+  const getQBStats = (breakdown: any) => {
+    if (!breakdown) return {};
+    
+    // Calculate net pass yards (pass yards - sack yards)
+    const netPassYards = breakdown.passYards + (breakdown.sackYards || 0);
+    
     const scoringBreakdown = getDetailedScoringBreakdown({
-      passYards: breakdown.passYards,
+      passYards: netPassYards,
       touchdowns: breakdown.touchdowns,
       completionPercent: breakdown.completionPercent,
       turnovers: breakdown.turnovers,
@@ -52,209 +95,299 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
       rushYards: breakdown.rushYards
     });
 
-    return (
-      <div className="bg-gray-700 rounded-lg p-4 hover:bg-gray-600 transition-colors">
-        {/* QB Header */}
-        <div className="flex items-center justify-center mb-3">
-          <TeamLogo teamName={qb} size="md" />
-        </div>
-        
-        {/* Total Score */}
-        <div className="text-center mb-4">
-          <div className="text-2xl font-bold text-blue-400">{breakdown.finalScore}</div>
-          <div className="text-xs text-gray-400">Total Points</div>
-        </div>
-
-        {/* Detailed Breakdown */}
-        <div className="space-y-2 text-xs">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-gray-800 p-2 rounded">
-              <div className="text-gray-300">Pass Yards</div>
-              <div className="font-semibold">{breakdown.passYards}</div>
-              <div className="text-blue-400">→ {scoringBreakdown.passYards} pts</div>
-            </div>
-            <div className="bg-gray-800 p-2 rounded">
-              <div className="text-gray-300">Touchdowns</div>
-              <div className="font-semibold">{breakdown.touchdowns}</div>
-              <div className="text-blue-400">→ {scoringBreakdown.touchdowns} pts</div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-gray-800 p-2 rounded">
-              <div className="text-gray-300">Completion %</div>
-              <div className="font-semibold">{breakdown.completionPercent}%</div>
-              <div className="text-blue-400">→ {scoringBreakdown.completionPercent} pts</div>
-            </div>
-            <div className="bg-gray-800 p-2 rounded">
-              <div className="text-gray-300">Turnovers</div>
-              <div className="font-semibold">{breakdown.interceptions + breakdown.fumbles}</div>
-              <div className="text-blue-400">→ {scoringBreakdown.turnovers} pts</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-gray-800 p-2 rounded">
-              <div className="text-gray-300">Interceptions</div>
-              <div className="font-semibold">{breakdown.interceptions}</div>
-              <div className="text-blue-400">→ {scoringBreakdown.interceptions} pts</div>
-            </div>
-            <div className="bg-gray-800 p-2 rounded">
-              <div className="text-gray-300">Fumbles</div>
-              <div className="font-semibold">{breakdown.fumbles}</div>
-              <div className="text-blue-400">→ {scoringBreakdown.fumbles} pts</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-gray-800 p-2 rounded">
-              <div className="text-gray-300">Longest Play</div>
-              <div className="font-semibold">{breakdown.longestPlay}</div>
-              <div className="text-blue-400">→ {scoringBreakdown.longestPlay} pts</div>
-            </div>
-            <div className="bg-gray-800 p-2 rounded">
-              <div className="text-gray-300">Rush Yards</div>
-              <div className="font-semibold">{breakdown.rushYards}</div>
-              <div className="text-blue-400">→ {scoringBreakdown.rushYards} pts</div>
-            </div>
-          </div>
-
-          {/* Special Events */}
-          {(breakdown.defensiveTD > 0 || breakdown.safety > 0 || breakdown.gameEndingFumble > 0 || 
-            breakdown.gameWinningDrive > 0 || breakdown.benching > 0) && (
-            <div className="mt-3 pt-3 border-t border-gray-600">
-              <div className="text-gray-300 text-center mb-2 font-semibold">Special Events</div>
-              <div className="grid grid-cols-2 gap-2">
-                {breakdown.defensiveTD > 0 && (
-                  <div className="bg-gray-800 p-2 rounded">
-                    <div className="text-gray-300">Defensive TD</div>
-                    <div className="font-semibold">{breakdown.defensiveTD}</div>
-                    <div className="text-blue-400">→ {breakdown.defensiveTD * 20} pts</div>
-                  </div>
-                )}
-                {breakdown.safety > 0 && (
-                  <div className="bg-gray-800 p-2 rounded">
-                    <div className="text-gray-300">Safety</div>
-                    <div className="font-semibold">{breakdown.safety}</div>
-                    <div className="text-blue-400">→ {breakdown.safety * 15} pts</div>
-                  </div>
-                )}
-                {breakdown.gameEndingFumble > 0 && (
-                  <div className="bg-gray-800 p-2 rounded">
-                    <div className="text-gray-300">GEF</div>
-                    <div className="font-semibold">{breakdown.gameEndingFumble}</div>
-                    <div className="text-blue-400">→ {breakdown.gameEndingFumble * 50} pts</div>
-                  </div>
-                )}
-                {breakdown.gameWinningDrive > 0 && (
-                  <div className="bg-gray-800 p-2 rounded">
-                    <div className="text-gray-300">GWD</div>
-                    <div className="font-semibold">{breakdown.gameWinningDrive}</div>
-                    <div className="text-blue-400">→ {breakdown.gameWinningDrive * -12} pts</div>
-                  </div>
-                )}
-                {breakdown.benching > 0 && (
-                  <div className="bg-gray-800 p-2 rounded">
-                    <div className="text-gray-300">Benching</div>
-                    <div className="font-semibold">{breakdown.benching}</div>
-                    <div className="text-blue-400">→ {breakdown.benching * 35} pts</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+    return {
+      netPassYards: { value: netPassYards, points: scoringBreakdown.passYards },
+      touchdowns: { value: breakdown.touchdowns, points: scoringBreakdown.touchdowns },
+      completionPercent: { value: `${breakdown.completionPercent}%`, points: scoringBreakdown.completionPercent },
+      turnovers: { value: breakdown.interceptions + breakdown.fumbles, points: scoringBreakdown.turnovers },
+      interceptions: { value: breakdown.interceptions, points: scoringBreakdown.interceptions },
+      fumbles: { value: breakdown.fumbles, points: scoringBreakdown.fumbles },
+      longestPlay: { value: breakdown.longestPlay, points: scoringBreakdown.longestPlay },
+      rushYards: { value: breakdown.rushYards, points: scoringBreakdown.rushYards }
+    };
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
       
       {/* Modal */}
-      <div className="relative bg-dark-card rounded-lg shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto animate-slideIn">
-        {/* Header */}
-        <div className="sticky top-0 bg-dark-card border-b border-gray-600 p-6 rounded-t-lg">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">Week {week} Matchup</h2>
-            <button
+      <div className="relative w-full max-w-[1400px] max-h-[90vh] overflow-y-auto bg-gradient-to-b from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-slate-700/50">
+        
+        {/* Header with gradient accent */}
+        <div className="relative bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-8 py-5 border-b border-slate-600/30">
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-blue-500/5"></div>
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-400/30">
+                <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-50 tracking-tight">Week {week} Matchup</h2>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">Bad QB League</p>
+              </div>
+            </div>
+            <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl font-bold transition-colors"
+              className="group flex items-center justify-center w-9 h-9 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all duration-200"
             >
-              ×
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
-          
-          {/* Team vs Team Header */}
-          <div className="flex items-center justify-center space-x-8">
-            <div className="text-center">
-              <TeamLogo teamName={team1} size="lg" showName={true} />
-            </div>
-            <div className="text-gray-400 text-2xl font-bold">vs</div>
-            <div className="text-center">
-              <TeamLogo teamName={team2} size="lg" showName={true} />
-            </div>
-          </div>
-          
-          {/* Total Scores */}
-          <div className="flex items-center justify-center space-x-8 mt-4">
-            <div className={`text-4xl font-bold ${
-              hasData && team1Score > team2Score ? 'text-green-400' : 
-              hasData && team1Score < team2Score ? 'text-red-400' : 'text-white'
-            }`}>
-              {team1Score}
-            </div>
-            <div className="text-gray-400 text-xl">Final Score</div>
-            <div className={`text-4xl font-bold ${
-              hasData && team2Score > team1Score ? 'text-green-400' : 
-              hasData && team2Score < team1Score ? 'text-red-400' : 'text-white'
-            }`}>
-              {team2Score}
-            </div>
-          </div>
-          
-          {/* Winner */}
-          {hasData && team1Score !== team2Score && (
-            <div className="text-center mt-4">
-              <span className="inline-block px-6 py-2 bg-green-600 text-white rounded-full text-lg font-semibold">
-                Winner: {team1Score > team2Score ? team1 : team2}
-              </span>
-            </div>
-          )}
         </div>
 
-        {/* QB Breakdowns */}
-        <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Team 1 QBs */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-center">
-                <TeamLogo teamName={team1} size="sm" showName={true} />
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {team1Breakdown.map(({ qb, breakdown }, index) => (
-                  <QBDetailCard key={index} qb={qb} breakdown={breakdown} teamName={team1} />
-                ))}
+        {/* Score Comparison Section */}
+        <div className="relative px-8 py-10 bg-gradient-to-b from-slate-800/60 to-slate-800/30">
+          {/* Background decoration */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500 rounded-full blur-3xl"></div>
+            <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-purple-500 rounded-full blur-3xl"></div>
+          </div>
+          
+          <div className="relative flex items-center justify-between max-w-5xl mx-auto">
+            {/* Team 1 */}
+            <div className="flex-1 text-center">
+              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl border-2 mb-3 shadow-lg ${
+                hasData && team1Score > team2Score 
+                  ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 text-emerald-400' 
+                  : 'bg-slate-700/50 border-slate-600/30 text-slate-400'
+              }`}>
+                <TeamLogo teamName={team1} size="sm" />
               </div>
+              <div className="text-lg font-semibold text-slate-200 mb-2 tracking-tight">{team1}</div>
+              <div className="relative inline-block">
+                <div className={`text-6xl md:text-7xl font-black tabular-nums drop-shadow-[0_0_15px_rgba(16,185,129,0.3)] ${
+                  hasData && team1Score > team2Score 
+                    ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 bg-clip-text text-transparent' 
+                    : 'text-slate-400'
+                }`}>
+                  {team1Score}
+                </div>
+                {hasData && team1Score > team2Score && (
+                  <div className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent rounded-full"></div>
+                )}
+              </div>
+              {hasData && team1Score > team2Score && (
+                <div className="mt-2 text-xs text-emerald-400 font-medium tracking-wide uppercase">Winner</div>
+              )}
             </div>
-            
-            {/* Team 2 QBs */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4 text-center">
-                <TeamLogo teamName={team2} size="sm" showName={true} />
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {team2Breakdown.map(({ qb, breakdown }, index) => (
-                  <QBDetailCard key={index} qb={qb} breakdown={breakdown} teamName={team2} />
-                ))}
+
+            {/* VS Divider */}
+            <div className="flex flex-col items-center px-8">
+              <div className="flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/50 shadow-xl">
+                <span className="text-xl font-black text-slate-400">VS</span>
               </div>
+              <div className="mt-4 h-px w-full bg-gradient-to-r from-transparent via-slate-600 to-transparent"></div>
+            </div>
+
+            {/* Team 2 */}
+            <div className="flex-1 text-center">
+              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl border-2 mb-3 shadow-lg ${
+                hasData && team2Score > team1Score 
+                  ? 'bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 text-emerald-400' 
+                  : 'bg-slate-700/50 border-slate-600/30 text-slate-400'
+              }`}>
+                <TeamLogo teamName={team2} size="sm" />
+              </div>
+              <div className="text-lg font-semibold text-slate-200 mb-2 tracking-tight">{team2}</div>
+              <div className="relative inline-block">
+                <div className={`text-6xl md:text-7xl font-black tabular-nums ${
+                  hasData && team2Score > team1Score 
+                    ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
+                    : 'text-slate-400'
+                }`}>
+                  {team2Score}
+                </div>
+                {hasData && team2Score > team1Score && (
+                  <div className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent rounded-full"></div>
+                )}
+              </div>
+              {hasData && team2Score > team1Score && (
+                <div className="mt-2 text-xs text-emerald-400 font-medium tracking-wide uppercase">Winner</div>
+              )}
             </div>
           </div>
+        </div>
+
+        {/* Main Stats Table */}
+        <div className="px-8 py-8">
+          <div className="rounded-2xl border border-slate-700/50 overflow-hidden bg-slate-800/40 backdrop-blur-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gradient-to-r from-slate-800 to-slate-800/80">
+                    <th className="py-4 px-6 text-left text-xs font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800 z-10">
+                      Statistic
+                    </th>
+                    {team1Breakdown.map(({ qb, breakdown }, index) => (
+                      <th key={`team1-${index}`} className="py-4 px-4 text-center border-l border-slate-700/30">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="flex items-center gap-2">
+                            <TeamLogo teamName={qb} size="xs" />
+                            <span className="text-sm font-bold text-slate-200">{qb}</span>
+                          </div>
+                          <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
+                            breakdown && breakdown.finalScore > 0 
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                          }`}>
+                            {breakdown ? breakdown.finalScore : 0} pts
+                          </div>
+                        </div>
+                      </th>
+                    ))}
+                    {team2Breakdown.map(({ qb, breakdown }, index) => (
+                      <th key={`team2-${index}`} className="py-4 px-4 text-center border-l border-slate-700/30">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="flex items-center gap-2">
+                            <TeamLogo teamName={qb} size="xs" />
+                            <span className="text-sm font-bold text-slate-200">{qb}</span>
+                          </div>
+                          <div className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
+                            breakdown && breakdown.finalScore > 0 
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                          }`}>
+                            {breakdown ? breakdown.finalScore : 0} pts
+                          </div>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {statCategories.map((category, idx) => (
+                    <tr 
+                      key={category.key} 
+                      className={`border-t border-slate-700/30 hover:bg-slate-700/20 transition-colors duration-150 ${
+                        idx % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
+                      }`}
+                    >
+                      <td className="py-2 px-6 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-slate-300">{category.label}</span>
+                        </div>
+                      </td>
+                      {team1Breakdown.map(({ qb, breakdown }, index) => {
+                        const stats = getQBStats(breakdown);
+                        return (
+                          <td key={`team1-${index}`} className="border-l border-slate-700/30">
+                            <StatCell 
+                              value={stats[category.key]?.value}
+                              points={stats[category.key]?.points || 0}
+                            />
+                          </td>
+                        );
+                      })}
+                      {team2Breakdown.map(({ qb, breakdown }, index) => {
+                        const stats = getQBStats(breakdown);
+                        return (
+                          <td key={`team2-${index}`} className="border-l border-slate-700/30">
+                            <StatCell 
+                              value={stats[category.key]?.value}
+                              points={stats[category.key]?.points || 0}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Special Events */}
+          {(team1Breakdown.some(({ breakdown }) => breakdown && (breakdown.defensiveTD > 0 || breakdown.safety > 0 || breakdown.gameEndingFumble > 0 || breakdown.gameWinningDrive > 0 || breakdown.benching > 0)) || 
+            team2Breakdown.some(({ breakdown }) => breakdown && (breakdown.defensiveTD > 0 || breakdown.safety > 0 || breakdown.gameEndingFumble > 0 || breakdown.gameWinningDrive > 0 || breakdown.benching > 0))) && (
+            <div className="mt-8 rounded-2xl border border-slate-700/50 overflow-hidden bg-slate-800/40 backdrop-blur-sm">
+              <div className="bg-gradient-to-r from-slate-800 to-slate-800/80 px-6 py-3 border-b border-slate-700/30">
+                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Special Events</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-700/30 bg-slate-800/20">
+                      <th className="py-3 px-6 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Event Type</th>
+                      {team1Breakdown.map(({ qb }, index) => (
+                        <th key={`team1-${index}`} className="py-3 px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30">{qb}</th>
+                      ))}
+                      {team2Breakdown.map(({ qb }, index) => (
+                        <th key={`team2-${index}`} className="py-3 px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30">{qb}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {['Defensive TD', 'Safety', 'Game Ending Fumble', 'Game Winning Drive', 'Benching'].map((eventType, idx) => {
+                      const hasAnyEvents = [...team1Breakdown, ...team2Breakdown].some(({ breakdown }) => {
+                        if (!breakdown) return false;
+                        const eventKey = eventType.toLowerCase().replace(/\s+/g, '');
+                        return breakdown[eventKey] > 0;
+                      });
+                      
+                      if (!hasAnyEvents) return null;
+                      
+                      return (
+                        <tr 
+                          key={idx} 
+                          className={`border-t border-slate-700/30 hover:bg-slate-700/20 transition-colors duration-150 ${
+                            idx % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
+                          }`}
+                        >
+                          <td className="py-4 px-6 sticky left-0 bg-slate-800/95 backdrop-blur-sm">
+                            <span className="text-sm font-medium text-slate-300">{eventType}</span>
+                          </td>
+                          {[...team1Breakdown, ...team2Breakdown].map(({ qb, breakdown }, teamIdx) => {
+                            if (!breakdown) {
+                              return (
+                                <td key={teamIdx} className="py-4 px-4 border-l border-slate-700/30">
+                                  <span className="text-slate-600 text-xs">—</span>
+                                </td>
+                              );
+                            }
+                            
+                            const eventKey = eventType.toLowerCase().replace(/\s+/g, '');
+                            const eventCount = breakdown[eventKey] || 0;
+                            const eventPoints = eventCount > 0 ? (() => {
+                              switch (eventKey) {
+                                case 'defensivetd': return eventCount * 20;
+                                case 'safety': return eventCount * 15;
+                                case 'gameendingfumble': return eventCount * 50;
+                                case 'gamewinningdrive': return eventCount * -12;
+                                case 'benching': return eventCount * 35;
+                                default: return 0;
+                              }
+                            })() : 0;
+                            
+                            return (
+                              <td key={teamIdx} className="py-4 px-4 border-l border-slate-700/30">
+                                {eventCount > 0 ? (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span className="text-base font-semibold text-slate-100 tabular-nums">×{eventCount}</span>
+                                    <PointsDisplay points={eventPoints} />
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-600 text-xs">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
