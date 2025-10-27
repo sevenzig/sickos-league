@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLeagueData } from '../context/LeagueContext';
-import { calculateScore, getScoringBreakdown, SCORING_EVENTS, QBStats } from '../utils/scoring';
+import { calculateScore, getDetailedScoringBreakdown, SCORING_EVENTS, QBStats } from '../utils/scoring';
 import { getWeeklyCSVData, getTeamPerformance } from '../data/scoringData';
 import { parseWeeklyCSV } from '../utils/csvParser';
 import { clearAndReloadData } from '../utils/storage';

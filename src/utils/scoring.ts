@@ -20,6 +20,11 @@ export interface QBStats {
   completionPercent: number;
   turnovers: number;
   events: string[];
+  // Additional stats for complete scoring
+  longestPlay?: number;
+  interceptions?: number;
+  fumbles?: number;
+  rushYards?: number;
 }
 
 /**
@@ -81,6 +86,26 @@ export function calculateScore(stats: QBStats): number {
     score += 50;
   }
 
+  // Individual interceptions scoring (+5 each)
+  if (stats.interceptions) {
+    score += stats.interceptions * 5;
+  }
+
+  // Individual fumbles scoring (+4 each)
+  if (stats.fumbles) {
+    score += stats.fumbles * 4;
+  }
+
+  // No Pass 25+ Yards scoring (+10 if longest play ≤ 25)
+  if (stats.longestPlay !== undefined && stats.longestPlay <= 25) {
+    score += 10;
+  }
+
+  // Rush Yards penalty (-8 if ≥ 75 yards)
+  if (stats.rushYards !== undefined && stats.rushYards >= 75) {
+    score -= 8;
+  }
+
   // Events scoring
   stats.events.forEach(eventName => {
     const event = SCORING_EVENTS.find(e => e.name === eventName);
@@ -100,19 +125,24 @@ export function calculateTeamScore(qbStats: QBStats[]): number {
 }
 
 /**
- * Get scoring breakdown for display purposes
+ * Get detailed scoring breakdown for display purposes
+ * This calculates the actual points for each category using the same logic as calculateScore
  */
-export function getScoringBreakdown(stats: QBStats) {
+export function getDetailedScoringBreakdown(stats: QBStats) {
   const breakdown = {
     passYards: 0,
     touchdowns: 0,
     completionPercent: 0,
     turnovers: 0,
+    interceptions: 0,
+    fumbles: 0,
+    longestPlay: 0,
+    rushYards: 0,
     events: 0,
     total: 0
   };
 
-  // Pass Yards
+  // Pass Yards scoring
   if (stats.passYards <= 100) {
     breakdown.passYards = 25;
   } else if (stats.passYards <= 150) {
@@ -129,7 +159,7 @@ export function getScoringBreakdown(stats: QBStats) {
     breakdown.passYards = -12;
   }
 
-  // Touchdowns
+  // Touchdowns scoring
   if (stats.touchdowns === 0) {
     breakdown.touchdowns = 10;
   } else if (stats.touchdowns === 1 || stats.touchdowns === 2) {
@@ -142,7 +172,7 @@ export function getScoringBreakdown(stats: QBStats) {
     breakdown.touchdowns = -20;
   }
 
-  // Completion %
+  // Completion % scoring
   if (stats.completionPercent <= 30) {
     breakdown.completionPercent = 25;
   } else if (stats.completionPercent <= 40) {
@@ -153,7 +183,7 @@ export function getScoringBreakdown(stats: QBStats) {
     breakdown.completionPercent = 0;
   }
 
-  // Turnovers
+  // Turnovers scoring
   if (stats.turnovers === 3) {
     breakdown.turnovers = 12;
   } else if (stats.turnovers === 4) {
@@ -164,6 +194,26 @@ export function getScoringBreakdown(stats: QBStats) {
     breakdown.turnovers = 50;
   }
 
+  // Individual interceptions scoring (+5 each)
+  if (stats.interceptions) {
+    breakdown.interceptions = stats.interceptions * 5;
+  }
+
+  // Individual fumbles scoring (+4 each)
+  if (stats.fumbles) {
+    breakdown.fumbles = stats.fumbles * 4;
+  }
+
+  // No Pass 25+ Yards scoring (+10 if longest play ≤ 25)
+  if (stats.longestPlay !== undefined && stats.longestPlay <= 25) {
+    breakdown.longestPlay = 10;
+  }
+
+  // Rush Yards penalty (-8 if ≥ 75 yards)
+  if (stats.rushYards !== undefined && stats.rushYards >= 75) {
+    breakdown.rushYards = -8;
+  }
+
   // Events
   stats.events.forEach(eventName => {
     const event = SCORING_EVENTS.find(e => e.name === eventName);
@@ -172,7 +222,7 @@ export function getScoringBreakdown(stats: QBStats) {
     }
   });
 
-  breakdown.total = breakdown.passYards + breakdown.touchdowns + breakdown.completionPercent + breakdown.turnovers + breakdown.events;
+  breakdown.total = breakdown.passYards + breakdown.touchdowns + breakdown.completionPercent + breakdown.turnovers + breakdown.interceptions + breakdown.fumbles + breakdown.longestPlay + breakdown.rushYards + breakdown.events;
 
   return breakdown;
 }

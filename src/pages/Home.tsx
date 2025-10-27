@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
+import MatchupModal from '../components/MatchupModal';
 import { 
   calculateStandings, 
   calculateWeeklyResults, 
@@ -10,6 +11,7 @@ import {
   getTeamWeekMatchupDetails
 } from '../utils/standingsCalculator';
 import { getWeeklyCSVData } from '../data/scoringData';
+import { getDetailedScoringBreakdown } from '../utils/scoring';
 
 const Home: React.FC = () => {
   const { leagueData, updateLeagueData, isWeekLocked } = useLeagueData();
@@ -27,6 +29,18 @@ const Home: React.FC = () => {
   // Update selected week when data loads (only on initial load, not on manual navigation)
   const [hasInitialized, setHasInitialized] = useState(false);
   const [hasManuallyNavigated, setHasManuallyNavigated] = useState(false);
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedMatchup, setSelectedMatchup] = useState<{
+    week: number;
+    team1: string;
+    team2: string;
+    team1Score: number;
+    team2Score: number;
+    team1Breakdown: Array<{ qb: string; breakdown: any }>;
+    team2Breakdown: Array<{ qb: string; breakdown: any }>;
+  } | null>(null);
   
   useEffect(() => {
     if (leagueData.matchups && leagueData.matchups.length > 0 && !hasInitialized) {
@@ -74,6 +88,39 @@ const Home: React.FC = () => {
 
   // Calculate standings using the centralized utility
   const standings = calculateStandings(leagueData.matchups, leagueData.lineups, leagueData.teams);
+
+  // Modal helper functions
+  const openMatchupModal = (matchup: any, week: number) => {
+    const { team1Score, team2Score, team1Breakdown, team2Breakdown } = calculateMatchupScore(matchup, leagueData.lineups);
+    setSelectedMatchup({
+      week,
+      team1: matchup.team1,
+      team2: matchup.team2,
+      team1Score,
+      team2Score,
+      team1Breakdown,
+      team2Breakdown
+    });
+    setIsModalOpen(true);
+  };
+
+  const openWLTModal = (teamName: string, week: number) => {
+    const matchupDetails = getTeamWeekMatchupDetails(teamName, week, leagueData.matchups, leagueData.lineups);
+    if (!matchupDetails) return;
+
+    const matchup = leagueData.matchups.find(m => 
+      m.week === week && 
+      (m.team1 === teamName || m.team2 === teamName)
+    );
+    if (!matchup) return;
+
+    openMatchupModal(matchup, week);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedMatchup(null);
+  };
 
   // W/L/T Chart functions
   const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -142,7 +189,11 @@ const Home: React.FC = () => {
               const hasData = !!csvData;
               
               return (
-                <div key={index} className="bg-dark-card rounded-lg p-4">
+                <div 
+                  key={index} 
+                  className="bg-dark-card rounded-lg p-4 cursor-pointer hover:bg-gray-700 hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                  onClick={() => openMatchupModal(matchup, selectedWeek)}
+                >
                   {/* Row 1: User 1 vs User 2 */}
                   <div className="flex items-center justify-center mb-4">
                     <TeamLogo teamName={matchup.team1} size="md" showName={true} />
@@ -165,22 +216,59 @@ const Home: React.FC = () => {
                             <span className="text-xs font-bold text-blue-400">{breakdown.finalScore}</span>
                             
                             {/* Enhanced tooltip with scoring breakdown */}
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                            <div 
+                              className="absolute left-1/2 transform -translate-x-1/2 hidden group-hover:block z-50 tooltip-container"
+                              onMouseEnter={(e) => {
+                                const tooltip = e.currentTarget;
+                                const rect = tooltip.getBoundingClientRect();
+                                
+                                // Check if tooltip would be cut off at top
+                                if (rect.top < 100) {
+                                  tooltip.setAttribute('data-position', 'below');
+                                } else {
+                                  tooltip.setAttribute('data-position', 'above');
+                                }
+                              }}
+                            >
                               <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 min-w-max">
                                 <div className="font-semibold mb-2">{qb} - {breakdown.finalScore} pts</div>
                                 <div className="space-y-1">
-                                  <div className="whitespace-nowrap">Pass Yards: {breakdown.passYards} → {breakdown.passYardsScore} pts</div>
-                                  <div className="whitespace-nowrap">Touchdowns: {breakdown.touchdowns} → {breakdown.touchdownsScore} pts</div>
-                                  <div className="whitespace-nowrap">Completion %: {breakdown.completionPercent}% → {breakdown.completionScore} pts</div>
-                                  <div className="whitespace-nowrap">Turnovers: {breakdown.interceptions + breakdown.fumbles} → {breakdown.turnoverScore} pts</div>
-                                  {breakdown.defensiveTD > 0 && <div className="whitespace-nowrap">Def TD: {breakdown.defensiveTD} → +{breakdown.defensiveTD * 20} pts</div>}
-                                  {breakdown.safety > 0 && <div className="whitespace-nowrap">Safety: {breakdown.safety} → +{breakdown.safety * 15} pts</div>}
-                                  {breakdown.gameEndingFumble > 0 && <div className="whitespace-nowrap">GEF: {breakdown.gameEndingFumble} → +{breakdown.gameEndingFumble * 50} pts</div>}
-                                  {breakdown.gameWinningDrive > 0 && <div className="whitespace-nowrap">GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>}
-                                  {breakdown.benching > 0 && <div className="whitespace-nowrap">Benching: {breakdown.benching} → +{breakdown.benching * 35} pts</div>}
-                                  <div className="border-t border-gray-600 pt-1 mt-2">
-                                    <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
-                                  </div>
+                                  {(() => {
+                                    // Convert QBPerformance to QBStats format for dynamic calculation
+                                    const qbStats = {
+                                      passYards: breakdown.passYards,
+                                      touchdowns: breakdown.touchdowns,
+                                      completionPercent: breakdown.completionPercent,
+                                      turnovers: breakdown.turnovers,
+                                      events: breakdown.events,
+                                      longestPlay: breakdown.longestPlay,
+                                      interceptions: breakdown.interceptions,
+                                      fumbles: breakdown.fumbles,
+                                      rushYards: breakdown.rushYards
+                                    };
+                                    const scoringBreakdown = getDetailedScoringBreakdown(qbStats);
+                                    
+                                    return (
+                                      <>
+                                        <div className="whitespace-nowrap">Pass Yards: {breakdown.passYards} → {scoringBreakdown.passYards} pts</div>
+                                        <div className="whitespace-nowrap">Touchdowns: {breakdown.touchdowns} → {scoringBreakdown.touchdowns} pts</div>
+                                        <div className="whitespace-nowrap">Completion %: {breakdown.completionPercent}% → {scoringBreakdown.completionPercent} pts</div>
+                                        <div className="whitespace-nowrap">Turnovers: {breakdown.interceptions + breakdown.fumbles} → {scoringBreakdown.turnovers} pts</div>
+                                        <div className="whitespace-nowrap">Interceptions: {breakdown.interceptions} → {scoringBreakdown.interceptions} pts</div>
+                                        <div className="whitespace-nowrap">Fumbles: {breakdown.fumbles} → {scoringBreakdown.fumbles} pts</div>
+                                        <div className="whitespace-nowrap">Longest Play: {breakdown.longestPlay} → {scoringBreakdown.longestPlay} pts</div>
+                                        <div className="whitespace-nowrap">Rush Yards: {breakdown.rushYards} → {scoringBreakdown.rushYards} pts</div>
+                                        <div className="whitespace-nowrap">Def TD: {breakdown.defensiveTD} → {breakdown.defensiveTD * 20} pts</div>
+                                        <div className="whitespace-nowrap">Safety: {breakdown.safety} → {breakdown.safety * 15} pts</div>
+                                        <div className="whitespace-nowrap">GEF: {breakdown.gameEndingFumble} → {breakdown.gameEndingFumble * 50} pts</div>
+                                        <div className="whitespace-nowrap">GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>
+                                        <div className="whitespace-nowrap">Benching: {breakdown.benching} → {breakdown.benching * 35} pts</div>
+                                        <div className="border-t border-gray-600 pt-1 mt-2">
+                                          <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
@@ -242,22 +330,59 @@ const Home: React.FC = () => {
                             <span className="text-xs font-bold text-blue-400">{breakdown.finalScore}</span>
                             
                             {/* Enhanced tooltip with scoring breakdown */}
-                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                            <div 
+                              className="absolute left-1/2 transform -translate-x-1/2 hidden group-hover:block z-50 tooltip-container"
+                              onMouseEnter={(e) => {
+                                const tooltip = e.currentTarget;
+                                const rect = tooltip.getBoundingClientRect();
+                                
+                                // Check if tooltip would be cut off at top
+                                if (rect.top < 100) {
+                                  tooltip.setAttribute('data-position', 'below');
+                                } else {
+                                  tooltip.setAttribute('data-position', 'above');
+                                }
+                              }}
+                            >
                               <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 min-w-max">
                                 <div className="font-semibold mb-2">{qb} - {breakdown.finalScore} pts</div>
                                 <div className="space-y-1">
-                                  <div className="whitespace-nowrap">Pass Yards: {breakdown.passYards} → {breakdown.passYardsScore} pts</div>
-                                  <div className="whitespace-nowrap">Touchdowns: {breakdown.touchdowns} → {breakdown.touchdownsScore} pts</div>
-                                  <div className="whitespace-nowrap">Completion %: {breakdown.completionPercent}% → {breakdown.completionScore} pts</div>
-                                  <div className="whitespace-nowrap">Turnovers: {breakdown.interceptions + breakdown.fumbles} → {breakdown.turnoverScore} pts</div>
-                                  {breakdown.defensiveTD > 0 && <div className="whitespace-nowrap">Def TD: {breakdown.defensiveTD} → +{breakdown.defensiveTD * 20} pts</div>}
-                                  {breakdown.safety > 0 && <div className="whitespace-nowrap">Safety: {breakdown.safety} → +{breakdown.safety * 15} pts</div>}
-                                  {breakdown.gameEndingFumble > 0 && <div className="whitespace-nowrap">GEF: {breakdown.gameEndingFumble} → +{breakdown.gameEndingFumble * 50} pts</div>}
-                                  {breakdown.gameWinningDrive > 0 && <div className="whitespace-nowrap">GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>}
-                                  {breakdown.benching > 0 && <div className="whitespace-nowrap">Benching: {breakdown.benching} → +{breakdown.benching * 35} pts</div>}
-                                  <div className="border-t border-gray-600 pt-1 mt-2">
-                                    <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
-                                  </div>
+                                  {(() => {
+                                    // Convert QBPerformance to QBStats format for dynamic calculation
+                                    const qbStats = {
+                                      passYards: breakdown.passYards,
+                                      touchdowns: breakdown.touchdowns,
+                                      completionPercent: breakdown.completionPercent,
+                                      turnovers: breakdown.turnovers,
+                                      events: breakdown.events,
+                                      longestPlay: breakdown.longestPlay,
+                                      interceptions: breakdown.interceptions,
+                                      fumbles: breakdown.fumbles,
+                                      rushYards: breakdown.rushYards
+                                    };
+                                    const scoringBreakdown = getDetailedScoringBreakdown(qbStats);
+                                    
+                                    return (
+                                      <>
+                                        <div className="whitespace-nowrap">Pass Yards: {breakdown.passYards} → {scoringBreakdown.passYards} pts</div>
+                                        <div className="whitespace-nowrap">Touchdowns: {breakdown.touchdowns} → {scoringBreakdown.touchdowns} pts</div>
+                                        <div className="whitespace-nowrap">Completion %: {breakdown.completionPercent}% → {scoringBreakdown.completionPercent} pts</div>
+                                        <div className="whitespace-nowrap">Turnovers: {breakdown.interceptions + breakdown.fumbles} → {scoringBreakdown.turnovers} pts</div>
+                                        <div className="whitespace-nowrap">Interceptions: {breakdown.interceptions} → {scoringBreakdown.interceptions} pts</div>
+                                        <div className="whitespace-nowrap">Fumbles: {breakdown.fumbles} → {scoringBreakdown.fumbles} pts</div>
+                                        <div className="whitespace-nowrap">Longest Play: {breakdown.longestPlay} → {scoringBreakdown.longestPlay} pts</div>
+                                        <div className="whitespace-nowrap">Rush Yards: {breakdown.rushYards} → {scoringBreakdown.rushYards} pts</div>
+                                        <div className="whitespace-nowrap">Def TD: {breakdown.defensiveTD} → {breakdown.defensiveTD * 20} pts</div>
+                                        <div className="whitespace-nowrap">Safety: {breakdown.safety} → {breakdown.safety * 15} pts</div>
+                                        <div className="whitespace-nowrap">GEF: {breakdown.gameEndingFumble} → {breakdown.gameEndingFumble * 50} pts</div>
+                                        <div className="whitespace-nowrap">GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>
+                                        <div className="whitespace-nowrap">Benching: {breakdown.benching} → {breakdown.benching * 35} pts</div>
+                                        <div className="border-t border-gray-600 pt-1 mt-2">
+                                          <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
+                                        </div>
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             </div>
@@ -400,13 +525,16 @@ const Home: React.FC = () => {
                           return (
                             <td key={week} className="px-1 py-2 text-center">
                               {result && (
-                                <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mx-auto cursor-help hover:ring-2 hover:ring-blue-400 transition-all relative group ${
-                                  result === 'W' 
-                                    ? 'bg-green-600 text-white' 
-                                    : result === 'L' 
-                                    ? 'bg-red-600 text-white' 
-                                    : 'bg-yellow-500 text-black'
-                                }`}>
+                                <div 
+                                  className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 relative group ${
+                                    result === 'W' 
+                                      ? 'bg-green-600 text-white hover:bg-green-500' 
+                                      : result === 'L' 
+                                      ? 'bg-red-600 text-white hover:bg-red-500' 
+                                      : 'bg-yellow-500 text-black hover:bg-yellow-400'
+                                  }`}
+                                  onClick={() => openWLTModal(teamName, week)}
+                                >
                                   {result}
                                   
                                   {/* Matchup tooltip */}
@@ -482,6 +610,13 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Matchup Modal */}
+      <MatchupModal 
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        matchupData={selectedMatchup}
+      />
     </div>
   );
 };

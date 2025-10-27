@@ -29,3 +29,52 @@
 .focus-ring {
   @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg;
 }
+
+/* Dynamic tooltip positioning */
+.tooltip-container {
+  position: absolute;
+  z-index: 50;
+  pointer-events: none;
+  /* Default to above, but will be overridden by CSS */
+  bottom: calc(100% + 8px);
+}
+
+/* When near top of viewport, position below */
+.tooltip-container[data-position="below"] {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+/* Ensure tooltip stays visible when hovering over it */
+.tooltip-container:hover {
+  display: block !important;
+}
+
+/* Modal animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}

@@ -78,7 +78,12 @@ const SetLineups: React.FC = () => {
     }
 
     if (unlockedTeams.length === 0) {
-      alert('All teams are already locked for this week');
+      // Check if week is already locked
+      if (isWeekLocked(selectedWeek)) {
+        alert(`Week ${selectedWeek} has already been finalized and locked. All teams are locked and no further changes can be made.`);
+      } else {
+        alert(`All teams are already locked for week ${selectedWeek}. The week can now be finalized.`);
+      }
       return;
     }
 
@@ -92,10 +97,29 @@ const SetLineups: React.FC = () => {
 
       // Lock the week globally
       await lockWeek(selectedWeek);
-      alert(`All ${unlockedTeams.length} remaining lineups locked and week finalized!`);
+      
+      const weekAlreadyLocked = isWeekLocked(selectedWeek);
+      if (weekAlreadyLocked) {
+        alert(`All ${unlockedTeams.length} remaining lineups locked! Week ${selectedWeek} was already finalized.`);
+      } else {
+        alert(`All ${unlockedTeams.length} remaining lineups locked and week ${selectedWeek} finalized!`);
+      }
     } catch (error) {
       console.error('Failed to finalize weekly lineups:', error);
-      alert(`Failed to finalize lineups: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Provide more specific error messages based on the error type
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to lock week')) {
+          errorMessage = `Failed to finalize week ${selectedWeek}. The week may already be locked or there was a database error. Please try refreshing the page and checking if the week is already finalized.`;
+        } else if (error.message.includes('Team') && error.message.includes('not found')) {
+          errorMessage = `Database error: ${error.message}. Please check your connection and try again.`;
+        } else {
+          errorMessage = `Failed to finalize lineups: ${error.message}`;
+        }
+      }
+      
+      alert(errorMessage);
     }
   };
 

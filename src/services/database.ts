@@ -21,6 +21,8 @@ export async function loadTeams(): Promise<Team[]> {
 }
 
 export async function loadLineups(): Promise<WeeklyLineup[]> {
+  console.log('🔄 Loading lineups from database...');
+  
   const { data, error } = await supabase
     .from('lineups')
     .select(`
@@ -32,16 +34,19 @@ export async function loadLineups(): Promise<WeeklyLineup[]> {
     .order('week')
 
   if (error) {
-    console.error('Error loading lineups:', error)
+    console.error('❌ Error loading lineups:', error)
     throw error
   }
 
-  return data?.map((lineup: any) => ({
+  const lineups = data?.map((lineup: any) => ({
     teamName: lineup.teams.name,
     week: lineup.week,
     activeQBs: lineup.active_qbs,
     isLocked: lineup.is_locked || false
   })) || []
+
+  console.log(`✅ Loaded ${lineups.length} lineups from database:`, lineups);
+  return lineups;
 }
 
 export async function loadMatchups(): Promise<Matchup[]> {
@@ -138,6 +143,8 @@ export async function loadLeagueSettings(): Promise<{ currentWeek: number; locke
 }
 
 export async function saveLineup(teamName: string, week: number, activeQBs: string[]): Promise<void> {
+  console.log(`🔄 Saving lineup for ${teamName} week ${week}:`, activeQBs);
+  
   // First get team ID
   const { data: team, error: teamError } = await supabase
     .from('teams')
@@ -146,8 +153,11 @@ export async function saveLineup(teamName: string, week: number, activeQBs: stri
     .single()
 
   if (teamError || !team) {
+    console.error(`❌ Team ${teamName} not found:`, teamError);
     throw new Error(`Team ${teamName} not found`)
   }
+
+  console.log(`✅ Found team ${teamName} with ID:`, team.id);
 
   // Get existing lineup to preserve lock status
   const { data: existingLineup } = await supabase
@@ -157,6 +167,8 @@ export async function saveLineup(teamName: string, week: number, activeQBs: stri
     .eq('week', week)
     .single()
 
+  console.log(`📋 Existing lineup lock status:`, existingLineup?.is_locked || false);
+
   const { error } = await supabase
     .from('lineups')
     .upsert({
@@ -164,12 +176,16 @@ export async function saveLineup(teamName: string, week: number, activeQBs: stri
       week,
       active_qbs: activeQBs,
       is_locked: existingLineup?.is_locked || false
+    }, {
+      onConflict: 'team_id,week'  // Specify the unique constraint
     })
 
   if (error) {
-    console.error('Error saving lineup:', error)
+    console.error('❌ Error saving lineup:', error)
     throw error
   }
+  
+  console.log(`✅ Successfully saved lineup for ${teamName} week ${week}`);
 }
 
 export async function updateMatchupScores(
@@ -216,6 +232,8 @@ export async function updateMatchupScores(
 }
 
 export async function lockTeamLineup(teamName: string, week: number): Promise<void> {
+  console.log(`🔒 Locking lineup for ${teamName} week ${week}`);
+  
   // First get team ID
   const { data: team, error: teamError } = await supabase
     .from('teams')
@@ -224,8 +242,11 @@ export async function lockTeamLineup(teamName: string, week: number): Promise<vo
     .single()
 
   if (teamError || !team) {
+    console.error(`❌ Team ${teamName} not found:`, teamError);
     throw new Error(`Team ${teamName} not found`)
   }
+
+  console.log(`✅ Found team ${teamName} with ID:`, team.id);
 
   const { error } = await supabase
     .from('lineups')
@@ -234,12 +255,16 @@ export async function lockTeamLineup(teamName: string, week: number): Promise<vo
     .eq('week', week)
 
   if (error) {
-    console.error('Error locking team lineup:', error)
+    console.error('❌ Error locking team lineup:', error)
     throw error
   }
+  
+  console.log(`✅ Successfully locked lineup for ${teamName} week ${week}`);
 }
 
 export async function lockWeek(week: number): Promise<void> {
+  console.log(`🔒 Attempting to lock week ${week}`);
+  
   const { data: settings, error: fetchError } = await supabase
     .from('league_settings')
     .select('locked_weeks')
@@ -248,6 +273,7 @@ export async function lockWeek(week: number): Promise<void> {
     .single()
 
   if (fetchError) {
+    console.log('📝 No existing league settings found, creating new settings');
     // Create new settings if none exist
     const { error: insertError } = await supabase
       .from('league_settings')
@@ -258,12 +284,21 @@ export async function lockWeek(week: number): Promise<void> {
       })
 
     if (insertError) {
-      console.error('Error creating league settings:', insertError)
-      throw insertError
+      console.error('❌ Error creating league settings:', insertError)
+      throw new Error(`Failed to create league settings: ${insertError.message}`)
     }
+    console.log(`✅ Successfully created league settings and locked week ${week}`);
   } else {
     const currentLockedWeeks = settings?.locked_weeks || []
+    
+    // Check if week is already locked
+    if (currentLockedWeeks.includes(week)) {
+      console.log(`ℹ️ Week ${week} is already locked - no action needed`);
+      return; // Don't throw an error, just return successfully
+    }
+    
     const updatedLockedWeeks = [...new Set([...currentLockedWeeks, week])]
+    console.log(`📝 Updating locked weeks from [${currentLockedWeeks.join(', ')}] to [${updatedLockedWeeks.join(', ')}]`);
 
     const { error: updateError } = await supabase
       .from('league_settings')
@@ -272,9 +307,10 @@ export async function lockWeek(week: number): Promise<void> {
       .limit(1)
 
     if (updateError) {
-      console.error('Error updating locked weeks:', updateError)
-      throw updateError
+      console.error('❌ Error updating locked weeks:', updateError)
+      throw new Error(`Failed to lock week ${week}: ${updateError.message}`)
     }
+    console.log(`✅ Successfully locked week ${week}`);
   }
 }
 
