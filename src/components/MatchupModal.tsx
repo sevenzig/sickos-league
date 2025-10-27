@@ -2,6 +2,18 @@ import React from 'react';
 import TeamLogo from './TeamLogo';
 import { getDetailedScoringBreakdown } from '../utils/scoring';
 
+// Type definition for QB stats display structure
+interface QBStatsDisplay {
+  netPassYards: { value: any; points: number };
+  touchdowns: { value: any; points: number };
+  completionPercent: { value: any; points: number };
+  turnovers: { value: any; points: number };
+  interceptions: { value: any; points: number };
+  fumbles: { value: any; points: number };
+  longestPlay: { value: any; points: number };
+  rushYards: { value: any; points: number };
+}
+
 interface MatchupModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -74,11 +86,22 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
     { key: 'fumbles', label: 'Fumbles' },
     { key: 'longestPlay', label: 'Longest Play' },
     { key: 'rushYards', label: 'Rush Yards' }
-  ];
+  ] as const;
 
   // Helper function to get QB stats for table display
-  const getQBStats = (breakdown: any) => {
-    if (!breakdown) return {};
+  const getQBStats = (breakdown: any): QBStatsDisplay => {
+    if (!breakdown) {
+      return {
+        netPassYards: { value: undefined, points: 0 },
+        touchdowns: { value: undefined, points: 0 },
+        completionPercent: { value: undefined, points: 0 },
+        turnovers: { value: undefined, points: 0 },
+        interceptions: { value: undefined, points: 0 },
+        fumbles: { value: undefined, points: 0 },
+        longestPlay: { value: undefined, points: 0 },
+        rushYards: { value: undefined, points: 0 }
+      };
+    }
     
     // Calculate net pass yards (pass yards - sack yards)
     const netPassYards = breakdown.passYards + (breakdown.sackYards || 0);
@@ -281,8 +304,8 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                         return (
                           <td key={`team1-${index}`} className="border-l border-slate-700/30">
                             <StatCell 
-                              value={stats[category.key]?.value}
-                              points={stats[category.key]?.points || 0}
+                              value={stats[category.key as keyof QBStatsDisplay]?.value}
+                              points={stats[category.key as keyof QBStatsDisplay]?.points || 0}
                             />
                           </td>
                         );
@@ -292,8 +315,8 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                         return (
                           <td key={`team2-${index}`} className="border-l border-slate-700/30">
                             <StatCell 
-                              value={stats[category.key]?.value}
-                              points={stats[category.key]?.points || 0}
+                              value={stats[category.key as keyof QBStatsDisplay]?.value}
+                              points={stats[category.key as keyof QBStatsDisplay]?.points || 0}
                             />
                           </td>
                         );
