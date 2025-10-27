@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
 import MatchupModal from '../components/MatchupModal';
@@ -40,6 +41,13 @@ const Home: React.FC = () => {
     team2Score: number;
     team1Breakdown: Array<{ qb: string; breakdown: any }>;
     team2Breakdown: Array<{ qb: string; breakdown: any }>;
+  } | null>(null);
+
+  // Tooltip hover state
+  const [hoveredCell, setHoveredCell] = useState<{
+    teamName: string;
+    week: number;
+    rect: DOMRect;
   } | null>(null);
   
   useEffect(() => {
@@ -120,6 +128,37 @@ const Home: React.FC = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedMatchup(null);
+  };
+
+  // Position calculation for portal tooltip
+  const calculateTooltipPosition = (rect: DOMRect, isNearBottom: boolean) => {
+    const tooltipWidth = 200; // Approximate tooltip width
+    const tooltipHeight = 100; // Approximate tooltip height
+    const margin = 8; // Margin from the square
+    
+    let top: number;
+    let left: number;
+    
+    // Calculate horizontal position (center on the square)
+    left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+    
+    // Ensure tooltip doesn't go off screen horizontally
+    if (left < margin) {
+      left = margin;
+    } else if (left + tooltipWidth > window.innerWidth - margin) {
+      left = window.innerWidth - tooltipWidth - margin;
+    }
+    
+    // Calculate vertical position
+    if (isNearBottom) {
+      // Show above the square
+      top = rect.top - tooltipHeight - margin;
+    } else {
+      // Show below the square
+      top = rect.bottom + margin;
+    }
+    
+    return { top, left };
   };
 
   // W/L/T Chart functions
@@ -526,7 +565,7 @@ const Home: React.FC = () => {
                             <td key={week} className="px-1 py-2 text-center">
                               {result && (
                                 <div 
-                                  className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 relative group ${
+                                  className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 ${
                                     result === 'W' 
                                       ? 'bg-green-600 text-white hover:bg-green-500' 
                                       : result === 'L' 
@@ -534,67 +573,13 @@ const Home: React.FC = () => {
                                       : 'bg-yellow-500 text-black hover:bg-yellow-400'
                                   }`}
                                   onClick={() => openWLTModal(teamName, week)}
+                                  onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setHoveredCell({ teamName, week, rect });
+                                  }}
+                                  onMouseLeave={() => setHoveredCell(null)}
                                 >
                                   {result}
-                                  
-                                  {/* Matchup tooltip */}
-                                  {matchupDetails && (
-                                    <div className={`absolute left-1/2 transform -translate-x-1/2 hidden group-hover:block z-[9999] ${
-                                      isNearBottom 
-                                        ? 'bottom-full mb-2' 
-                                        : 'top-full mt-2'
-                                    }`}>
-                                      <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600">
-                                        <div className="flex items-center space-x-4">
-                                          {/* Hovered team (always left side) */}
-                                          <div className="text-center">
-                                            <div className="w-8 h-8 mx-auto mb-1">
-                                              <TeamLogo teamName={teamName} size="sm" />
-                                            </div>
-                                            <div className="flex space-x-0.5 mb-1">
-                                              {matchupDetails.teamQBs.map(qb => (
-                                                <div key={qb} className="w-5 h-5">
-                                                  <TeamLogo teamName={qb} size="xs" />
-                                                </div>
-                                              ))}
-                                            </div>
-                                            <div className={`font-bold text-lg ${
-                                              matchupDetails.teamScore > matchupDetails.opponentScore 
-                                                ? 'text-green-400' 
-                                                : matchupDetails.teamScore < matchupDetails.opponentScore 
-                                                ? 'text-red-400' 
-                                                : 'text-white'
-                                            }`}>
-                                              {matchupDetails.teamScore}
-                                            </div>
-                                          </div>
-                                          
-                                          {/* Opponent (always right side) */}
-                                          <div className="text-center">
-                                            <div className="w-8 h-8 mx-auto mb-1">
-                                              <TeamLogo teamName={matchupDetails.opponent} size="sm" />
-                                            </div>
-                                            <div className="flex space-x-0.5 mb-1">
-                                              {matchupDetails.opponentQBs.map(qb => (
-                                                <div key={qb} className="w-5 h-5">
-                                                  <TeamLogo teamName={qb} size="xs" />
-                                                </div>
-                                              ))}
-                                            </div>
-                                            <div className={`font-bold text-lg ${
-                                              matchupDetails.opponentScore > matchupDetails.teamScore 
-                                                ? 'text-green-400' 
-                                                : matchupDetails.opponentScore < matchupDetails.teamScore 
-                                                ? 'text-red-400' 
-                                                : 'text-white'
-                                            }`}>
-                                              {matchupDetails.opponentScore}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </td>
@@ -617,6 +602,79 @@ const Home: React.FC = () => {
         onClose={closeModal}
         matchupData={selectedMatchup}
       />
+
+      {/* Portal Tooltip */}
+      {hoveredCell && createPortal(
+        (() => {
+          const matchupDetails = getTeamWeekMatchupDetails(hoveredCell.teamName, hoveredCell.week, leagueData.matchups, leagueData.lineups);
+          if (!matchupDetails) return null;
+          
+          const teamIndex = teams.indexOf(hoveredCell.teamName);
+          const isNearBottom = teamIndex >= teams.length - 3;
+          const position = calculateTooltipPosition(hoveredCell.rect, isNearBottom);
+          
+          return (
+            <div 
+              className="fixed z-40 pointer-events-none"
+              style={{
+                top: `${position.top}px`,
+                left: `${position.left}px`,
+              }}
+            >
+              <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600">
+                <div className="flex items-center space-x-4">
+                  {/* Hovered team (always left side) */}
+                  <div className="text-center">
+                    <div className="w-8 h-8 mx-auto mb-1">
+                      <TeamLogo teamName={hoveredCell.teamName} size="sm" />
+                    </div>
+                    <div className="flex space-x-0.5 mb-1">
+                      {matchupDetails.teamQBs.map(qb => (
+                        <div key={qb} className="w-5 h-5">
+                          <TeamLogo teamName={qb} size="xs" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className={`font-bold text-lg ${
+                      matchupDetails.teamScore > matchupDetails.opponentScore 
+                        ? 'text-green-400' 
+                        : matchupDetails.teamScore < matchupDetails.opponentScore 
+                        ? 'text-red-400' 
+                        : 'text-white'
+                    }`}>
+                      {matchupDetails.teamScore}
+                    </div>
+                  </div>
+                  
+                  {/* Opponent (always right side) */}
+                  <div className="text-center">
+                    <div className="w-8 h-8 mx-auto mb-1">
+                      <TeamLogo teamName={matchupDetails.opponent} size="sm" />
+                    </div>
+                    <div className="flex space-x-0.5 mb-1">
+                      {matchupDetails.opponentQBs.map(qb => (
+                        <div key={qb} className="w-5 h-5">
+                          <TeamLogo teamName={qb} size="xs" />
+                        </div>
+                      ))}
+                    </div>
+                    <div className={`font-bold text-lg ${
+                      matchupDetails.opponentScore > matchupDetails.teamScore 
+                        ? 'text-green-400' 
+                        : matchupDetails.opponentScore < matchupDetails.teamScore 
+                        ? 'text-red-400' 
+                        : 'text-white'
+                    }`}>
+                      {matchupDetails.opponentScore}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })(),
+        document.body
+      )}
     </div>
   );
 };

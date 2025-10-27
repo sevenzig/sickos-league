@@ -169,7 +169,7 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm animate-fadeIn"
