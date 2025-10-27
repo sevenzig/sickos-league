@@ -221,18 +221,18 @@ const EnterScores: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-8 relative">
       {/* Week Selection */}
-      <div className="bg-dark-surface rounded-lg p-3">
+      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] py-6 px-8">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Week {selectedWeek} Scoring Data</h2>
-          <div className="flex items-center space-x-4">
+          <h2 className="text-2xl font-black text-slate-50 tracking-tight">Week {selectedWeek} Scoring Data</h2>
+          <div className="flex items-center gap-4">
           <div>
-              <label className="block text-xs font-medium text-gray-300 mb-1">Week</label>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Week</label>
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                className="bg-gray-700 text-white rounded px-2 py-1 text-sm focus-ring"
+                className="bg-slate-800/90 text-slate-200 border border-slate-700/50 rounded-lg px-4 py-2 text-sm hover:bg-slate-700/50 transition-colors focus-ring"
             >
               {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
                 <option key={week} value={week}>Week {week}</option>
@@ -240,7 +240,13 @@ const EnterScores: React.FC = () => {
             </select>
           </div>
             {loading && (
-              <div className="text-blue-400 text-sm">Loading data...</div>
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/30 text-sm font-medium">
+                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Loading data...
+              </div>
             )}
           </div>
         </div>
@@ -250,7 +256,7 @@ const EnterScores: React.FC = () => {
       {showTooltip && hoveredCell && (
         <div
           ref={tooltipRef}
-          className="fixed z-50 bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 max-w-xs pointer-events-none"
+          className="fixed z-50 bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] border border-slate-700/50 max-w-xs pointer-events-none backdrop-blur-xl"
           style={{
             left: tooltipPosition.x,
             top: tooltipPosition.y,
@@ -259,13 +265,13 @@ const EnterScores: React.FC = () => {
         >
           {hoveredCell.col === 'finalScore' ? (
                 <div>
-              <div className="font-semibold mb-2">Final Score Breakdown:</div>
-              <div className="whitespace-pre-line text-xs">
+              <div className="font-bold text-slate-50 mb-2">Final Score Breakdown:</div>
+              <div className="whitespace-pre-line text-xs text-slate-300">
                 {getFinalScoreBreakdown(hoveredCell.team)}
               </div>
             </div>
           ) : (
-            <div>
+            <div className="text-slate-200">
               {getTooltipContent(hoveredCell.team, hoveredCell.col)}
             </div>
           )}
@@ -274,16 +280,16 @@ const EnterScores: React.FC = () => {
 
       {/* Scoring Data Table */}
       {scoringData.length > 0 && (
-        <div className="bg-dark-card rounded-lg overflow-hidden">
+        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-700">
+              <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
                 <tr>
                   {scoringCategories.map((category) => (
                     <th
                       key={category.key}
-                      className={`px-2 py-2 text-left text-xs font-medium text-gray-300 ${
-                        category.highlight ? 'bg-blue-600' : ''
+                      className={`px-3 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider ${
+                        category.highlight ? 'bg-emerald-500/20 text-emerald-400' : ''
                       }`}
                     >
                       {category.label}
@@ -291,7 +297,7 @@ const EnterScores: React.FC = () => {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-600">
+              <tbody className="divide-y divide-slate-700/30">
                 {scoringData
                   .sort((a, b) => b.finalScore - a.finalScore) // Sort by final score descending
                   .map((team, index) => {
@@ -299,8 +305,10 @@ const EnterScores: React.FC = () => {
                     return (
                       <tr 
                         key={team.team} 
-                        className={`hover:bg-gray-700 ${
-                          isStarted ? 'bg-green-900/20 border-l-4 border-green-500' : ''
+                        className={`hover:bg-slate-700/20 transition-colors duration-150 ${
+                          index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
+                        } ${
+                          isStarted ? 'border-l-4 border-emerald-500' : ''
                         }`}
                       >
                         {scoringCategories.map((category) => {
@@ -310,14 +318,14 @@ const EnterScores: React.FC = () => {
                           return (
                             <td
                               key={category.key}
-                              className={`px-2 py-2 text-xs cursor-help ${
+                              className={`px-3 py-4 text-xs cursor-help ${
                                 category.highlight 
-                                  ? 'font-bold text-blue-400' 
+                                  ? 'font-bold text-emerald-400 tabular-nums' 
                                   : category.key === 'started' && isStarted
-                                  ? 'font-bold text-green-400'
+                                  ? 'font-bold text-emerald-400'
                                   : category.key === 'owner'
                                   ? 'text-yellow-400'
-                                  : 'text-gray-300'
+                                  : 'text-slate-200'
                               }`}
                               onMouseEnter={(e) => handleMouseEnter(e, team, category.key)}
                               onMouseLeave={handleMouseLeave}
@@ -336,22 +344,22 @@ const EnterScores: React.FC = () => {
       )}
 
       {scoringData.length === 0 && !loading && (
-        <div className="bg-dark-card rounded-lg p-6 text-center text-gray-400 text-sm">
+        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center text-slate-400">
           No scoring data available for Week {selectedWeek}
         </div>
       )}
 
       {/* Refresh Data Buttons */}
-      <div className="flex justify-end space-x-3">
+      <div className="flex justify-end gap-3">
         <button
           onClick={handleRefreshCSVData}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          className="px-6 py-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition-all duration-200 font-medium"
         >
           Refresh CSV Data
         </button>
         <button
           onClick={handleRefreshData}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          className="px-6 py-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-all duration-200 font-medium"
         >
           Refresh Data
         </button>

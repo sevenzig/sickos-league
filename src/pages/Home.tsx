@@ -169,28 +169,28 @@ const Home: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Week Navigation */}
-      <div className="bg-dark-surface rounded-lg p-4">
+      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] py-6 px-8">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <h2 className="text-xl font-semibold">Week {selectedWeek}</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-black text-slate-50 tracking-tight">Week {selectedWeek}</h2>
             {selectedWeek === leagueData.currentWeek && (
-              <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full font-medium">
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-xs font-bold uppercase tracking-wider">
                 Current Week
               </span>
             )}
             {selectedWeek < leagueData.currentWeek && (
-              <span className="px-2 py-1 bg-gray-600 text-white text-xs rounded-full font-medium">
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-500/20 text-slate-400 rounded-lg border border-slate-500/30 text-xs font-bold uppercase tracking-wider">
                 Previous Results
               </span>
             )}
           </div>
-          <div className="flex space-x-2">
+          <div className="flex gap-3">
             <button
               onClick={() => {
                 setSelectedWeek(Math.max(1, selectedWeek - 1));
                 setHasManuallyNavigated(true);
               }}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
+              className="px-4 py-2 bg-slate-800/90 hover:bg-slate-700/50 text-slate-200 rounded-lg transition-all duration-200 font-medium"
             >
               Previous
             </button>
@@ -199,7 +199,7 @@ const Home: React.FC = () => {
                 setSelectedWeek(Math.min(18, selectedWeek + 1));
                 setHasManuallyNavigated(true);
               }}
-              className="px-3 py-1 bg-gray-600 hover:bg-gray-500 rounded text-sm"
+              className="px-4 py-2 bg-slate-800/90 hover:bg-slate-700/50 text-slate-200 rounded-lg transition-all duration-200 font-medium"
             >
               Next
             </button>
@@ -209,7 +209,7 @@ const Home: React.FC = () => {
                   setSelectedWeek(leagueData.currentWeek);
                   setHasManuallyNavigated(false); // Reset manual navigation flag
                 }}
-                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 rounded-lg transition-all duration-200 font-medium"
               >
                 Current Week
               </button>
@@ -219,9 +219,9 @@ const Home: React.FC = () => {
       </div>
 
       {/* Matchups - Top row with 4 columns */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {weekMatchups.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {weekMatchups.map((matchup, index) => {
               const { team1Score, team2Score, team1Breakdown, team2Breakdown } = calculateMatchupScore(matchup, leagueData.lineups);
               const csvData = getWeeklyCSVData(selectedWeek);
@@ -230,29 +230,29 @@ const Home: React.FC = () => {
               return (
                 <div 
                   key={index} 
-                  className="bg-dark-card rounded-lg p-4 cursor-pointer hover:bg-gray-700 hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
+                  className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-6 cursor-pointer hover:bg-slate-700/20 hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] hover:scale-[1.02] transition-all duration-200"
                   onClick={() => openMatchupModal(matchup, selectedWeek)}
                 >
                   {/* Row 1: User 1 vs User 2 */}
-                  <div className="flex items-center justify-center mb-4">
+                  <div className="flex items-center justify-center mb-6">
                     <TeamLogo teamName={matchup.team1} size="md" showName={true} />
-                    <div className="mx-4 text-gray-400 text-lg font-medium">vs</div>
+                    <div className="mx-6 text-slate-400 text-lg font-bold tracking-tight">VS</div>
                     <TeamLogo teamName={matchup.team2} size="md" showName={true} />
                   </div>
 
                   {/* Row 2: Team cards and total scores */}
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-6">
                     {/* User 1 teams */}
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2">
                       {hasData ? (
                         team1Breakdown.map(({ qb, breakdown }) => (
                           <div 
                             key={qb} 
-                            className="w-16 h-16 bg-gray-700 rounded flex flex-col items-center justify-center cursor-help hover:bg-gray-600 transition-colors relative group"
+                            className="w-16 h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
                             title={`${qb} - ${breakdown.finalScore} points`}
                           >
                             <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                            <span className="text-xs font-bold text-blue-400">{breakdown.finalScore}</span>
+                            <span className="text-xs font-bold text-emerald-400 tabular-nums">{breakdown.finalScore}</span>
                             
                             {/* Enhanced tooltip with scoring breakdown */}
                             <div 
@@ -315,15 +315,15 @@ const Home: React.FC = () => {
                         ))
                       ) : team1Breakdown.length > 0 ? (
                         // Show actual QB logos when lineups are set but no CSV data
-                        <div className="flex space-x-2">
+                        <div className="flex gap-2">
                           {team1Breakdown.map(({ qb }, index) => (
                             <div 
                               key={index}
-                              className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
+                              className="w-16 h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
                               title="Scores not available yet"
                             >
                               <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                              <span className="text-xs text-gray-400">--</span>
+                              <span className="text-xs text-slate-500">--</span>
                             </div>
                           ))}
                         </div>
@@ -345,28 +345,28 @@ const Home: React.FC = () => {
                     </div>
 
                     {/* Total scores in center */}
-                    <div className="flex items-center space-x-4">
-                      <div className={`text-2xl font-bold text-center min-w-[60px] ${
-                        hasData && team1Score > team2Score ? 'text-green-400' : 
-                        hasData && team1Score < team2Score ? 'text-red-400' : 'text-white'
+                    <div className="flex items-center gap-6">
+                      <div className={`text-3xl font-black text-center min-w-[70px] tabular-nums ${
+                        hasData && team1Score > team2Score ? 'text-emerald-400' : 
+                        hasData && team1Score < team2Score ? 'text-rose-400' : 'text-slate-200'
                       }`}>{team1Score}</div>
-                      <div className={`text-2xl font-bold text-center min-w-[60px] ${
-                        hasData && team2Score > team1Score ? 'text-green-400' : 
-                        hasData && team2Score < team1Score ? 'text-red-400' : 'text-white'
+                      <div className={`text-3xl font-black text-center min-w-[70px] tabular-nums ${
+                        hasData && team2Score > team1Score ? 'text-emerald-400' : 
+                        hasData && team2Score < team1Score ? 'text-rose-400' : 'text-slate-200'
                       }`}>{team2Score}</div>
                     </div>
 
                     {/* User 2 teams */}
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center gap-2">
                       {hasData ? (
                         team2Breakdown.map(({ qb, breakdown }) => (
                           <div 
                             key={qb} 
-                            className="w-16 h-16 bg-gray-700 rounded flex flex-col items-center justify-center cursor-help hover:bg-gray-600 transition-colors relative group"
+                            className="w-16 h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
                             title={`${qb} - ${breakdown.finalScore} points`}
                           >
                             <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                            <span className="text-xs font-bold text-blue-400">{breakdown.finalScore}</span>
+                            <span className="text-xs font-bold text-emerald-400 tabular-nums">{breakdown.finalScore}</span>
                             
                             {/* Enhanced tooltip with scoring breakdown */}
                             <div 
@@ -429,15 +429,15 @@ const Home: React.FC = () => {
                         ))
                       ) : team2Breakdown.length > 0 ? (
                         // Show actual QB logos when lineups are set but no CSV data
-                        <div className="flex space-x-2">
+                        <div className="flex gap-2">
                           {team2Breakdown.map(({ qb }, index) => (
                             <div 
                               key={index}
-                              className="w-16 h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
+                              className="w-16 h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
                               title="Scores not available yet"
                             >
                               <TeamLogo teamName={qb} size="sm" className="mb-1" />
-                              <span className="text-xs text-gray-400">--</span>
+                              <span className="text-xs text-slate-500">--</span>
                             </div>
                           ))}
                         </div>
@@ -462,7 +462,7 @@ const Home: React.FC = () => {
                   {/* Row 3: Winner */}
                   {hasData && team1Score !== team2Score && (
                     <div className="text-center">
-                      <span className="inline-block px-4 py-2 bg-green-600 text-white rounded-full text-sm font-semibold">
+                      <span className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-sm font-bold uppercase tracking-wider">
                         Winner: {team1Score > team2Score ? matchup.team1 : matchup.team2}
                       </span>
                     </div>
@@ -472,7 +472,7 @@ const Home: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="bg-dark-card rounded-lg p-8 text-center text-gray-400">
+          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center text-slate-400">
             {weekMatchups.length === 0 
               ? `No matchups scheduled for Week ${selectedWeek}`
               : "No lineups set yet for this week"
@@ -482,30 +482,32 @@ const Home: React.FC = () => {
       </div>
 
       {/* Bottom row - League Standings and W/L/T Chart side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* League Standings - Left side (1/3 width) */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">League Standings</h3>
-          <div className="bg-dark-card rounded-lg overflow-hidden">
+        <div className="space-y-6">
+          <h3 className="text-xl font-black text-slate-50 tracking-tight">League Standings</h3>
+          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-700">
+                <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Rank</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Team</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Record</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Points</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Rank</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Team</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Record</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Points</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-600">
+                <tbody className="divide-y divide-slate-700/30">
                   {standings.map((team, index) => (
-                    <tr key={team.teamName} className="hover:bg-gray-700">
-                      <td className="px-3 py-2 text-sm">{index + 1}</td>
-                      <td className="px-3 py-2 text-sm font-medium">
+                    <tr key={team.teamName} className={`hover:bg-slate-700/20 transition-colors duration-150 ${
+                      index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
+                    }`}>
+                      <td className="px-4 py-4 text-sm font-bold text-slate-200 tabular-nums">{index + 1}</td>
+                      <td className="px-4 py-4 text-sm font-medium text-slate-200">
                         <TeamLogo teamName={team.teamName} size="sm" showName={true} />
                       </td>
-                      <td className="px-3 py-2 text-sm">{team.wins}-{team.losses}</td>
-                      <td className="px-3 py-2 text-sm">{team.totalPoints}</td>
+                      <td className="px-4 py-4 text-sm text-slate-300 tabular-nums">{team.wins}-{team.losses}</td>
+                      <td className="px-4 py-4 text-sm font-bold text-emerald-400 tabular-nums">{team.totalPoints}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -515,61 +517,62 @@ const Home: React.FC = () => {
         </div>
 
         {/* Season W/L/T Chart - Right side (2/3 width) */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold">Season W/L/T Chart</h3>
+            <h3 className="text-xl font-black text-slate-50 tracking-tight">Season W/L/T Chart</h3>
             {/* Legend */}
-            <div className="flex space-x-6 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-green-600 rounded"></div>
-                <span className="text-gray-300">Win</span>
+            <div className="flex gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-emerald-500 rounded-lg"></div>
+                <span className="text-slate-300 font-medium">Win</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-red-600 rounded"></div>
-                <span className="text-gray-300">Loss</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-rose-500 rounded-lg"></div>
+                <span className="text-slate-300 font-medium">Loss</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-                <span className="text-gray-300">Tie</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-yellow-500 rounded-lg"></div>
+                <span className="text-slate-300 font-medium">Tie</span>
               </div>
             </div>
           </div>
-          <div className="bg-dark-card rounded-lg overflow-hidden">
+          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-max">
-                <thead className="bg-gray-700">
+                <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-300 w-32">Team</th>
+                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider w-32 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">Team</th>
                     {weeks.map(week => (
-                      <th key={week} className="px-1 py-2 text-center text-xs font-medium text-gray-300 w-8">
+                      <th key={week} className="px-2 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-8">
                         {week}
                       </th>
                     ))}
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-300 w-16">Record</th>
+                    <th className="px-4 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-16">Record</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-600">
-                  {teams.map(teamName => {
+                <tbody className="divide-y divide-slate-700/30">
+                  {teams.map((teamName, teamIndex) => {
                     const record = getCurrentRecord(teamName, leagueData.matchups, leagueData.lineups);
                     return (
-                      <tr key={teamName} className="hover:bg-gray-700">
-                        <td className="px-3 py-2 text-sm font-medium">
+                      <tr key={teamName} className={`hover:bg-slate-700/20 transition-colors duration-150 ${
+                        teamIndex % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
+                      }`}>
+                        <td className="px-4 py-4 text-sm font-medium text-slate-200 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">
                           <TeamLogo teamName={teamName} size="sm" showName={true} />
                         </td>
                         {weeks.map((week, weekIndex) => {
                           const result = getTeamWeekResult(teamName, week, leagueData.matchups, leagueData.lineups);
                           const matchupDetails = getTeamWeekMatchupDetails(teamName, week, leagueData.matchups, leagueData.lineups);
-                          const teamIndex = teams.indexOf(teamName);
                           const isNearBottom = teamIndex >= teams.length - 3; // Last 3 rows show tooltip above
                           return (
-                            <td key={week} className="px-1 py-2 text-center">
+                            <td key={week} className="px-2 py-4 text-center">
                               {result && (
                                 <div 
-                                  className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 ${
+                                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 ${
                                     result === 'W' 
-                                      ? 'bg-green-600 text-white hover:bg-green-500' 
+                                      ? 'bg-emerald-500 text-white hover:bg-emerald-400' 
                                       : result === 'L' 
-                                      ? 'bg-red-600 text-white hover:bg-red-500' 
+                                      ? 'bg-rose-500 text-white hover:bg-rose-400' 
                                       : 'bg-yellow-500 text-black hover:bg-yellow-400'
                                   }`}
                                   onClick={() => openWLTModal(teamName, week)}
@@ -585,7 +588,7 @@ const Home: React.FC = () => {
                             </td>
                           );
                         })}
-                        <td className="px-3 py-2 text-center text-sm font-medium">{record}</td>
+                        <td className="px-4 py-4 text-center text-sm font-bold text-emerald-400 tabular-nums">{record}</td>
                       </tr>
                     );
                   })}
@@ -621,26 +624,26 @@ const Home: React.FC = () => {
                 left: `${position.left}px`,
               }}
             >
-              <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600">
-                <div className="flex items-center space-x-4">
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] border border-slate-700/50 backdrop-blur-xl">
+                <div className="flex items-center gap-6">
                   {/* Hovered team (always left side) */}
                   <div className="text-center">
-                    <div className="w-8 h-8 mx-auto mb-1">
+                    <div className="w-8 h-8 mx-auto mb-2">
                       <TeamLogo teamName={hoveredCell.teamName} size="sm" />
                     </div>
-                    <div className="flex space-x-0.5 mb-1">
+                    <div className="flex gap-1 mb-2">
                       {matchupDetails.teamQBs.map(qb => (
                         <div key={qb} className="w-5 h-5">
                           <TeamLogo teamName={qb} size="xs" />
                         </div>
                       ))}
                     </div>
-                    <div className={`font-bold text-lg ${
+                    <div className={`font-black text-lg tabular-nums ${
                       matchupDetails.teamScore > matchupDetails.opponentScore 
-                        ? 'text-green-400' 
+                        ? 'text-emerald-400' 
                         : matchupDetails.teamScore < matchupDetails.opponentScore 
-                        ? 'text-red-400' 
-                        : 'text-white'
+                        ? 'text-rose-400' 
+                        : 'text-slate-200'
                     }`}>
                       {matchupDetails.teamScore}
                     </div>
@@ -648,22 +651,22 @@ const Home: React.FC = () => {
                   
                   {/* Opponent (always right side) */}
                   <div className="text-center">
-                    <div className="w-8 h-8 mx-auto mb-1">
+                    <div className="w-8 h-8 mx-auto mb-2">
                       <TeamLogo teamName={matchupDetails.opponent} size="sm" />
                     </div>
-                    <div className="flex space-x-0.5 mb-1">
+                    <div className="flex gap-1 mb-2">
                       {matchupDetails.opponentQBs.map(qb => (
                         <div key={qb} className="w-5 h-5">
                           <TeamLogo teamName={qb} size="xs" />
                         </div>
                       ))}
                     </div>
-                    <div className={`font-bold text-lg ${
+                    <div className={`font-black text-lg tabular-nums ${
                       matchupDetails.opponentScore > matchupDetails.teamScore 
-                        ? 'text-green-400' 
+                        ? 'text-emerald-400' 
                         : matchupDetails.opponentScore < matchupDetails.teamScore 
-                        ? 'text-red-400' 
-                        : 'text-white'
+                        ? 'text-rose-400' 
+                        : 'text-slate-200'
                     }`}>
                       {matchupDetails.opponentScore}
                     </div>
