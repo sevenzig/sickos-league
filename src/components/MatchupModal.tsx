@@ -246,12 +246,40 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
+                  {/* Owner Header Row */}
                   <tr className="bg-gradient-to-r from-slate-800 to-slate-800/80">
+                    <th className="py-3 px-6 text-left text-xs font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800 z-10">
+                      {/* Empty cell for statistic column */}
+                    </th>
+                    {team1Breakdown.length > 0 && (
+                      <th colSpan={team1Breakdown.length} className="py-3 px-4 text-center border-l-4 border-blue-500 bg-blue-500/10">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                          <span className="text-sm font-bold text-slate-100">{team1}</span>
+                        </div>
+                      </th>
+                    )}
+                    {team2Breakdown.length > 0 && team1Breakdown.length > 0 && (
+                      <th className="py-3 px-3 border-l-4 border-slate-600/30">
+                        <div className="text-xs font-bold text-slate-500 uppercase">VS</div>
+                      </th>
+                    )}
+                    {team2Breakdown.length > 0 && (
+                      <th colSpan={team2Breakdown.length} className="py-3 px-4 text-center border-r-4 border-purple-500 bg-purple-500/10">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                          <span className="text-sm font-bold text-slate-100">{team2}</span>
+                        </div>
+                      </th>
+                    )}
+                  </tr>
+                  {/* QB Header Row */}
+                  <tr className="bg-gradient-to-r from-slate-800 to-slate-800/80 border-t border-slate-700/30">
                     <th className="py-4 px-6 text-left text-xs font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800 z-10">
                       Statistic
                     </th>
                     {team1Breakdown.map(({ qb, breakdown }, index) => (
-                      <th key={`team1-${index}`} className="py-4 px-4 text-center border-l border-slate-700/30">
+                      <th key={`team1-${index}`} className="py-4 px-4 text-center border-l border-slate-700/30 bg-blue-500/5">
                         <div className="flex flex-col items-center gap-2">
                           <div className="flex items-center gap-2">
                             <TeamLogo teamName={qb} size="xs" />
@@ -267,8 +295,13 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                         </div>
                       </th>
                     ))}
+                    {team1Breakdown.length > 0 && team2Breakdown.length > 0 && (
+                      <th className="py-4 px-3 border-x-2 border-slate-600/50 sticky bg-slate-800 z-10">
+                        {/* Separator column */}
+                      </th>
+                    )}
                     {team2Breakdown.map(({ qb, breakdown }, index) => (
-                      <th key={`team2-${index}`} className="py-4 px-4 text-center border-l border-slate-700/30">
+                      <th key={`team2-${index}`} className="py-4 px-4 text-center border-l border-slate-700/30 bg-purple-500/5">
                         <div className="flex flex-col items-center gap-2">
                           <div className="flex items-center gap-2">
                             <TeamLogo teamName={qb} size="xs" />
@@ -302,7 +335,7 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                       {team1Breakdown.map(({ qb, breakdown }, index) => {
                         const stats = getQBStats(breakdown);
                         return (
-                          <td key={`team1-${index}`} className="border-l border-slate-700/30">
+                          <td key={`team1-${index}`} className="border-l border-slate-700/30 bg-blue-500/5">
                             <StatCell 
                               value={stats[category.key as keyof QBStatsDisplay]?.value}
                               points={stats[category.key as keyof QBStatsDisplay]?.points || 0}
@@ -310,10 +343,15 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                           </td>
                         );
                       })}
+                      {team1Breakdown.length > 0 && team2Breakdown.length > 0 && (
+                        <td className="border-x-2 border-slate-600/50 bg-slate-800 z-10">
+                          {/* Separator column */}
+                        </td>
+                      )}
                       {team2Breakdown.map(({ qb, breakdown }, index) => {
                         const stats = getQBStats(breakdown);
                         return (
-                          <td key={`team2-${index}`} className="border-l border-slate-700/30">
+                          <td key={`team2-${index}`} className="border-l border-slate-700/30 bg-purple-500/5">
                             <StatCell 
                               value={stats[category.key as keyof QBStatsDisplay]?.value}
                               points={stats[category.key as keyof QBStatsDisplay]?.points || 0}
@@ -338,13 +376,46 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
+                    {/* Owner Header Row */}
+                    <tr className="border-b border-slate-700/30 bg-slate-800/20">
+                      <th className="py-3 px-6 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        {/* Empty cell for event type column */}
+                      </th>
+                      {team1Breakdown.length > 0 && (
+                        <th colSpan={team1Breakdown.length} className="py-3 px-4 text-center border-l-4 border-blue-500 bg-blue-500/10">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <span className="text-xs font-bold text-slate-100">{team1}</span>
+                          </div>
+                        </th>
+                      )}
+                      {team2Breakdown.length > 0 && team1Breakdown.length > 0 && (
+                        <th className="py-3 px-3 border-l-4 border-slate-600/30">
+                          <div className="text-xs font-bold text-slate-500 uppercase">VS</div>
+                        </th>
+                      )}
+                      {team2Breakdown.length > 0 && (
+                        <th colSpan={team2Breakdown.length} className="py-3 px-4 text-center border-r-4 border-purple-500 bg-purple-500/10">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                            <span className="text-xs font-bold text-slate-100">{team2}</span>
+                          </div>
+                        </th>
+                      )}
+                    </tr>
+                    {/* QB Header Row */}
                     <tr className="border-b border-slate-700/30 bg-slate-800/20">
                       <th className="py-3 px-6 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Event Type</th>
                       {team1Breakdown.map(({ qb }, index) => (
-                        <th key={`team1-${index}`} className="py-3 px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30">{qb}</th>
+                        <th key={`team1-${index}`} className="py-3 px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30 bg-blue-500/5">{qb}</th>
                       ))}
+                      {team1Breakdown.length > 0 && team2Breakdown.length > 0 && (
+                        <th className="py-3 px-3 border-x-2 border-slate-600/50">
+                          {/* Separator column */}
+                        </th>
+                      )}
                       {team2Breakdown.map(({ qb }, index) => (
-                        <th key={`team2-${index}`} className="py-3 px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30">{qb}</th>
+                        <th key={`team2-${index}`} className="py-3 px-4 text-center text-xs font-semibold text-slate-400 uppercase tracking-wider border-l border-slate-700/30 bg-purple-500/5">{qb}</th>
                       ))}
                     </tr>
                   </thead>
@@ -368,10 +439,10 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                           <td className="py-4 px-6 sticky left-0 bg-slate-800/95 backdrop-blur-sm">
                             <span className="text-sm font-medium text-slate-300">{eventType}</span>
                           </td>
-                          {[...team1Breakdown, ...team2Breakdown].map(({ qb, breakdown }, teamIdx) => {
+                          {team1Breakdown.map(({ qb, breakdown }, teamIdx) => {
                             if (!breakdown) {
                               return (
-                                <td key={teamIdx} className="py-4 px-4 border-l border-slate-700/30">
+                                <td key={teamIdx} className="py-4 px-4 border-l border-slate-700/30 bg-blue-500/5">
                                   <span className="text-slate-600 text-xs">—</span>
                                 </td>
                               );
@@ -391,7 +462,47 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                             })() : 0;
                             
                             return (
-                              <td key={teamIdx} className="py-4 px-4 border-l border-slate-700/30">
+                              <td key={teamIdx} className="py-4 px-4 border-l border-slate-700/30 bg-blue-500/5">
+                                {eventCount > 0 ? (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <span className="text-base font-semibold text-slate-100 tabular-nums">×{eventCount}</span>
+                                    <PointsDisplay points={eventPoints} />
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-600 text-xs">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                          {team1Breakdown.length > 0 && team2Breakdown.length > 0 && (
+                            <td className="py-4 px-3 border-x-2 border-slate-600/50 bg-slate-800 z-10">
+                              {/* Separator column */}
+                            </td>
+                          )}
+                          {team2Breakdown.map(({ qb, breakdown }, teamIdx) => {
+                            if (!breakdown) {
+                              return (
+                                <td key={`team2-${teamIdx}`} className="py-4 px-4 border-l border-slate-700/30 bg-purple-500/5">
+                                  <span className="text-slate-600 text-xs">—</span>
+                                </td>
+                              );
+                            }
+                            
+                            const eventKey = eventType.toLowerCase().replace(/\s+/g, '');
+                            const eventCount = breakdown[eventKey] || 0;
+                            const eventPoints = eventCount > 0 ? (() => {
+                              switch (eventKey) {
+                                case 'defensivetd': return eventCount * 20;
+                                case 'safety': return eventCount * 15;
+                                case 'gameendingfumble': return eventCount * 50;
+                                case 'gamewinningdrive': return eventCount * -12;
+                                case 'benching': return eventCount * 35;
+                                default: return 0;
+                              }
+                            })() : 0;
+                            
+                            return (
+                              <td key={`team2-${teamIdx}`} className="py-4 px-4 border-l border-slate-700/30 bg-purple-500/5">
                                 {eventCount > 0 ? (
                                   <div className="flex flex-col items-center gap-1">
                                     <span className="text-base font-semibold text-slate-100 tabular-nums">×{eventCount}</span>

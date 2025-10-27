@@ -230,7 +230,7 @@ const Home: React.FC = () => {
               return (
                 <div 
                   key={index} 
-                  className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-5 lg:p-4 xl:p-6 cursor-pointer hover:bg-slate-700/20 hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] hover:scale-[1.02] transition-all duration-200"
+                  className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-5 lg:p-4 xl:p-6 cursor-pointer hover:bg-slate-700/20 hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] hover:scale-[1.02] transition-all duration-200"
                   onClick={() => openMatchupModal(matchup, selectedWeek)}
                 >
                   {/* Row 1: Player Names */}
