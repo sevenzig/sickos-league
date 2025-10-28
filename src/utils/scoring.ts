@@ -96,8 +96,8 @@ export function calculateScore(stats: QBStats): number {
     score += stats.fumbles * 4;
   }
 
-  // No Pass 25+ Yards scoring (+10 if longest play ≤ 25)
-  if (stats.longestPlay !== undefined && stats.longestPlay <= 25) {
+  // No Pass 25+ Yards scoring (+10 if longest play < 25)
+  if (stats.longestPlay !== undefined && stats.longestPlay < 25) {
     score += 10;
   }
 
@@ -204,8 +204,8 @@ export function getDetailedScoringBreakdown(stats: QBStats) {
     breakdown.fumbles = stats.fumbles * 4;
   }
 
-  // No Pass 25+ Yards scoring (+10 if longest play ≤ 25)
-  if (stats.longestPlay !== undefined && stats.longestPlay <= 25) {
+  // No Pass 25+ Yards scoring (+10 if longest play < 25)
+  if (stats.longestPlay !== undefined && stats.longestPlay < 25) {
     breakdown.longestPlay = 10;
   }
 

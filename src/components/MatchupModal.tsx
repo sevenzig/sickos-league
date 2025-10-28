@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import TeamLogo from './TeamLogo';
-import { getDetailedScoringBreakdown } from '../utils/scoring';
+import { getDetailedScoringBreakdown, SCORING_EVENTS } from '../utils/scoring';
 
 // Type definition for QB stats display structure
 interface QBStatsDisplay {
@@ -135,31 +136,50 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
   const team2Won = hasData && team2Score > team1Score;
   const isDraw = hasData && team1Score === team2Score;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center md:p-8">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isOpen]);
+
+  // Helper function to map SCORING_EVENTS names to breakdown data keys
+  const getEventKey = (eventName: string): string => {
+    const mapping: { [key: string]: string } = {
+      'Game-ending F Up': 'gameendingfumble',
+      'Benching': 'benching',
+      'Defensive TD': 'defensivetd',
+      'QB Safety': 'safety',
+      'No Pass 25+ Yards': 'longestplay', // This is handled differently in the main stats
+      'Interception': 'interceptions', // This is handled differently in the main stats
+      'Fumble': 'fumbles', // This is handled differently in the main stats
+      '≥75 Rush Yards': 'rushyards', // This is handled differently in the main stats
+      'Game-Winning Drive': 'gamewinningdrive',
+      'GWD by Field Goal': 'gwdbyfieldgoal'
+    };
+    return mapping[eventName] || eventName.toLowerCase().replace(/\s+/g, '');
+  };
+
+  return createPortal(
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center md:p-8 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
       {/* Modal */}
-      <div className="relative w-full max-w-[1400px] max-h-[90vh] md:max-h-[90vh] h-full md:h-auto overflow-y-auto bg-gradient-to-b from-slate-800/90 to-slate-900/90 backdrop-blur-xl md:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] md:border border-slate-700/50">
+      <div 
+        className="relative w-full max-w-[1400px] max-h-[90vh] md:max-h-[90vh] h-full md:h-auto bg-gradient-to-b from-slate-800/90 to-slate-900/90 md:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] md:border border-slate-700/50 flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         
-        {/* Header with gradient accent */}
-        <div className="relative bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-4 md:px-8 py-5 border-b border-slate-600/30">
+        {/* Fixed Header */}
+        <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 px-4 md:px-8 py-5 border-b border-slate-600/30">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-blue-500/5"></div>
           <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-blue-400/30">
-                <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-50 tracking-tight">Week {week} Matchup</h2>
-                <p className="text-xs text-slate-400 font-medium mt-0.5">Bad QB League</p>
-              </div>
+            <div>
+              <h2 className="text-2xl font-bold text-slate-50 tracking-tight">Week {week} Matchup</h2>
             </div>
             <button 
               onClick={onClose}
@@ -171,6 +191,9 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
             </button>
           </div>
         </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
 
         {/* Score Comparison Section */}
         <div className="relative px-8 py-10 bg-gradient-to-b from-slate-800/60 to-slate-800/30">
@@ -367,9 +390,7 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
           </div>
 
           {/* Special Events */}
-          {(team1Breakdown.some(({ breakdown }) => breakdown && (breakdown.defensiveTD > 0 || breakdown.safety > 0 || breakdown.gameEndingFumble > 0 || breakdown.gameWinningDrive > 0 || breakdown.benching > 0)) || 
-            team2Breakdown.some(({ breakdown }) => breakdown && (breakdown.defensiveTD > 0 || breakdown.safety > 0 || breakdown.gameEndingFumble > 0 || breakdown.gameWinningDrive > 0 || breakdown.benching > 0))) && (
-            <div className="mt-8 rounded-2xl border border-slate-700/50 overflow-hidden bg-slate-800/40 backdrop-blur-sm">
+          <div className="mt-8 rounded-2xl border border-slate-700/50 overflow-hidden bg-slate-800/40 backdrop-blur-sm">
               <div className="bg-gradient-to-r from-slate-800 to-slate-800/80 px-6 py-3 border-b border-slate-700/30">
                 <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider">Special Events</h3>
               </div>
@@ -426,14 +447,10 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                     </tr>
                   </thead>
                   <tbody>
-                    {['Defensive TD', 'Safety', 'Game Ending Fumble', 'Game Winning Drive', 'Benching'].map((eventType, idx) => {
-                      const hasAnyEvents = [...team1Breakdown, ...team2Breakdown].some(({ breakdown }) => {
-                        if (!breakdown) return false;
-                        const eventKey = eventType.toLowerCase().replace(/\s+/g, '');
-                        return breakdown[eventKey] > 0;
-                      });
-                      
-                      if (!hasAnyEvents) return null;
+                    {SCORING_EVENTS.filter(event => 
+                      !['Interception', 'Fumble', 'No Pass 25+ Yards'].includes(event.name)
+                    ).map((event, idx) => {
+                      const eventKey = getEventKey(event.name);
                       
                       return (
                         <tr 
@@ -443,7 +460,7 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                           }`}
                         >
                           <td className="py-4 px-3 md:px-6 sticky left-0 bg-slate-800/95 backdrop-blur-sm">
-                            <span className="text-xs md:text-sm font-medium text-slate-300">{eventType}</span>
+                            <span className="text-xs md:text-sm font-medium text-slate-300">{event.name}</span>
                           </td>
                           {team1Breakdown.map(({ qb, breakdown }, teamIdx) => {
                             if (!breakdown) {
@@ -451,23 +468,15 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                                 <td key={teamIdx} className={`py-4 px-2 md:px-4 border-l border-slate-700/30 w-1/4 ${
                                   team1Won ? 'bg-emerald-500/5' : team2Won ? 'bg-red-500/5' : 'bg-blue-500/5'
                                 }`}>
-                                  <span className="text-slate-600 text-xs">—</span>
+                                  <div className="flex justify-center">
+                                    <span className="text-slate-600 text-xs">—</span>
+                                  </div>
                                 </td>
                               );
                             }
                             
-                            const eventKey = eventType.toLowerCase().replace(/\s+/g, '');
                             const eventCount = breakdown[eventKey] || 0;
-                            const eventPoints = eventCount > 0 ? (() => {
-                              switch (eventKey) {
-                                case 'defensivetd': return eventCount * 20;
-                                case 'safety': return eventCount * 15;
-                                case 'gameendingfumble': return eventCount * 50;
-                                case 'gamewinningdrive': return eventCount * -12;
-                                case 'benching': return eventCount * 35;
-                                default: return 0;
-                              }
-                            })() : 0;
+                            const eventPoints = eventCount > 0 ? eventCount * event.points : 0;
                             
                             return (
                               <td key={teamIdx} className={`py-4 px-2 md:px-4 border-l border-slate-700/30 w-1/4 ${
@@ -479,7 +488,9 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                                     <PointsDisplay points={eventPoints} />
                                   </div>
                                 ) : (
-                                  <span className="text-slate-600 text-xs">—</span>
+                                  <div className="flex justify-center">
+                                    <span className="text-slate-600 text-xs">—</span>
+                                  </div>
                                 )}
                               </td>
                             );
@@ -490,23 +501,15 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                                 <td key={`team2-${teamIdx}`} className={`py-4 px-2 md:px-4 border-l border-slate-700/30 w-1/4 ${
                                   team2Won ? 'bg-emerald-500/5' : team1Won ? 'bg-red-500/5' : 'bg-purple-500/5'
                                 }`}>
-                                  <span className="text-slate-600 text-xs">—</span>
+                                  <div className="flex justify-center">
+                                    <span className="text-slate-600 text-xs">—</span>
+                                  </div>
                                 </td>
                               );
                             }
                             
-                            const eventKey = eventType.toLowerCase().replace(/\s+/g, '');
                             const eventCount = breakdown[eventKey] || 0;
-                            const eventPoints = eventCount > 0 ? (() => {
-                              switch (eventKey) {
-                                case 'defensivetd': return eventCount * 20;
-                                case 'safety': return eventCount * 15;
-                                case 'gameendingfumble': return eventCount * 50;
-                                case 'gamewinningdrive': return eventCount * -12;
-                                case 'benching': return eventCount * 35;
-                                default: return 0;
-                              }
-                            })() : 0;
+                            const eventPoints = eventCount > 0 ? eventCount * event.points : 0;
                             
                             return (
                               <td key={`team2-${teamIdx}`} className={`py-4 px-2 md:px-4 border-l border-slate-700/30 w-1/4 ${
@@ -518,7 +521,9 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                                     <PointsDisplay points={eventPoints} />
                                   </div>
                                 ) : (
-                                  <span className="text-slate-600 text-xs">—</span>
+                                  <div className="flex justify-center">
+                                    <span className="text-slate-600 text-xs">—</span>
+                                  </div>
                                 )}
                               </td>
                             );
@@ -530,10 +535,11 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                 </table>
               </div>
             </div>
-          )}
+        </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
