@@ -4,9 +4,8 @@ import { SCORING_EVENTS } from '../utils/scoring';
 const Rules: React.FC = () => {
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] py-6 px-8">
-        <h2 className="text-2xl font-black text-slate-50 tracking-tight mb-2">Bad QB League Scoring Rules</h2>
-        <p className="text-sm text-slate-400">Higher scores are better - poor performance earns more points!</p>
+      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] h-[74px] px-8 flex items-center">
+        <h2 className="text-2xl font-black text-slate-50 tracking-tight">Bad QB League Scoring Rules</h2>
       </div>
 
       {/* 4-Column Grid for Scoring Tables */}

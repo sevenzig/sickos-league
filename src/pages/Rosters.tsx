@@ -16,9 +16,8 @@ const Rosters: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] py-6 px-8">
-        <h2 className="text-2xl font-black text-slate-50 tracking-tight mb-2">Team Rosters</h2>
-        <p className="text-sm text-slate-400">Each team drafted 4 NFL team QBs for the season</p>
+      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] h-[74px] px-8 flex items-center">
+        <h2 className="text-2xl font-black text-slate-50 tracking-tight">Team Rosters</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

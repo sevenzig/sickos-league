@@ -223,12 +223,11 @@ const EnterScores: React.FC = () => {
   return (
     <div className="space-y-8 relative">
       {/* Week Selection */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] py-6 px-8">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] h-[74px] px-8 flex items-center">
+        <div className="flex items-center justify-between w-full">
           <h2 className="text-2xl font-black text-slate-50 tracking-tight">Week {selectedWeek} Scoring Data</h2>
           <div className="flex items-center gap-4">
-          <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Week</label>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Week</label>
             <select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
@@ -238,7 +237,6 @@ const EnterScores: React.FC = () => {
                 <option key={week} value={week}>Week {week}</option>
               ))}
             </select>
-          </div>
             {loading && (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/30 text-sm font-medium">
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -280,7 +278,7 @@ const EnterScores: React.FC = () => {
 
       {/* Scoring Data Table */}
       {scoringData.length > 0 && (
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-hidden">
+        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-x-auto">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
