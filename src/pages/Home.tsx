@@ -173,15 +173,20 @@ const Home: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-black text-slate-50 tracking-tight">Week {selectedWeek}</h2>
-            {selectedWeek === leagueData.currentWeek && (
+            {selectedWeek === leagueData.currentWeek ? (
               <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-xs font-bold uppercase tracking-wider">
                 Current Week
               </span>
-            )}
-            {selectedWeek < leagueData.currentWeek && (
-              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-500/20 text-slate-400 rounded-lg border border-slate-500/30 text-xs font-bold uppercase tracking-wider">
-                Previous Results
-              </span>
+            ) : (
+              <button
+                onClick={() => {
+                  setSelectedWeek(leagueData.currentWeek);
+                  setHasManuallyNavigated(false); // Reset manual navigation flag
+                }}
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 rounded-lg transition-all duration-200 text-xs font-bold uppercase tracking-wider"
+              >
+                Go to Current Week
+              </button>
             )}
           </div>
           <div className="flex gap-3">
@@ -203,17 +208,6 @@ const Home: React.FC = () => {
             >
               Next
             </button>
-            {selectedWeek !== leagueData.currentWeek && (
-              <button
-                onClick={() => {
-                  setSelectedWeek(leagueData.currentWeek);
-                  setHasManuallyNavigated(false); // Reset manual navigation flag
-                }}
-                className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 rounded-lg transition-all duration-200 font-medium"
-              >
-                Current Week
-              </button>
-            )}
           </div>
         </div>
       </div>
