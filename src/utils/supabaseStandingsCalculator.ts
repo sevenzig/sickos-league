@@ -28,6 +28,7 @@ export async function calculateTeamScoreForWeekFromSupabase(
   teamLineup.activeQBs.forEach(qb => {
     const teamPerformance = qbPerformances.find(team => team.team === qb);
     if (teamPerformance) {
+      // Use Supabase finalScore as source of truth; do not re-add event points
       totalScore += teamPerformance.finalScore;
       qbBreakdown.push({ qb, breakdown: teamPerformance });
     }

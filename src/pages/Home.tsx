@@ -1,17 +1,213 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
 import MatchupModal from '../components/MatchupModal';
-import { 
-  calculateStandingsFromSupabase, 
-  calculateWeeklyResultsFromSupabase, 
-  getTeamWeekResultFromSupabase, 
+import {
+  calculateStandingsFromSupabase,
+  calculateWeeklyResultsFromSupabase,
+  getTeamWeekResultFromSupabase,
   getCurrentRecordFromSupabase,
   calculateMatchupScoreFromSupabase,
   getTeamWeekMatchupDetailsFromSupabase
 } from '../utils/supabaseStandingsCalculator';
 import { getDetailedScoringBreakdown } from '../utils/scoring';
+
+// Memoized MatchupCard component to prevent unnecessary re-renders
+const MatchupCard = React.memo(({
+  matchup,
+  matchupData,
+  selectedWeek,
+  leagueData,
+  isWeekLocked,
+  openMatchupModal
+}: {
+  matchup: any;
+  matchupData: any;
+  selectedWeek: number;
+  leagueData: any;
+  isWeekLocked: (week: number) => boolean;
+  openMatchupModal: (matchup: any, week: number) => void;
+}) => {
+  const team1Score = matchupData?.team1Score || 0;
+  const team2Score = matchupData?.team2Score || 0;
+  const team1Breakdown = matchupData?.team1Breakdown || [];
+  const team2Breakdown = matchupData?.team2Breakdown || [];
+  const hasData = !!matchupData &&
+    (team1Breakdown.length > 0 || team2Breakdown.length > 0) &&
+    (team1Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined) ||
+     team2Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined));
+
+  // Determine winner/loser
+  const team1Wins = hasData && team1Score > team2Score;
+  const team2Wins = hasData && team2Score > team1Score;
+  const isTie = hasData && team1Score === team2Score;
+
+  // Check if week is final (locked or past current week)
+  const isWeekFinal = selectedWeek < leagueData.currentWeek || isWeekLocked(selectedWeek);
+
+  const handleClick = React.useCallback(() => {
+    openMatchupModal(matchup, selectedWeek);
+  }, [matchup, selectedWeek, openMatchupModal]);
+
+  return (
+    <div
+      className="bg-gradient-to-br from-[#1a2942] to-[#0f1d31] rounded-2xl border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden cursor-pointer hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:scale-[1.02] transition-all duration-200"
+      onClick={handleClick}
+    >
+      {/* TOP BAR */}
+      <div className="bg-black/30 px-5 py-2.5 flex justify-between items-center">
+        <div className="text-[#64748b] text-[11px] uppercase tracking-[1px] font-semibold">
+          Week {matchup.week}
+        </div>
+        {isWeekFinal && (
+          <div className="bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-[0.5px]">
+            Final
+          </div>
+        )}
+      </div>
+
+      {/* SCORE STRIP */}
+      <div className="flex bg-black/20">
+        {/* Team 1 Score Half */}
+        <div className={`flex-1 px-5 py-6 text-center relative ${
+          hasData && team2Wins ? 'bg-gradient-to-b from-rose-500/15 to-rose-500/8 border-t-2 border-rose-500/30' :
+          hasData && team1Wins ? 'bg-gradient-to-b from-emerald-500/15 to-emerald-500/7 border-t-2 border-emerald-500/35' :
+          'bg-gradient-to-b from-slate-800/20 to-slate-800/10 border-t-2 border-slate-700/20'
+        }`}>
+          {team1Wins && (
+            <div className="absolute top-2 right-2 text-xl">🏆</div>
+          )}
+          <div className="text-slate-200 text-sm font-semibold mb-1">{matchup.team1}</div>
+          <div className={`text-6xl font-black leading-none mb-3 tabular-nums ${
+            hasData && team1Score < 0 ? 'text-rose-400' :
+            hasData && team1Score > 0 ? 'text-emerald-400' :
+            'text-slate-200'
+          }`}>{team1Score}</div>
+        </div>
+
+        {/* Center Divider */}
+        <div className="w-px bg-white/10"></div>
+
+        {/* Team 2 Score Half */}
+        <div className={`flex-1 px-5 py-6 text-center relative ${
+          hasData && team1Wins ? 'bg-gradient-to-b from-rose-500/15 to-rose-500/8 border-t-2 border-rose-500/30' :
+          hasData && team2Wins ? 'bg-gradient-to-b from-emerald-500/15 to-emerald-500/7 border-t-2 border-emerald-500/35' :
+          'bg-gradient-to-b from-slate-800/20 to-slate-800/10 border-t-2 border-slate-700/20'
+        }`}>
+          {team2Wins && (
+            <div className="absolute top-2 right-2 text-xl">🏆</div>
+          )}
+          <div className="text-slate-200 text-sm font-semibold mb-1">{matchup.team2}</div>
+          <div className={`text-6xl font-black leading-none mb-3 tabular-nums ${
+            hasData && team2Score < 0 ? 'text-rose-400' :
+            hasData && team2Score > 0 ? 'text-emerald-400' :
+            'text-slate-200'
+          }`}>{team2Score}</div>
+        </div>
+      </div>
+
+      {/* BOTTOM SECTION */}
+      <div className="flex relative py-6">
+        {/* Bottom Divider */}
+        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent"></div>
+
+        {/* VS Badge */}
+        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#1a2942] text-[#64748b] px-3.5 py-1.5 rounded-lg text-xs font-bold z-10 border border-white/10">
+          VS
+        </div>
+
+        {/* Team 1 Side */}
+        <div
+          className="flex-1 px-6 flex flex-col items-center gap-4 relative"
+          style={team1Wins ? { background: 'radial-gradient(circle at center, rgba(16, 185, 129, 0.06) 0%, transparent 70%)' } : undefined}
+        >
+          <div className="flex gap-4 items-center">
+            {hasData ? (
+              team1Breakdown.map(({ qb, breakdown }: { qb: string; breakdown: any }, idx: number) => (
+                <div key={qb} className="flex flex-col items-center gap-1.5 relative group">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-lg flex items-center justify-center overflow-hidden p-1.5">
+                    <TeamLogo teamName={qb} size="xs" className="w-10 h-10 md:w-12 md:h-12" />
+                  </div>
+                  <div className={`text-sm font-bold tabular-nums ${
+                    breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' :
+                    breakdown && breakdown.finalScore < 0 ? 'text-rose-400' :
+                    'text-slate-400'
+                  }`}>
+                    {breakdown ? breakdown.finalScore : '--'}
+                  </div>
+                </div>
+              ))
+            ) : team1Breakdown.length > 0 ? (
+              team1Breakdown.map(({ qb }: { qb: string }, idx: number) => (
+                <div key={idx} className="flex flex-col items-center gap-1.5">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-lg border-2 border-dashed border-slate-600/50 flex items-center justify-center overflow-hidden p-1.5">
+                    <TeamLogo teamName={qb} size="xs" className="w-10 h-10 md:w-12 md:h-12" />
+                  </div>
+                  <div className="text-xs text-slate-500">--</div>
+                </div>
+              ))
+            ) : (
+              [1, 2].map((_, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-1.5">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-600 rounded-lg border-2 border-dashed border-gray-500 flex items-center justify-center">
+                    <div className="text-gray-400 text-xs">?</div>
+                  </div>
+                  <div className="text-xs text-gray-400">--</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Team 2 Side */}
+        <div
+          className="flex-1 px-6 flex flex-col items-center gap-4 relative"
+          style={team2Wins ? { background: 'radial-gradient(circle at center, rgba(16, 185, 129, 0.06) 0%, transparent 70%)' } : undefined}
+        >
+          <div className="flex gap-4 items-center">
+            {hasData ? (
+              team2Breakdown.map(({ qb, breakdown }: { qb: string; breakdown: any }, idx: number) => (
+                <div key={qb} className="flex flex-col items-center gap-1.5 relative group">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-lg flex items-center justify-center overflow-hidden p-1.5">
+                    <TeamLogo teamName={qb} size="xs" className="w-10 h-10 md:w-12 md:h-12" />
+                  </div>
+                  <div className={`text-sm font-bold tabular-nums ${
+                    breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' :
+                    breakdown && breakdown.finalScore < 0 ? 'text-rose-400' :
+                    'text-slate-400'
+                  }`}>
+                    {breakdown ? breakdown.finalScore : '--'}
+                  </div>
+                </div>
+              ))
+            ) : team2Breakdown.length > 0 ? (
+              team2Breakdown.map(({ qb }: { qb: string }, idx: number) => (
+                <div key={idx} className="flex flex-col items-center gap-1.5">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-lg border-2 border-dashed border-slate-600/50 flex items-center justify-center overflow-hidden p-1.5">
+                    <TeamLogo teamName={qb} size="xs" className="w-10 h-10 md:w-12 md:h-12" />
+                  </div>
+                  <div className="text-xs text-slate-500">--</div>
+                </div>
+              ))
+            ) : (
+              [1, 2].map((_, idx) => (
+                <div key={idx} className="flex flex-col items-center gap-1.5">
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-600 rounded-lg border-2 border-dashed border-gray-500 flex items-center justify-center">
+                    <div className="text-gray-400 text-xs">?</div>
+                  </div>
+                  <div className="text-xs text-gray-400">--</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+MatchupCard.displayName = 'MatchupCard';
 
 const Home: React.FC = () => {
   const { leagueData, updateLeagueData, isWeekLocked, isDataLoaded } = useLeagueData();
@@ -72,11 +268,31 @@ const Home: React.FC = () => {
     }
   }, [isDataLoaded, hasInitialized, leagueData.matchups, leagueData.currentWeek, selectedWeek, hasManuallyNavigated]);
 
-  // Get matchups for selected week
-  const weekMatchups = leagueData.matchups.filter(m => m.week === selectedWeek);
-  
-  // Get lineups for selected week
-  const weekLineups = leagueData.lineups.filter(l => l.week === selectedWeek);
+  // Memoize expensive calculations
+  const weekMatchups = useMemo(() =>
+    leagueData.matchups.filter(m => m.week === selectedWeek),
+    [leagueData.matchups, selectedWeek]
+  );
+
+  const weekLineups = useMemo(() =>
+    leagueData.lineups.filter(l => l.week === selectedWeek),
+    [leagueData.lineups, selectedWeek]
+  );
+
+  const weeksWithMatchups = useMemo(() =>
+    [...new Set(leagueData.matchups.map(m => m.week))],
+    [leagueData.matchups]
+  );
+
+  const teams = useMemo(() =>
+    leagueData.teams.map(team => team.name),
+    [leagueData.teams]
+  );
+
+  const weeks = useMemo(() =>
+    Array.from({ length: 18 }, (_, i) => i + 1),
+    []
+  );
 
   // Calculate standings using the centralized utility
   const [standings, setStandings] = useState<any[]>([]);
@@ -116,50 +332,68 @@ const Home: React.FC = () => {
 
       setLoading(true);
       try {
-        // Calculate standings and weekly results
-        const [standingsData, weeklyResultsData] = await Promise.all([
+        // Batch all calculations in parallel to avoid blocking the UI
+        const [standingsData, weeklyResultsData, ...teamRecordsPromises] = await Promise.all([
           calculateStandingsFromSupabase(leagueData.matchups, leagueData.lineups, leagueData.teams),
-          calculateWeeklyResultsFromSupabase(leagueData.matchups, leagueData.lineups, leagueData.teams)
+          calculateWeeklyResultsFromSupabase(leagueData.matchups, leagueData.lineups, leagueData.teams),
+          // Calculate all team records in parallel
+          ...leagueData.teams.map(team =>
+            getCurrentRecordFromSupabase(team.name, leagueData.matchups, leagueData.lineups)
+              .catch(error => {
+                console.error(`Error calculating record for ${team.name}:`, error);
+                return '0-0';
+              })
+          )
         ]);
+
         setStandings(standingsData);
         setWeeklyResults(weeklyResultsData);
 
-        // Calculate team records
+        // Build team records object
         const teamRecordsData: { [teamName: string]: string } = {};
-        for (const team of leagueData.teams) {
-          try {
-            teamRecordsData[team.name] = await getCurrentRecordFromSupabase(team.name, leagueData.matchups, leagueData.lineups);
-          } catch (error) {
-            console.error(`Error calculating record for ${team.name}:`, error);
-            teamRecordsData[team.name] = '0-0';
-          }
-        }
+        leagueData.teams.forEach((team, index) => {
+          teamRecordsData[team.name] = teamRecordsPromises[index];
+        });
         setTeamRecords(teamRecordsData);
 
-        // Calculate team week results and matchup details (only for weeks that have matchups)
+        // Calculate team week results and matchup details in batches to avoid overwhelming the browser
         const teamWeekResultsData: { [key: string]: any } = {};
         const teamWeekMatchupDetailsData: { [key: string]: any } = {};
 
-        // Get all unique weeks that have matchups
-        const weeksWithMatchups = [...new Set(leagueData.matchups.map(m => m.week))];
+        // Process teams in smaller batches to prevent browser freeze
+        const BATCH_SIZE = 3; // Process 3 teams at a time
+        for (let i = 0; i < leagueData.teams.length; i += BATCH_SIZE) {
+          const teamBatch = leagueData.teams.slice(i, i + BATCH_SIZE);
 
-        for (const team of leagueData.teams) {
-          for (const week of weeksWithMatchups) {
-            const key = `${team.name}-${week}`;
-            try {
-              const [result, matchupDetails] = await Promise.all([
-                getTeamWeekResultFromSupabase(team.name, week, leagueData.matchups, leagueData.lineups),
-                getTeamWeekMatchupDetailsFromSupabase(team.name, week, leagueData.matchups, leagueData.lineups)
-              ]);
-              teamWeekResultsData[key] = result;
-              teamWeekMatchupDetailsData[key] = matchupDetails;
-            } catch (error) {
-              console.error(`Error calculating week data for ${team.name} week ${week}:`, error);
-              teamWeekResultsData[key] = null;
-              teamWeekMatchupDetailsData[key] = null;
-            }
+          const batchPromises = teamBatch.flatMap(team =>
+            weeksWithMatchups.map(async week => {
+              const key = `${team.name}-${week}`;
+              try {
+                const [result, matchupDetails] = await Promise.all([
+                  getTeamWeekResultFromSupabase(team.name, week, leagueData.matchups, leagueData.lineups),
+                  getTeamWeekMatchupDetailsFromSupabase(team.name, week, leagueData.matchups, leagueData.lineups)
+                ]);
+                return { key, result, matchupDetails };
+              } catch (error) {
+                console.error(`Error calculating week data for ${team.name} week ${week}:`, error);
+                return { key, result: null, matchupDetails: null };
+              }
+            })
+          );
+
+          // Process this batch
+          const batchResults = await Promise.all(batchPromises);
+          batchResults.forEach(({ key, result, matchupDetails }) => {
+            teamWeekResultsData[key] = result;
+            teamWeekMatchupDetailsData[key] = matchupDetails;
+          });
+
+          // Small delay between batches to prevent browser freeze
+          if (i + BATCH_SIZE < leagueData.teams.length) {
+            await new Promise(resolve => setTimeout(resolve, 10));
           }
         }
+
         setTeamWeekResults(teamWeekResultsData);
         setTeamWeekMatchupDetails(teamWeekMatchupDetailsData);
 
@@ -173,7 +407,7 @@ const Home: React.FC = () => {
     };
 
     calculateGlobalData();
-  }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.teams]);
+  }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.teams, weeksWithMatchups]);
 
   // Calculate matchup scores for selected week only
   useEffect(() => {
@@ -198,8 +432,8 @@ const Home: React.FC = () => {
   }, [isDataLoaded, weekMatchups, leagueData.lineups]);
 
 
-  // Modal helper functions
-  const openMatchupModal = async (matchup: any, week: number) => {
+  // Modal helper functions (memoized to prevent re-renders)
+  const openMatchupModal = useCallback(async (matchup: any, week: number) => {
     try {
       const { team1Score, team2Score, team1Breakdown, team2Breakdown } = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
       setSelectedMatchup({
@@ -215,15 +449,15 @@ const Home: React.FC = () => {
     } catch (error) {
       console.error('Error calculating matchup score:', error);
     }
-  };
+  }, [leagueData.lineups]);
 
-  const openWLTModal = async (teamName: string, week: number) => {
+  const openWLTModal = useCallback(async (teamName: string, week: number) => {
     try {
       const matchupDetails = await getTeamWeekMatchupDetailsFromSupabase(teamName, week, leagueData.matchups, leagueData.lineups);
       if (!matchupDetails) return;
 
-      const matchup = leagueData.matchups.find(m => 
-        m.week === week && 
+      const matchup = leagueData.matchups.find(m =>
+        m.week === week &&
         (m.team1 === teamName || m.team2 === teamName)
       );
       if (!matchup) return;
@@ -232,32 +466,32 @@ const Home: React.FC = () => {
     } catch (error) {
       console.error('Error opening WLT modal:', error);
     }
-  };
+  }, [leagueData.matchups, leagueData.lineups, openMatchupModal]);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setSelectedMatchup(null);
-  };
+  }, []);
 
-  // Position calculation for portal tooltip
-  const calculateTooltipPosition = (rect: DOMRect, isNearBottom: boolean) => {
+  // Position calculation for portal tooltip (memoized)
+  const calculateTooltipPosition = useCallback((rect: DOMRect, isNearBottom: boolean) => {
     const tooltipWidth = 200; // Approximate tooltip width
     const tooltipHeight = 100; // Approximate tooltip height
     const margin = 8; // Margin from the square
-    
+
     let top: number;
     let left: number;
-    
+
     // Calculate horizontal position (center on the square)
     left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
-    
+
     // Ensure tooltip doesn't go off screen horizontally
     if (left < margin) {
       left = margin;
     } else if (left + tooltipWidth > window.innerWidth - margin) {
       left = window.innerWidth - tooltipWidth - margin;
     }
-    
+
     // Calculate vertical position
     if (isNearBottom) {
       // Show above the square
@@ -266,13 +500,9 @@ const Home: React.FC = () => {
       // Show below the square
       top = rect.bottom + margin;
     }
-    
-    return { top, left };
-  };
 
-  // W/L/T Chart functions
-  const weeks = Array.from({ length: 18 }, (_, i) => i + 1);
-  const teams = leagueData.teams.map(team => team.name);
+    return { top, left };
+  }, []);
 
 
   return (
@@ -339,270 +569,30 @@ const Home: React.FC = () => {
             {weekMatchups.map((matchup, index) => {
               const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
               const matchupData = matchupScores[key];
-              const team1Score = matchupData?.team1Score || 0;
-              const team2Score = matchupData?.team2Score || 0;
-              const team1Breakdown = matchupData?.team1Breakdown || [];
-              const team2Breakdown = matchupData?.team2Breakdown || [];
-              const hasData = !!matchupData && 
-                (team1Breakdown.length > 0 || team2Breakdown.length > 0) &&
-                (team1Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined) ||
-                 team2Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined));
-              
+
               return (
-                <div 
-                  key={index} 
-                  className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-5 lg:p-4 xl:p-6 cursor-pointer hover:bg-slate-700/20 hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)] hover:scale-[1.02] transition-all duration-200"
-                  onClick={() => openMatchupModal(matchup, selectedWeek)}
-                >
-                  {/* Row 1: Player Names */}
-                  <div className="flex items-center justify-center mb-3 lg:mb-2 xl:mb-4">
-                    <TeamLogo teamName={matchup.team1} size="md" showName={true} className="lg:text-xs xl:text-sm" />
-                    <div className="mx-4 lg:mx-3 xl:mx-6 text-slate-400 text-base lg:text-sm xl:text-lg font-bold tracking-tight">VS</div>
-                    <TeamLogo teamName={matchup.team2} size="md" showName={true} className="lg:text-xs xl:text-sm" />
-                  </div>
-
-                  {/* Row 2: Subtotal Scores */}
-                  <div className="flex items-center justify-around mb-3 lg:mb-2 xl:mb-4">
-                    {/* Team 1 Subtotal */}
-                    <div className={`text-xl lg:text-lg xl:text-2xl font-black text-center tabular-nums ${
-                      hasData && team1Score > team2Score ? 'text-emerald-400' : 
-                      hasData && team1Score < team2Score ? 'text-rose-400' : 'text-slate-200'
-                    } ${hasData && team1Score < 0 ? 'text-rose-400' : ''}`}>{team1Score}</div>
-                    
-                    {/* Team 2 Subtotal */}
-                    <div className={`text-xl lg:text-lg xl:text-2xl font-black text-center tabular-nums ${
-                      hasData && team2Score > team1Score ? 'text-emerald-400' : 
-                      hasData && team2Score < team1Score ? 'text-rose-400' : 'text-slate-200'
-                    } ${hasData && team2Score < 0 ? 'text-rose-400' : ''}`}>{team2Score}</div>
-                  </div>
-
-                  {/* Row 3: Team QB cards - Centered flow with divider */}
-                  <div className="flex items-center justify-around mb-4 lg:mb-3 xl:mb-6">
-                    {/* P1 Teams */}
-                    <div className="flex items-center gap-3 lg:gap-2 xl:gap-4">
-                      {hasData ? (
-                        team1Breakdown.map(({ qb, breakdown }: { qb: string; breakdown: any }, index: number) => (
-                          <div 
-                            key={qb} 
-                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
-                            title={breakdown ? `${qb} - ${breakdown.finalScore} points` : `${qb} - No data`}
-                          >
-                            <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
-                            <span className={`text-xs lg:text-[10px] xl:text-xs font-bold tabular-nums ${
-                              breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' : 
-                              breakdown && breakdown.finalScore < 0 ? 'text-rose-400' : 'text-slate-400'
-                            }`}>{breakdown ? breakdown.finalScore : '--'}</span>
-                            
-                            {/* Enhanced tooltip with scoring breakdown */}
-                            <div 
-                              className="absolute left-1/2 transform -translate-x-1/2 hidden group-hover:block z-50 tooltip-container"
-                              onMouseEnter={(e) => {
-                                const tooltip = e.currentTarget;
-                                const rect = tooltip.getBoundingClientRect();
-                                
-                                // Check if tooltip would be cut off at top
-                                if (rect.top < 100) {
-                                  tooltip.setAttribute('data-position', 'below');
-                                } else {
-                                  tooltip.setAttribute('data-position', 'above');
-                                }
-                              }}
-                            >
-                              <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 min-w-max">
-                                <div className="font-semibold mb-2">{qb} - {breakdown ? breakdown.finalScore : 0} pts</div>
-                                <div className="space-y-1">
-                                  {breakdown ? (() => {
-                                    // Convert QBPerformance to QBStats format for dynamic calculation
-                                    const qbStats = {
-                                      passYards: breakdown.passYards,
-                                      touchdowns: breakdown.touchdowns,
-                                      completionPercent: breakdown.completionPercent,
-                                      turnovers: breakdown.turnovers,
-                                      events: breakdown.events,
-                                      longestPlay: breakdown.longestPlay,
-                                      interceptions: breakdown.interceptions,
-                                      fumbles: breakdown.fumbles,
-                                      rushYards: breakdown.rushYards
-                                    };
-                                    const scoringBreakdown = getDetailedScoringBreakdown(qbStats);
-                                    
-                                    return (
-                                      <>
-                                        <div className="whitespace-nowrap">Pass Yards: {breakdown.passYards} → {scoringBreakdown.passYards} pts</div>
-                                        <div className="whitespace-nowrap">Touchdowns: {breakdown.touchdowns} → {scoringBreakdown.touchdowns} pts</div>
-                                        <div className="whitespace-nowrap">Completion %: {breakdown.completionPercent}% → {scoringBreakdown.completionPercent} pts</div>
-                                        <div className="whitespace-nowrap">Turnovers: {breakdown.interceptions + breakdown.fumbles} → {scoringBreakdown.turnovers} pts</div>
-                                        <div className="whitespace-nowrap">Interceptions: {breakdown.interceptions} → {scoringBreakdown.interceptions} pts</div>
-                                        <div className="whitespace-nowrap">Fumbles: {breakdown.fumbles} → {scoringBreakdown.fumbles} pts</div>
-                                        <div className="whitespace-nowrap">Longest Play: {breakdown.longestPlay} → {scoringBreakdown.longestPlay} pts</div>
-                                        <div className="whitespace-nowrap">Rush Yards: {breakdown.rushYards} → {scoringBreakdown.rushYards} pts</div>
-                                        <div className="whitespace-nowrap">Def TD: {breakdown.defensiveTD} → {breakdown.defensiveTD * 20} pts</div>
-                                        <div className="whitespace-nowrap">Safety: {breakdown.safety} → {breakdown.safety * 15} pts</div>
-                                        <div className="whitespace-nowrap">GEF: {breakdown.gameEndingFumble} → {breakdown.gameEndingFumble * 50} pts</div>
-                                        <div className="whitespace-nowrap">GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>
-                                        <div className="whitespace-nowrap">Benching: {breakdown.benching} → {breakdown.benching * 35} pts</div>
-                                        <div className="border-t border-gray-600 pt-1 mt-2">
-                                          <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
-                                        </div>
-                                      </>
-                                    );
-                                  })() : (
-                                    <div className="text-gray-400">No scoring data available</div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : team1Breakdown.length > 0 ? (
-                        // Show actual QB logos when lineups are set but no CSV data
-                        team1Breakdown.map(({ qb }: { qb: string }, index: number) => (
-                          <div 
-                            key={index}
-                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
-                            title="Scores not available yet"
-                          >
-                            <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
-                            <span className="text-xs lg:text-[10px] xl:text-xs text-slate-500">--</span>
-                          </div>
-                        ))
-                      ) : (
-                        // Show empty placeholder squares when no lineups are set (2 QBs for P1)
-                        [1, 2].map((_, index) => (
-                          <div 
-                            key={index}
-                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
-                            title="Lineup not set yet"
-                          >
-                            <div className="text-gray-400 text-xs lg:text-[10px] xl:text-xs">?</div>
-                            <span className="text-xs lg:text-[10px] xl:text-xs text-gray-400">--</span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                    
-                    {/* Divider between P1 and P2 teams */}
-                    <div className="w-px h-12 lg:h-10 xl:h-12 bg-slate-700/50 mx-2"></div>
-                    
-                    {/* P2 Teams */}
-                    <div className="flex items-center gap-3 lg:gap-2 xl:gap-4">
-                      {hasData ? (
-                        team2Breakdown.map(({ qb, breakdown }: { qb: string; breakdown: any }) => (
-                          <div 
-                            key={qb} 
-                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
-                            title={breakdown ? `${qb} - ${breakdown.finalScore} points` : `${qb} - No data`}
-                          >
-                            <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
-                            <span className={`text-xs lg:text-[10px] xl:text-xs font-bold tabular-nums ${
-                              breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' : 
-                              breakdown && breakdown.finalScore < 0 ? 'text-rose-400' : 'text-slate-400'
-                            }`}>{breakdown ? breakdown.finalScore : '--'}</span>
-                            
-                            {/* Enhanced tooltip with scoring breakdown */}
-                            <div 
-                              className="absolute left-1/2 transform -translate-x-1/2 hidden group-hover:block z-50 tooltip-container"
-                              onMouseEnter={(e) => {
-                                const tooltip = e.currentTarget;
-                                const rect = tooltip.getBoundingClientRect();
-                                
-                                // Check if tooltip would be cut off at top
-                                if (rect.top < 100) {
-                                  tooltip.setAttribute('data-position', 'below');
-                                } else {
-                                  tooltip.setAttribute('data-position', 'above');
-                                }
-                              }}
-                            >
-                              <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 min-w-max">
-                                <div className="font-semibold mb-2">{qb} - {breakdown ? breakdown.finalScore : 0} pts</div>
-                                <div className="space-y-1">
-                                  {breakdown ? (() => {
-                                    // Convert QBPerformance to QBStats format for dynamic calculation
-                                    const qbStats = {
-                                      passYards: breakdown.passYards,
-                                      touchdowns: breakdown.touchdowns,
-                                      completionPercent: breakdown.completionPercent,
-                                      turnovers: breakdown.turnovers,
-                                      events: breakdown.events,
-                                      longestPlay: breakdown.longestPlay,
-                                      interceptions: breakdown.interceptions,
-                                      fumbles: breakdown.fumbles,
-                                      rushYards: breakdown.rushYards
-                                    };
-                                    const scoringBreakdown = getDetailedScoringBreakdown(qbStats);
-                                    
-                                    return (
-                                      <>
-                                        <div className="whitespace-nowrap">Pass Yards: {breakdown.passYards} → {scoringBreakdown.passYards} pts</div>
-                                        <div className="whitespace-nowrap">Touchdowns: {breakdown.touchdowns} → {scoringBreakdown.touchdowns} pts</div>
-                                        <div className="whitespace-nowrap">Completion %: {breakdown.completionPercent}% → {scoringBreakdown.completionPercent} pts</div>
-                                        <div className="whitespace-nowrap">Turnovers: {breakdown.interceptions + breakdown.fumbles} → {scoringBreakdown.turnovers} pts</div>
-                                        <div className="whitespace-nowrap">Interceptions: {breakdown.interceptions} → {scoringBreakdown.interceptions} pts</div>
-                                        <div className="whitespace-nowrap">Fumbles: {breakdown.fumbles} → {scoringBreakdown.fumbles} pts</div>
-                                        <div className="whitespace-nowrap">Longest Play: {breakdown.longestPlay} → {scoringBreakdown.longestPlay} pts</div>
-                                        <div className="whitespace-nowrap">Rush Yards: {breakdown.rushYards} → {scoringBreakdown.rushYards} pts</div>
-                                        <div className="whitespace-nowrap">Def TD: {breakdown.defensiveTD} → {breakdown.defensiveTD * 20} pts</div>
-                                        <div className="whitespace-nowrap">Safety: {breakdown.safety} → {breakdown.safety * 15} pts</div>
-                                        <div className="whitespace-nowrap">GEF: {breakdown.gameEndingFumble} → {breakdown.gameEndingFumble * 50} pts</div>
-                                        <div className="whitespace-nowrap">GWD: {breakdown.gameWinningDrive} → {breakdown.gameWinningDrive * -12} pts</div>
-                                        <div className="whitespace-nowrap">Benching: {breakdown.benching} → {breakdown.benching * 35} pts</div>
-                                        <div className="border-t border-gray-600 pt-1 mt-2">
-                                          <div className="font-semibold">Final: {breakdown.finalScore} pts</div>
-                                        </div>
-                                      </>
-                                    );
-                                  })() : (
-                                    <div className="text-gray-400">No scoring data available</div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : team2Breakdown.length > 0 ? (
-                        // Show actual QB logos when lineups are set but no CSV data
-                        team2Breakdown.map(({ qb }: { qb: string }, index: number) => (
-                          <div 
-                            key={index}
-                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
-                            title="Scores not available yet"
-                          >
-                            <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
-                            <span className="text-xs lg:text-[10px] xl:text-xs text-slate-500">--</span>
-                          </div>
-                        ))
-                      ) : (
-                        // Show empty placeholder squares when no lineups are set (2 QBs for P2)
-                        [1, 2].map((_, index) => (
-                          <div 
-                            key={index}
-                            className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-gray-600 rounded flex flex-col items-center justify-center border-2 border-dashed border-gray-500"
-                            title="Lineup not set yet"
-                          >
-                            <div className="text-gray-400 text-xs lg:text-[10px] xl:text-xs">?</div>
-                            <span className="text-xs lg:text-[10px] xl:text-xs text-gray-400">--</span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Row 4: Winner - Centered */}
-                  {hasData && team1Score !== team2Score && (
-                    <div className="flex items-center justify-center">
-                      <span className="inline-flex items-center gap-2 px-3 py-1.5 lg:px-2 lg:py-1 xl:px-4 xl:py-2 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-xs lg:text-[10px] xl:text-sm font-bold uppercase tracking-wider">
-                        Winner: {team1Score > team2Score ? matchup.team1 : matchup.team2}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                <MatchupCard
+                  key={key}
+                  matchup={matchup}
+                  matchupData={matchupData}
+                  selectedWeek={selectedWeek}
+                  leagueData={leagueData}
+                  isWeekLocked={isWeekLocked}
+                  openMatchupModal={openMatchupModal}
+                />
               );
             })}
           </div>
+        ) : loading ? (
+          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <p className="text-slate-400">Loading matchup data...</p>
+            </div>
+          </div>
         ) : (
           <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center text-slate-400">
-            {weekMatchups.length === 0 
+            {weekMatchups.length === 0
               ? `No matchups scheduled for Week ${selectedWeek}`
               : "No lineups set yet for this week"
             }

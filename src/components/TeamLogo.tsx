@@ -51,12 +51,19 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
     );
   }
 
+  // Extract size classes from className if provided, otherwise use size prop
+  const hasSizeInClassName = className && (className.includes('w-') || className.includes('h-'));
+  const imgSizeClass = hasSizeInClassName 
+    ? className.split(' ').filter(c => c.startsWith('w-') || c.startsWith('h-') || c.startsWith('md:')).join(' ')
+    : sizeClasses[size];
+  const wrapperClass = hasSizeInClassName ? '' : 'w-full h-full';
+
   return (
-    <div className={`flex items-center ${className}`}>
+    <div className={`flex items-center justify-center ${wrapperClass} ${hasSizeInClassName ? '' : className}`}>
       <img 
         src={logoPath} 
         alt={`${teamName} logo`}
-        className={`${sizeClasses[size]} object-contain flex-shrink-0`}
+        className={`${imgSizeClass} object-contain flex-shrink-0 ${hasSizeInClassName ? className.replace(/\b(w-\S+|h-\S+|md:\S+)\b/g, '').trim() : ''}`}
         onError={(e) => {
           // Fallback to text if image fails to load
           const target = e.target as HTMLImageElement;

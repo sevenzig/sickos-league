@@ -72,7 +72,21 @@ const StatCell = ({ value, points }: { value: any; points: number }) => (
 );
 
 const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupData }) => {
-  // Early return to prevent portal rendering when closed
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      // Store original overflow value
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        // Restore original overflow value
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  // Early return to prevent portal rendering when closed (after hooks)
   if (!isOpen || !matchupData) return null;
 
   const { week, team1, team2, team1Score, team2Score, team1Breakdown, team2Breakdown } = matchupData;
@@ -137,33 +151,19 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
   const team2Won = hasData && team2Score > team1Score;
   const isDraw = hasData && team1Score === team2Score;
 
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      // Store original overflow value
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-
-      return () => {
-        // Restore original overflow value
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [isOpen]);
-
   // Helper function to map SCORING_EVENTS names to breakdown data keys
   const getEventKey = (eventName: string): string => {
     const mapping: { [key: string]: string } = {
-      'Game-ending F Up': 'gameendingfumble',
+      'Game-ending F Up': 'gameEndingFumble',
       'Benching': 'benching',
-      'Defensive TD': 'defensivetd',
+      'Defensive TD': 'defensiveTD',
       'QB Safety': 'safety',
-      'No Pass 25+ Yards': 'longestplay', // This is handled differently in the main stats
+      'No Pass 25+ Yards': 'longestPlay', // This is handled differently in the main stats
       'Interception': 'interceptions', // This is handled differently in the main stats
       'Fumble': 'fumbles', // This is handled differently in the main stats
-      '≥75 Rush Yards': 'rushyards', // This is handled differently in the main stats
-      'Game-Winning Drive': 'gamewinningdrive',
-      'GWD by Field Goal': 'gwdbyfieldgoal'
+      '≥75 Rush Yards': 'rushYards', // This is handled differently in the main stats
+      'Game-Winning Drive': 'gameWinningDrive',
+      'GWD by Field Goal': 'gwdByFieldGoal'
     };
     return mapping[eventName] || eventName.toLowerCase().replace(/\s+/g, '');
   };
@@ -454,7 +454,7 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                   </thead>
                   <tbody>
                     {SCORING_EVENTS.filter(event => 
-                      !['Interception', 'Fumble', 'No Pass 25+ Yards'].includes(event.name)
+                      !['Interception', 'Fumble', 'No Pass 25+ Yards', '≥75 Rush Yards', 'GWD by Field Goal'].includes(event.name)
                     ).map((event, idx) => {
                       const eventKey = getEventKey(event.name);
                       
