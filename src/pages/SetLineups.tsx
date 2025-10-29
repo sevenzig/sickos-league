@@ -367,7 +367,7 @@ const SetLineups: React.FC = () => {
                           : 'bg-slate-800/20 text-slate-500 border-slate-700/20 cursor-not-allowed'
                       }`}
                     >
-                      <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0.5 xl:mb-2" />
+                      <TeamLogo teamName={qb} className="mb-1 lg:mb-0.5 xl:mb-2 w-10 h-10 sm:w-6 sm:h-6" />
                       <span className="text-xs lg:text-[10px] xl:text-xs font-medium text-center leading-tight">{qb}</span>
                       {isSelected && (
                         <span className="text-emerald-400 text-xs lg:text-[10px] xl:text-xs mt-0.5 lg:mt-0 xl:mt-1">

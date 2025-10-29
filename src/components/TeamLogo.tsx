@@ -3,7 +3,7 @@ import { getTeamLogo } from '../utils/teamLogos';
 
 interface TeamLogoProps {
   teamName: string;
-  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'md-lg' | 'lg' | 'xl';
   className?: string;
   showName?: boolean;
   fallbackText?: string;
@@ -21,7 +21,8 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
   const sizeClasses = {
     xs: 'w-4 h-4',
     sm: 'w-6 h-6',
-    md: 'w-8 h-8', 
+    md: 'w-8 h-8',
+    'md-lg': 'w-10 h-10',  // 40x40px for mobile
     lg: 'w-12 h-12',
     xl: 'w-16 h-16'
   };
@@ -30,6 +31,7 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
     xs: 'text-xs',
     sm: 'text-xs',
     md: 'text-sm',
+    'md-lg': 'text-sm',
     lg: 'text-base',
     xl: 'text-lg'
   };
