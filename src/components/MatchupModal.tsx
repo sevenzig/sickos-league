@@ -72,6 +72,7 @@ const StatCell = ({ value, points }: { value: any; points: number }) => (
 );
 
 const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupData }) => {
+  // Early return to prevent portal rendering when closed
   if (!isOpen || !matchupData) return null;
 
   const { week, team1, team2, team1Score, team2Score, team1Breakdown, team2Breakdown } = matchupData;
@@ -140,10 +141,13 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = '';
-      };
+    } else {
+      document.body.style.overflow = '';
     }
+    
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
 
   // Helper function to map SCORING_EVENTS names to breakdown data keys
@@ -165,6 +169,7 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
 
   return createPortal(
     <div 
+      key={`matchup-modal-${week}-${team1}-${team2}`}
       className="fixed inset-0 z-50 flex items-center justify-center md:p-8 bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >

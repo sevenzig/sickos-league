@@ -7,6 +7,7 @@ import { saveLineup, updateMatchupScores, lockWeek as lockWeekDB, lockTeamLineup
 
 interface LeagueContextType {
   leagueData: LeagueData;
+  isDataLoaded: boolean;
   updateLeagueData: (data: LeagueData) => void;
   setCurrentWeek: (week: number) => void;
   addGameStats: (teamName: string, week: number, qbStats: any) => void;
@@ -49,6 +50,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     records: [],
     lockedWeeks: []
   }));
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
   const [isOnlineState, setIsOnlineState] = useState(isOnline());
   const [hasPendingChangesState, setHasPendingChangesState] = useState(hasPendingChanges());
@@ -71,6 +73,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
         const dbData = await loadLeagueData();
         if (dbData && dbData.teams.length > 0) {
           setLeagueData(dbData);
+          setIsDataLoaded(true);
           console.log('✅ Loaded data from database:', {
             teams: dbData.teams.length,
             lineups: dbData.lineups.length,
@@ -91,6 +94,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
           const localData = loadLeagueDataFromLocal();
           if (localData && localData.teams.length > 0) {
             setLeagueData(localData);
+            setIsDataLoaded(true);
             console.log('📱 Using localStorage fallback data');
           }
         } catch (localError) {
@@ -436,6 +440,7 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
 
   const value: LeagueContextType = {
     leagueData,
+    isDataLoaded,
     updateLeagueData,
     setCurrentWeek,
     addGameStats,

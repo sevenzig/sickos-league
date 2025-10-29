@@ -14,17 +14,8 @@ import {
 import { getDetailedScoringBreakdown } from '../utils/scoring';
 
 const Home: React.FC = () => {
-  const { leagueData, updateLeagueData, isWeekLocked } = useLeagueData();
-  const [selectedWeek, setSelectedWeek] = useState(() => {
-    // If no data loaded yet, default to week 1
-    if (!leagueData.matchups || leagueData.matchups.length === 0) {
-      return 1;
-    }
-    
-    // Show current week if matchups exist, otherwise show previous week
-    const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
-    return currentWeekMatchups.length > 0 ? leagueData.currentWeek : Math.max(1, leagueData.currentWeek - 1);
-  });
+  const { leagueData, updateLeagueData, isWeekLocked, isDataLoaded } = useLeagueData();
+  const [selectedWeek, setSelectedWeek] = useState(1);
 
   // Update selected week when data loads (only on initial load, not on manual navigation)
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -50,6 +41,9 @@ const Home: React.FC = () => {
   } | null>(null);
   
   useEffect(() => {
+    // Wait for data to be loaded before initializing week
+    if (!isDataLoaded) return;
+    
     if (leagueData.matchups && leagueData.matchups.length > 0 && !hasInitialized) {
       const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
       const newSelectedWeek = currentWeekMatchups.length > 0 ? leagueData.currentWeek : Math.max(1, leagueData.currentWeek - 1);
@@ -58,10 +52,13 @@ const Home: React.FC = () => {
       setSelectedWeek(newSelectedWeek);
       setHasInitialized(true);
     }
-  }, [leagueData.matchups, leagueData.currentWeek, hasInitialized]);
+  }, [isDataLoaded, leagueData.matchups, leagueData.currentWeek, hasInitialized]);
 
   // Auto-switch to current week when matchups become available (only if user hasn't manually navigated)
   useEffect(() => {
+    // Wait for data to be loaded
+    if (!isDataLoaded) return;
+    
     if (!hasInitialized || hasManuallyNavigated) return; // Don't run if user has manually navigated
     
     const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
@@ -85,7 +82,7 @@ const Home: React.FC = () => {
       console.log(`🔄 Auto-switching to Week ${leagueData.currentWeek} - matchups are now available`);
       setSelectedWeek(leagueData.currentWeek);
     }
-  }, [leagueData.matchups, leagueData.currentWeek, selectedWeek, hasInitialized, hasManuallyNavigated]);
+  }, [isDataLoaded, leagueData.matchups, leagueData.currentWeek, selectedWeek, hasInitialized, hasManuallyNavigated]);
 
   // Get matchups for selected week
   const weekMatchups = leagueData.matchups.filter(m => m.week === selectedWeek);
@@ -102,9 +99,33 @@ const Home: React.FC = () => {
   const [teamWeekResults, setTeamWeekResults] = useState<{ [key: string]: any }>({});
   const [teamWeekMatchupDetails, setTeamWeekMatchupDetails] = useState<{ [key: string]: any }>({});
 
+  // Debug logging for data loading flow
+  useEffect(() => {
+    console.log('🏠 Home component state:', {
+      isDataLoaded,
+      teamsCount: leagueData.teams.length,
+      matchupsCount: leagueData.matchups.length,
+      lineupsCount: leagueData.lineups.length,
+      selectedWeek,
+      currentWeek: leagueData.currentWeek
+    });
+  }, [isDataLoaded, leagueData.teams.length, leagueData.matchups.length, leagueData.lineups.length, selectedWeek, leagueData.currentWeek]);
+
   // Calculate standings and weekly results when data changes
   useEffect(() => {
     const calculateData = async () => {
+      // Don't run calculations until data is loaded
+      if (!isDataLoaded) {
+        console.log('⏳ Waiting for league data to load...');
+        return;
+      }
+      
+      // Additional safety check
+      if (leagueData.matchups.length === 0 || leagueData.lineups.length === 0 || leagueData.teams.length === 0) {
+        console.log('⚠️ League data is loaded but empty');
+        return;
+      }
+      
       setLoading(true);
       try {
         // Calculate standings and weekly results
@@ -114,6 +135,18 @@ const Home: React.FC = () => {
         ]);
         setStandings(standingsData);
         setWeeklyResults(weeklyResultsData);
+
+        // Calculate matchup scores for selected week
+        const matchupScoresData: { [key: string]: any } = {};
+        for (const matchup of weekMatchups) {
+          const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
+          try {
+            matchupScoresData[key] = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
+          } catch (error) {
+            console.error(`Error calculating matchup score for ${key}:`, error);
+          }
+        }
+        setMatchupScores(matchupScoresData);
 
         // Calculate team records
         const teamRecordsData: { [teamName: string]: string } = {};
@@ -163,30 +196,9 @@ const Home: React.FC = () => {
       }
     };
 
-    if (leagueData.matchups.length > 0 && leagueData.lineups.length > 0 && leagueData.teams.length > 0) {
-      calculateData();
-    }
-  }, [leagueData.matchups, leagueData.lineups, leagueData.teams]);
+    calculateData();
+  }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.teams, selectedWeek, weekMatchups.length]);
 
-  // Separate effect for calculating matchup scores for the current week
-  useEffect(() => {
-    const calculateMatchupScores = async () => {
-      if (weekMatchups.length === 0) return;
-      
-      const matchupScoresData: { [key: string]: any } = {};
-      for (const matchup of weekMatchups) {
-        const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
-        try {
-          matchupScoresData[key] = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
-        } catch (error) {
-          console.error(`Error calculating matchup score for ${key}:`, error);
-        }
-      }
-      setMatchupScores(matchupScoresData);
-    };
-
-    calculateMatchupScores();
-  }, [selectedWeek, leagueData.matchups, leagueData.lineups]);
 
   // Modal helper functions
   const openMatchupModal = async (matchup: any, week: number) => {
@@ -311,8 +323,19 @@ const Home: React.FC = () => {
         </div>
       </div>
 
+      {/* Show loading state while data loads */}
+      {!isDataLoaded && (
+        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            <p className="text-slate-400">Loading league data...</p>
+          </div>
+        </div>
+      )}
+
       {/* Matchups - Top row with 4 columns */}
-      <div className="space-y-6">
+      {isDataLoaded && (
+        <div className="space-y-6">
         {weekMatchups.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 xl:gap-6">
             {weekMatchups.map((matchup, index) => {
@@ -322,7 +345,11 @@ const Home: React.FC = () => {
               const team2Score = matchupData?.team2Score || 0;
               const team1Breakdown = matchupData?.team1Breakdown || [];
               const team2Breakdown = matchupData?.team2Breakdown || [];
-              const hasData = !!matchupData;
+              const hasData = !!matchupData && 
+                team1Breakdown.length > 0 && 
+                team1Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined) &&
+                team2Breakdown.length > 0 && 
+                team2Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined);
               
               return (
                 <div 
@@ -361,13 +388,13 @@ const Home: React.FC = () => {
                           <div 
                             key={qb} 
                             className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
-                            title={`${qb} - ${breakdown.finalScore} points`}
+                            title={breakdown ? `${qb} - ${breakdown.finalScore} points` : `${qb} - No data`}
                           >
                             <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
                             <span className={`text-xs lg:text-[10px] xl:text-xs font-bold tabular-nums ${
-                              breakdown.finalScore > 0 ? 'text-emerald-400' : 
-                              breakdown.finalScore < 0 ? 'text-rose-400' : 'text-slate-400'
-                            }`}>{breakdown.finalScore}</span>
+                              breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' : 
+                              breakdown && breakdown.finalScore < 0 ? 'text-rose-400' : 'text-slate-400'
+                            }`}>{breakdown ? breakdown.finalScore : '--'}</span>
                             
                             {/* Enhanced tooltip with scoring breakdown */}
                             <div 
@@ -385,9 +412,9 @@ const Home: React.FC = () => {
                               }}
                             >
                               <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 min-w-max">
-                                <div className="font-semibold mb-2">{qb} - {breakdown.finalScore} pts</div>
+                                <div className="font-semibold mb-2">{qb} - {breakdown ? breakdown.finalScore : 0} pts</div>
                                 <div className="space-y-1">
-                                  {(() => {
+                                  {breakdown ? (() => {
                                     // Convert QBPerformance to QBStats format for dynamic calculation
                                     const qbStats = {
                                       passYards: breakdown.passYards,
@@ -422,7 +449,9 @@ const Home: React.FC = () => {
                                         </div>
                                       </>
                                     );
-                                  })()}
+                                  })() : (
+                                    <div className="text-gray-400">No scoring data available</div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -465,13 +494,13 @@ const Home: React.FC = () => {
                           <div 
                             key={qb} 
                             className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
-                            title={`${qb} - ${breakdown.finalScore} points`}
+                            title={breakdown ? `${qb} - ${breakdown.finalScore} points` : `${qb} - No data`}
                           >
                             <TeamLogo teamName={qb} size="sm" className="mb-1 lg:mb-0 xl:mb-1" />
                             <span className={`text-xs lg:text-[10px] xl:text-xs font-bold tabular-nums ${
-                              breakdown.finalScore > 0 ? 'text-emerald-400' : 
-                              breakdown.finalScore < 0 ? 'text-rose-400' : 'text-slate-400'
-                            }`}>{breakdown.finalScore}</span>
+                              breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' : 
+                              breakdown && breakdown.finalScore < 0 ? 'text-rose-400' : 'text-slate-400'
+                            }`}>{breakdown ? breakdown.finalScore : '--'}</span>
                             
                             {/* Enhanced tooltip with scoring breakdown */}
                             <div 
@@ -489,9 +518,9 @@ const Home: React.FC = () => {
                               }}
                             >
                               <div className="bg-gray-800 text-white text-xs rounded-lg p-3 shadow-lg border border-gray-600 min-w-max">
-                                <div className="font-semibold mb-2">{qb} - {breakdown.finalScore} pts</div>
+                                <div className="font-semibold mb-2">{qb} - {breakdown ? breakdown.finalScore : 0} pts</div>
                                 <div className="space-y-1">
-                                  {(() => {
+                                  {breakdown ? (() => {
                                     // Convert QBPerformance to QBStats format for dynamic calculation
                                     const qbStats = {
                                       passYards: breakdown.passYards,
@@ -526,7 +555,9 @@ const Home: React.FC = () => {
                                         </div>
                                       </>
                                     );
-                                  })()}
+                                  })() : (
+                                    <div className="text-gray-400">No scoring data available</div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -580,9 +611,11 @@ const Home: React.FC = () => {
             }
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* Bottom row - League Standings and W/L/T Chart side by side */}
+      {isDataLoaded && (
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 xl:gap-8">
         {/* League Standings - Left side (1/3 width) */}
         <div className="space-y-6">
@@ -700,6 +733,7 @@ const Home: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Matchup Modal */}
       <MatchupModal 
@@ -709,78 +743,77 @@ const Home: React.FC = () => {
       />
 
       {/* Portal Tooltip */}
-      {hoveredCell && createPortal(
-        (() => {
-          const key = `${hoveredCell.teamName}-${hoveredCell.week}`;
-          const matchupDetails = teamWeekMatchupDetails[key];
-          if (!matchupDetails) return null;
-          
-          const teamIndex = teams.indexOf(hoveredCell.teamName);
-          const isNearBottom = teamIndex >= teams.length - 3;
-          const position = calculateTooltipPosition(hoveredCell.rect, isNearBottom);
-          
-          return (
-            <div 
-              className="fixed z-40 pointer-events-none"
-              style={{
-                top: `${position.top}px`,
-                left: `${position.left}px`,
-              }}
-            >
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] border border-slate-700/50 backdrop-blur-xl">
-                <div className="flex items-center gap-6">
-                  {/* Hovered team (always left side) */}
-                  <div className="text-center">
-                    <div className="w-8 h-8 mx-auto mb-2">
-                      <TeamLogo teamName={hoveredCell.teamName} size="sm" />
-                    </div>
-                    <div className="flex gap-1 mb-2">
-                      {matchupDetails.teamQBs.map((qb: string) => (
-                        <div key={qb} className="w-5 h-5">
-                          <TeamLogo teamName={qb} size="xs" />
-                        </div>
-                      ))}
-                    </div>
-                    <div className={`font-black text-lg tabular-nums ${
-                      matchupDetails.teamScore > matchupDetails.opponentScore 
-                        ? 'text-emerald-400' 
-                        : matchupDetails.teamScore < matchupDetails.opponentScore 
-                        ? 'text-rose-400' 
-                        : 'text-slate-200'
-                    }`}>
-                      {matchupDetails.teamScore}
-                    </div>
+      {hoveredCell && (() => {
+        const key = `${hoveredCell.teamName}-${hoveredCell.week}`;
+        const matchupDetails = teamWeekMatchupDetails[key];
+        if (!matchupDetails) return null;
+        
+        const teamIndex = teams.indexOf(hoveredCell.teamName);
+        const isNearBottom = teamIndex >= teams.length - 3;
+        const position = calculateTooltipPosition(hoveredCell.rect, isNearBottom);
+        
+        return createPortal(
+          <div 
+            key={`tooltip-${hoveredCell.teamName}-${hoveredCell.week}`}
+            className="fixed z-40 pointer-events-none"
+            style={{
+              top: `${position.top}px`,
+              left: `${position.left}px`,
+            }}
+          >
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] border border-slate-700/50 backdrop-blur-xl">
+              <div className="flex items-center gap-6">
+                {/* Hovered team (always left side) */}
+                <div className="text-center">
+                  <div className="w-8 h-8 mx-auto mb-2">
+                    <TeamLogo teamName={hoveredCell.teamName} size="sm" />
                   </div>
-                  
-                  {/* Opponent (always right side) */}
-                  <div className="text-center">
-                    <div className="w-8 h-8 mx-auto mb-2">
-                      <TeamLogo teamName={matchupDetails.opponent} size="sm" />
-                    </div>
-                    <div className="flex gap-1 mb-2">
-                      {matchupDetails.opponentQBs.map((qb: string) => (
-                        <div key={qb} className="w-5 h-5">
-                          <TeamLogo teamName={qb} size="xs" />
-                        </div>
-                      ))}
-                    </div>
-                    <div className={`font-black text-lg tabular-nums ${
-                      matchupDetails.opponentScore > matchupDetails.teamScore 
-                        ? 'text-emerald-400' 
-                        : matchupDetails.opponentScore < matchupDetails.teamScore 
-                        ? 'text-rose-400' 
-                        : 'text-slate-200'
-                    }`}>
-                      {matchupDetails.opponentScore}
-                    </div>
+                  <div className="flex gap-1 mb-2">
+                    {matchupDetails.teamQBs.map((qb: string) => (
+                      <div key={qb} className="w-5 h-5">
+                        <TeamLogo teamName={qb} size="xs" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className={`font-black text-lg tabular-nums ${
+                    matchupDetails.teamScore > matchupDetails.opponentScore 
+                      ? 'text-emerald-400' 
+                      : matchupDetails.teamScore < matchupDetails.opponentScore 
+                      ? 'text-rose-400' 
+                      : 'text-slate-200'
+                  }`}>
+                    {matchupDetails.teamScore}
+                  </div>
+                </div>
+                
+                {/* Opponent (always right side) */}
+                <div className="text-center">
+                  <div className="w-8 h-8 mx-auto mb-2">
+                    <TeamLogo teamName={matchupDetails.opponent} size="sm" />
+                  </div>
+                  <div className="flex gap-1 mb-2">
+                    {matchupDetails.opponentQBs.map((qb: string) => (
+                      <div key={qb} className="w-5 h-5">
+                        <TeamLogo teamName={qb} size="xs" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className={`font-black text-lg tabular-nums ${
+                    matchupDetails.opponentScore > matchupDetails.teamScore 
+                      ? 'text-emerald-400' 
+                      : matchupDetails.opponentScore < matchupDetails.teamScore 
+                      ? 'text-rose-400' 
+                      : 'text-slate-200'
+                  }`}>
+                    {matchupDetails.opponentScore}
                   </div>
                 </div>
               </div>
             </div>
-          );
-        })(),
-        document.body
-      )}
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 };
