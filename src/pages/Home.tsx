@@ -197,7 +197,7 @@ const Home: React.FC = () => {
     };
 
     calculateData();
-  }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.teams, selectedWeek, weekMatchups.length]);
+  }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.teams, selectedWeek]);
 
 
   // Modal helper functions
