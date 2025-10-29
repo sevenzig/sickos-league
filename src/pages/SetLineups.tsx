@@ -349,32 +349,52 @@ const SetLineups: React.FC = () => {
               </div>
               
               {/* QB Grid - 2x2 within each team card */}
-              <div className="grid grid-cols-2 gap-2 lg:gap-1.5 xl:gap-3 flex-1 p-3 lg:p-2.5 xl:p-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 flex-1 p-4 sm:p-5">
                 {team.rosters.map(qb => {
                   const isSelected = teamLineup.includes(qb);
                   const canSelect = !isSelected && teamLineup.length < 2;
-                  
+
                   return (
                     <button
                       key={qb}
                       onClick={() => canEdit && handleQBSelection(team.name, qb, !isSelected)}
                       disabled={!canEdit || (!isSelected && !canSelect)}
-                      className={`rounded-lg text-left transition-all duration-200 flex flex-col items-center justify-center w-24 h-24 md:w-28 md:h-28 lg:w-20 lg:h-20 xl:w-32 xl:h-32 border ${
-                        isSelected
-                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
+                      className={`
+                        relative aspect-square rounded-xl transition-all duration-200
+                        flex flex-col items-center justify-center
+                        p-2 sm:p-3 border
+                        ${isSelected
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30 shadow-lg shadow-emerald-500/10'
                           : canSelect
-                          ? 'bg-slate-800/40 text-slate-200 border-slate-700/30 hover:bg-slate-700/40 hover:border-slate-600/50'
-                          : 'bg-slate-800/20 text-slate-500 border-slate-700/20 cursor-not-allowed'
-                      }`}
+                          ? 'bg-slate-800/50 text-slate-200 border-slate-600/40 hover:bg-slate-700/60 hover:border-slate-500/50 hover:shadow-lg'
+                          : 'bg-slate-800/20 text-slate-500 border-slate-700/20 cursor-not-allowed opacity-60'
+                        }
+                      `}
                     >
-                      <TeamLogo teamName={qb} className="mb-1 lg:mb-0.5 xl:mb-2 w-10 h-10 sm:w-6 sm:h-6" />
-                      <span className="text-xs lg:text-[10px] xl:text-xs font-medium text-center leading-tight">{qb}</span>
-                      {isSelected && (
-                        <span className="text-emerald-400 text-xs lg:text-[10px] xl:text-xs mt-0.5 lg:mt-0 xl:mt-1">
-                          <svg className="w-3 h-3 lg:w-2 lg:h-2 xl:w-3 xl:h-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
+                      {/* Team Logo */}
+                      <div className="flex-shrink-0 mb-1">
+                        <TeamLogo
+                          teamName={qb}
+                          className="w-10 h-10 sm:w-12 sm:h-12"
+                        />
+                      </div>
+
+                      {/* Team Name - Fixed height container to prevent aspect ratio changes */}
+                      <div className="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+                        <span className="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">
+                          {qb}
                         </span>
+                      </div>
+
+                      {/* Selected Checkmark */}
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+                          <div className="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg">
+                            <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
                       )}
                     </button>
                   );
