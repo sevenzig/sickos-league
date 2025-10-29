@@ -140,14 +140,15 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
   // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
+      // Store original overflow value
+      const originalOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+
+      return () => {
+        // Restore original overflow value
+        document.body.style.overflow = originalOverflow;
+      };
     }
-    
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [isOpen]);
 
   // Helper function to map SCORING_EVENTS names to breakdown data keys

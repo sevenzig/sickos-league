@@ -40,14 +40,15 @@ const Home: React.FC = () => {
     rect: DOMRect;
   } | null>(null);
   
+  // Unified week initialization logic
   useEffect(() => {
     // Wait for data to be loaded before initializing week
-    if (!isDataLoaded) return;
-    
-    if (leagueData.matchups && leagueData.matchups.length > 0 && !hasInitialized) {
+    if (!isDataLoaded || hasInitialized) return;
+
+    if (leagueData.matchups && leagueData.matchups.length > 0) {
       const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
       const newSelectedWeek = currentWeekMatchups.length > 0 ? leagueData.currentWeek : Math.max(1, leagueData.currentWeek - 1);
-      
+
       console.log(`🔄 Initial data load - setting selected week to ${newSelectedWeek}`);
       setSelectedWeek(newSelectedWeek);
       setHasInitialized(true);
@@ -56,33 +57,20 @@ const Home: React.FC = () => {
 
   // Auto-switch to current week when matchups become available (only if user hasn't manually navigated)
   useEffect(() => {
-    // Wait for data to be loaded
-    if (!isDataLoaded) return;
-    
-    if (!hasInitialized || hasManuallyNavigated) return; // Don't run if user has manually navigated
-    
+    // Wait for data to be loaded and initialization to complete
+    if (!isDataLoaded || !hasInitialized || hasManuallyNavigated) return;
+
     const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
-    console.log(`📊 Week switching logic:`, {
-      currentWeek: leagueData.currentWeek,
-      selectedWeek,
-      currentWeekMatchups: currentWeekMatchups.length,
-      hasManuallyNavigated,
-      shouldSwitch: currentWeekMatchups.length > 0 && selectedWeek === leagueData.currentWeek - 1 && !hasManuallyNavigated
-    });
-    
+
     // Only auto-switch if we're on the previous week and current week matchups are now available
-    // AND there's actual scoring data for the current week
-    // AND we haven't manually navigated to a different week
-    const hasCurrentWeekData = true; // Always true now that we're using Supabase
     const isOnPreviousWeek = selectedWeek === leagueData.currentWeek - 1;
     const hasCurrentWeekMatchups = currentWeekMatchups.length > 0;
-    
-    if (hasCurrentWeekMatchups && isOnPreviousWeek && hasCurrentWeekData && !hasManuallyNavigated) {
-      // Current week matchups are now available, switch to showing them
+
+    if (hasCurrentWeekMatchups && isOnPreviousWeek) {
       console.log(`🔄 Auto-switching to Week ${leagueData.currentWeek} - matchups are now available`);
       setSelectedWeek(leagueData.currentWeek);
     }
-  }, [isDataLoaded, leagueData.matchups, leagueData.currentWeek, selectedWeek, hasInitialized, hasManuallyNavigated]);
+  }, [isDataLoaded, hasInitialized, leagueData.matchups, leagueData.currentWeek, selectedWeek, hasManuallyNavigated]);
 
   // Get matchups for selected week
   const weekMatchups = leagueData.matchups.filter(m => m.week === selectedWeek);
@@ -111,21 +99,21 @@ const Home: React.FC = () => {
     });
   }, [isDataLoaded, leagueData.teams.length, leagueData.matchups.length, leagueData.lineups.length, selectedWeek, leagueData.currentWeek]);
 
-  // Calculate standings and weekly results when data changes
+  // Calculate standings and weekly results when data changes (independent of selectedWeek)
   useEffect(() => {
-    const calculateData = async () => {
+    const calculateGlobalData = async () => {
       // Don't run calculations until data is loaded
       if (!isDataLoaded) {
         console.log('⏳ Waiting for league data to load...');
         return;
       }
-      
+
       // Additional safety check
       if (leagueData.matchups.length === 0 || leagueData.lineups.length === 0 || leagueData.teams.length === 0) {
         console.log('⚠️ League data is loaded but empty');
         return;
       }
-      
+
       setLoading(true);
       try {
         // Calculate standings and weekly results
@@ -135,18 +123,6 @@ const Home: React.FC = () => {
         ]);
         setStandings(standingsData);
         setWeeklyResults(weeklyResultsData);
-
-        // Calculate matchup scores for selected week
-        const matchupScoresData: { [key: string]: any } = {};
-        for (const matchup of weekMatchups) {
-          const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
-          try {
-            matchupScoresData[key] = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
-          } catch (error) {
-            console.error(`Error calculating matchup score for ${key}:`, error);
-          }
-        }
-        setMatchupScores(matchupScoresData);
 
         // Calculate team records
         const teamRecordsData: { [teamName: string]: string } = {};
@@ -163,10 +139,10 @@ const Home: React.FC = () => {
         // Calculate team week results and matchup details (only for weeks that have matchups)
         const teamWeekResultsData: { [key: string]: any } = {};
         const teamWeekMatchupDetailsData: { [key: string]: any } = {};
-        
+
         // Get all unique weeks that have matchups
         const weeksWithMatchups = [...new Set(leagueData.matchups.map(m => m.week))];
-        
+
         for (const team of leagueData.teams) {
           for (const week of weeksWithMatchups) {
             const key = `${team.name}-${week}`;
@@ -196,8 +172,30 @@ const Home: React.FC = () => {
       }
     };
 
-    calculateData();
-  }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.teams, selectedWeek]);
+    calculateGlobalData();
+  }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.teams]);
+
+  // Calculate matchup scores for selected week only
+  useEffect(() => {
+    const calculateWeekMatchups = async () => {
+      if (!isDataLoaded || weekMatchups.length === 0) {
+        return;
+      }
+
+      const matchupScoresData: { [key: string]: any } = {};
+      for (const matchup of weekMatchups) {
+        const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
+        try {
+          matchupScoresData[key] = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
+        } catch (error) {
+          console.error(`Error calculating matchup score for ${key}:`, error);
+        }
+      }
+      setMatchupScores(matchupScoresData);
+    };
+
+    calculateWeekMatchups();
+  }, [isDataLoaded, weekMatchups, leagueData.lineups]);
 
 
   // Modal helper functions
