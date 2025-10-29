@@ -40,7 +40,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     );
   }
 
-  const { isOnline, hasPendingChanges, syncStatus, syncToDatabase, syncFromDatabase } = contextData;
+  // Sync functions removed - moved to Admin page
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Close menu when clicking outside
@@ -88,30 +88,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // Mobile menu items
   const mobileNavItems = isAdmin ? [...publicNavItems, ...adminSubroutes] : publicNavItems;
 
-  const getSyncStatusColor = () => {
-    if (!isOnline) return 'text-red-500';
-    if (syncStatus === 'syncing') return 'text-yellow-500';
-    if (syncStatus === 'error') return 'text-red-500';
-    if (hasPendingChanges) return 'text-orange-500';
-    return 'text-green-500';
-  };
-
-  const getSyncStatusText = () => {
-    if (!isOnline) return 'Offline';
-    if (syncStatus === 'syncing') return 'Syncing...';
-    if (syncStatus === 'error') return 'Sync Error';
-    if (hasPendingChanges) return 'Pending Changes';
-    return 'Synced';
-  };
-
-  const handleSync = async () => {
-    if (hasPendingChanges) {
-      await syncToDatabase();
-    } else {
-      await syncFromDatabase();
-    }
-  };
-
   return (
     <div className="min-h-screen bg-dark-bg">
       {/* Header */}
@@ -122,23 +98,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <h1 className="text-xl font-bold text-white">Bad QB League</h1>
             </div>
             <div className="flex items-center space-x-4">
-              {/* Sync Status Indicator */}
-              <div className="hidden md:flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${getSyncStatusColor().replace('text-', 'bg-')}`}></div>
-                <span className={`text-sm ${getSyncStatusColor()}`}>
-                  {getSyncStatusText()}
-                </span>
-                {isOnline && (hasPendingChanges || syncStatus === 'error') && (
-                  <button
-                    onClick={handleSync}
-                    disabled={syncStatus === 'syncing'}
-                    className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-                  >
-                    {syncStatus === 'syncing' ? 'Syncing...' : 'Sync'}
-                  </button>
-                )}
-              </div>
-
               {/* Desktop Navigation */}
               <div className="hidden md:block">
                 <nav className="flex space-x-8">
