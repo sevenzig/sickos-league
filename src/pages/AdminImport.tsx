@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { importWeeklyCSV, getImportHistory } from '../services/csvImporter';
+import { importWeeklyCSV, getImportHistory, ImportResult } from '../services/csvImporter';
 import { useLeagueData } from '../context/LeagueContext';
-
-interface ImportResult {
-  success: boolean;
-  recordsImported: number;
-  errors: string[];
-  week: number;
-  newCurrentWeek?: number;
-}
 
 interface ImportHistoryItem {
   week: number;
