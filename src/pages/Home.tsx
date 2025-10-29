@@ -4,14 +4,13 @@ import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
 import MatchupModal from '../components/MatchupModal';
 import { 
-  calculateStandings, 
-  calculateWeeklyResults, 
-  getTeamWeekResult, 
-  getCurrentRecord,
-  calculateMatchupScore,
-  getTeamWeekMatchupDetails
-} from '../utils/standingsCalculator';
-import { getWeeklyCSVData } from '../data/scoringData';
+  calculateStandingsFromSupabase, 
+  calculateWeeklyResultsFromSupabase, 
+  getTeamWeekResultFromSupabase, 
+  getCurrentRecordFromSupabase,
+  calculateMatchupScoreFromSupabase,
+  getTeamWeekMatchupDetailsFromSupabase
+} from '../utils/supabaseStandingsCalculator';
 import { getDetailedScoringBreakdown } from '../utils/scoring';
 
 const Home: React.FC = () => {
@@ -77,7 +76,7 @@ const Home: React.FC = () => {
     // Only auto-switch if we're on the previous week and current week matchups are now available
     // AND there's actual scoring data for the current week
     // AND we haven't manually navigated to a different week
-    const hasCurrentWeekData = getWeeklyCSVData(leagueData.currentWeek) !== '';
+    const hasCurrentWeekData = true; // Always true now that we're using Supabase
     const isOnPreviousWeek = selectedWeek === leagueData.currentWeek - 1;
     const hasCurrentWeekMatchups = currentWeekMatchups.length > 0;
     
@@ -95,34 +94,134 @@ const Home: React.FC = () => {
   const weekLineups = leagueData.lineups.filter(l => l.week === selectedWeek);
 
   // Calculate standings using the centralized utility
-  const standings = calculateStandings(leagueData.matchups, leagueData.lineups, leagueData.teams);
+  const [standings, setStandings] = useState<any[]>([]);
+  const [weeklyResults, setWeeklyResults] = useState<{ [teamName: string]: string[] }>({});
+  const [loading, setLoading] = useState(true);
+  const [matchupScores, setMatchupScores] = useState<{ [key: string]: any }>({});
+  const [teamRecords, setTeamRecords] = useState<{ [teamName: string]: string }>({});
+  const [teamWeekResults, setTeamWeekResults] = useState<{ [key: string]: any }>({});
+  const [teamWeekMatchupDetails, setTeamWeekMatchupDetails] = useState<{ [key: string]: any }>({});
+
+  // Calculate standings and weekly results when data changes
+  useEffect(() => {
+    const calculateData = async () => {
+      setLoading(true);
+      try {
+        // Calculate standings and weekly results
+        const [standingsData, weeklyResultsData] = await Promise.all([
+          calculateStandingsFromSupabase(leagueData.matchups, leagueData.lineups, leagueData.teams),
+          calculateWeeklyResultsFromSupabase(leagueData.matchups, leagueData.lineups, leagueData.teams)
+        ]);
+        setStandings(standingsData);
+        setWeeklyResults(weeklyResultsData);
+
+        // Calculate team records
+        const teamRecordsData: { [teamName: string]: string } = {};
+        for (const team of leagueData.teams) {
+          try {
+            teamRecordsData[team.name] = await getCurrentRecordFromSupabase(team.name, leagueData.matchups, leagueData.lineups);
+          } catch (error) {
+            console.error(`Error calculating record for ${team.name}:`, error);
+            teamRecordsData[team.name] = '0-0';
+          }
+        }
+        setTeamRecords(teamRecordsData);
+
+        // Calculate team week results and matchup details (only for weeks that have matchups)
+        const teamWeekResultsData: { [key: string]: any } = {};
+        const teamWeekMatchupDetailsData: { [key: string]: any } = {};
+        
+        // Get all unique weeks that have matchups
+        const weeksWithMatchups = [...new Set(leagueData.matchups.map(m => m.week))];
+        
+        for (const team of leagueData.teams) {
+          for (const week of weeksWithMatchups) {
+            const key = `${team.name}-${week}`;
+            try {
+              const [result, matchupDetails] = await Promise.all([
+                getTeamWeekResultFromSupabase(team.name, week, leagueData.matchups, leagueData.lineups),
+                getTeamWeekMatchupDetailsFromSupabase(team.name, week, leagueData.matchups, leagueData.lineups)
+              ]);
+              teamWeekResultsData[key] = result;
+              teamWeekMatchupDetailsData[key] = matchupDetails;
+            } catch (error) {
+              console.error(`Error calculating week data for ${team.name} week ${week}:`, error);
+              teamWeekResultsData[key] = null;
+              teamWeekMatchupDetailsData[key] = null;
+            }
+          }
+        }
+        setTeamWeekResults(teamWeekResultsData);
+        setTeamWeekMatchupDetails(teamWeekMatchupDetailsData);
+
+      } catch (error) {
+        console.error('Error calculating standings:', error);
+        setStandings([]);
+        setWeeklyResults({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (leagueData.matchups.length > 0 && leagueData.lineups.length > 0 && leagueData.teams.length > 0) {
+      calculateData();
+    }
+  }, [leagueData.matchups, leagueData.lineups, leagueData.teams]);
+
+  // Separate effect for calculating matchup scores for the current week
+  useEffect(() => {
+    const calculateMatchupScores = async () => {
+      if (weekMatchups.length === 0) return;
+      
+      const matchupScoresData: { [key: string]: any } = {};
+      for (const matchup of weekMatchups) {
+        const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
+        try {
+          matchupScoresData[key] = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
+        } catch (error) {
+          console.error(`Error calculating matchup score for ${key}:`, error);
+        }
+      }
+      setMatchupScores(matchupScoresData);
+    };
+
+    calculateMatchupScores();
+  }, [selectedWeek, leagueData.matchups, leagueData.lineups]);
 
   // Modal helper functions
-  const openMatchupModal = (matchup: any, week: number) => {
-    const { team1Score, team2Score, team1Breakdown, team2Breakdown } = calculateMatchupScore(matchup, leagueData.lineups);
-    setSelectedMatchup({
-      week,
-      team1: matchup.team1,
-      team2: matchup.team2,
-      team1Score,
-      team2Score,
-      team1Breakdown,
-      team2Breakdown
-    });
-    setIsModalOpen(true);
+  const openMatchupModal = async (matchup: any, week: number) => {
+    try {
+      const { team1Score, team2Score, team1Breakdown, team2Breakdown } = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
+      setSelectedMatchup({
+        week,
+        team1: matchup.team1,
+        team2: matchup.team2,
+        team1Score,
+        team2Score,
+        team1Breakdown,
+        team2Breakdown
+      });
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('Error calculating matchup score:', error);
+    }
   };
 
-  const openWLTModal = (teamName: string, week: number) => {
-    const matchupDetails = getTeamWeekMatchupDetails(teamName, week, leagueData.matchups, leagueData.lineups);
-    if (!matchupDetails) return;
+  const openWLTModal = async (teamName: string, week: number) => {
+    try {
+      const matchupDetails = await getTeamWeekMatchupDetailsFromSupabase(teamName, week, leagueData.matchups, leagueData.lineups);
+      if (!matchupDetails) return;
 
-    const matchup = leagueData.matchups.find(m => 
-      m.week === week && 
-      (m.team1 === teamName || m.team2 === teamName)
-    );
-    if (!matchup) return;
+      const matchup = leagueData.matchups.find(m => 
+        m.week === week && 
+        (m.team1 === teamName || m.team2 === teamName)
+      );
+      if (!matchup) return;
 
-    openMatchupModal(matchup, week);
+      await openMatchupModal(matchup, week);
+    } catch (error) {
+      console.error('Error opening WLT modal:', error);
+    }
   };
 
   const closeModal = () => {
@@ -217,9 +316,13 @@ const Home: React.FC = () => {
         {weekMatchups.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 xl:gap-6">
             {weekMatchups.map((matchup, index) => {
-              const { team1Score, team2Score, team1Breakdown, team2Breakdown } = calculateMatchupScore(matchup, leagueData.lineups);
-              const csvData = getWeeklyCSVData(selectedWeek);
-              const hasData = !!csvData;
+              const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
+              const matchupData = matchupScores[key];
+              const team1Score = matchupData?.team1Score || 0;
+              const team2Score = matchupData?.team2Score || 0;
+              const team1Breakdown = matchupData?.team1Breakdown || [];
+              const team2Breakdown = matchupData?.team2Breakdown || [];
+              const hasData = !!matchupData;
               
               return (
                 <div 
@@ -254,7 +357,7 @@ const Home: React.FC = () => {
                     {/* P1 Teams */}
                     <div className="flex items-center gap-3 lg:gap-2 xl:gap-4">
                       {hasData ? (
-                        team1Breakdown.map(({ qb, breakdown }, index) => (
+                        team1Breakdown.map(({ qb, breakdown }: { qb: string; breakdown: any }, index: number) => (
                           <div 
                             key={qb} 
                             className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
@@ -327,7 +430,7 @@ const Home: React.FC = () => {
                         ))
                       ) : team1Breakdown.length > 0 ? (
                         // Show actual QB logos when lineups are set but no CSV data
-                        team1Breakdown.map(({ qb }, index) => (
+                        team1Breakdown.map(({ qb }: { qb: string }, index: number) => (
                           <div 
                             key={index}
                             className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
@@ -358,7 +461,7 @@ const Home: React.FC = () => {
                     {/* P2 Teams */}
                     <div className="flex items-center gap-3 lg:gap-2 xl:gap-4">
                       {hasData ? (
-                        team2Breakdown.map(({ qb, breakdown }) => (
+                        team2Breakdown.map(({ qb, breakdown }: { qb: string; breakdown: any }) => (
                           <div 
                             key={qb} 
                             className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border border-slate-700/30 flex flex-col items-center justify-center cursor-help hover:bg-slate-700/20 transition-colors duration-150 relative group"
@@ -431,7 +534,7 @@ const Home: React.FC = () => {
                         ))
                       ) : team2Breakdown.length > 0 ? (
                         // Show actual QB logos when lineups are set but no CSV data
-                        team2Breakdown.map(({ qb }, index) => (
+                        team2Breakdown.map(({ qb }: { qb: string }, index: number) => (
                           <div 
                             key={index}
                             className="w-14 h-14 lg:w-11 lg:h-11 xl:w-16 xl:h-16 bg-slate-800/40 backdrop-blur-sm rounded-lg border-2 border-dashed border-slate-600/50 flex flex-col items-center justify-center"
@@ -550,7 +653,7 @@ const Home: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-700/30">
                   {teams.map((teamName, teamIndex) => {
-                    const record = getCurrentRecord(teamName, leagueData.matchups, leagueData.lineups);
+                    const record = teamRecords[teamName] || '0-0';
                     return (
                       <tr key={teamName} className={`hover:bg-slate-700/20 transition-colors duration-150 ${
                         teamIndex % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
@@ -559,8 +662,9 @@ const Home: React.FC = () => {
                           <TeamLogo teamName={teamName} size="sm" showName={true} className="lg:text-xs xl:text-sm" />
                         </td>
                         {weeks.map((week, weekIndex) => {
-                          const result = getTeamWeekResult(teamName, week, leagueData.matchups, leagueData.lineups);
-                          const matchupDetails = getTeamWeekMatchupDetails(teamName, week, leagueData.matchups, leagueData.lineups);
+                          const key = `${teamName}-${week}`;
+                          const result = teamWeekResults[key];
+                          const matchupDetails = teamWeekMatchupDetails[key];
                           const isNearBottom = teamIndex >= teams.length - 3; // Last 3 rows show tooltip above
                           return (
                             <td key={week} className="px-2 py-3 lg:py-2 xl:py-4 text-center">
@@ -607,7 +711,8 @@ const Home: React.FC = () => {
       {/* Portal Tooltip */}
       {hoveredCell && createPortal(
         (() => {
-          const matchupDetails = getTeamWeekMatchupDetails(hoveredCell.teamName, hoveredCell.week, leagueData.matchups, leagueData.lineups);
+          const key = `${hoveredCell.teamName}-${hoveredCell.week}`;
+          const matchupDetails = teamWeekMatchupDetails[key];
           if (!matchupDetails) return null;
           
           const teamIndex = teams.indexOf(hoveredCell.teamName);
@@ -630,7 +735,7 @@ const Home: React.FC = () => {
                       <TeamLogo teamName={hoveredCell.teamName} size="sm" />
                     </div>
                     <div className="flex gap-1 mb-2">
-                      {matchupDetails.teamQBs.map(qb => (
+                      {matchupDetails.teamQBs.map((qb: string) => (
                         <div key={qb} className="w-5 h-5">
                           <TeamLogo teamName={qb} size="xs" />
                         </div>
@@ -653,7 +758,7 @@ const Home: React.FC = () => {
                       <TeamLogo teamName={matchupDetails.opponent} size="sm" />
                     </div>
                     <div className="flex gap-1 mb-2">
-                      {matchupDetails.opponentQBs.map(qb => (
+                      {matchupDetails.opponentQBs.map((qb: string) => (
                         <div key={qb} className="w-5 h-5">
                           <TeamLogo teamName={qb} size="xs" />
                         </div>

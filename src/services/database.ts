@@ -123,6 +123,160 @@ export async function loadGameStats(week?: number): Promise<GameStats[]> {
   return Object.values(groupedStats)
 }
 
+/**
+ * Get QB performance data from Supabase for a specific week and team
+ */
+export async function getQBPerformanceFromSupabase(week: number, teamAbbr: string): Promise<any | null> {
+  const { data, error } = await supabase
+    .from('game_stats')
+    .select('*')
+    .eq('week', week)
+    .eq('team_abbr', teamAbbr)
+    .single()
+
+  if (error) {
+    console.error(`Error loading QB performance for ${teamAbbr} week ${week}:`, error)
+    return null
+  }
+
+  if (!data) return null
+
+  // Convert Supabase data to match the QBPerformance interface
+  const events: string[] = []
+  
+  // Add events based on performance thresholds
+  if (data.completion_percent <= 30) events.push('Poor Completion %')
+  if (data.pass_yards <= 100) events.push('Low Pass Yards')
+  if (data.pass_tds === 0) events.push('No Touchdowns')
+  if (data.interceptions >= 3) events.push('Multiple Interceptions')
+  if (data.fumbles >= 2) events.push('Multiple Fumbles')
+  if (data.defensive_td > 0) events.push('Defensive TD')
+  if (data.safety > 0) events.push('Safety')
+  if (data.game_ending_fumble > 0) events.push('Game-ending Fumble')
+  if (data.game_winning_drive > 0) events.push('Game-winning Drive')
+  if (data.benching > 0) events.push('Benching')
+
+  return {
+    team: teamAbbr,
+    passYards: data.pass_yards,
+    touchdowns: data.pass_tds,
+    completionPercent: data.completion_percent,
+    turnovers: data.interceptions + data.fumbles,
+    events,
+    finalScore: data.final_score,
+    // Additional stats from Supabase
+    passCompletions: data.pass_completions,
+    passAttempts: data.pass_attempts,
+    interceptions: data.interceptions,
+    sacks: data.sacks,
+    sackYards: data.sack_yards,
+    qbr: data.qbr,
+    rushYards: data.rush_yards,
+    rushTouchdowns: data.rush_tds,
+    longestPlay: data.longest_play,
+    fumbles: data.fumbles,
+    fumblesLost: data.fumbles_lost,
+    defensiveTD: data.defensive_td,
+    safety: data.safety,
+    gameEndingFumble: data.game_ending_fumble,
+    gameWinningDrive: data.game_winning_drive,
+    benching: data.benching,
+    netPassYards: data.net_pass_yards,
+    totalTouchdowns: data.total_tds
+  }
+}
+
+/**
+ * Get all QB performances for a specific week from Supabase (with caching)
+ */
+let qbPerformancesCache: { [week: number]: any[] } = {};
+let cacheTimestamp: number = 0;
+const CACHE_DURATION = 30000; // 30 seconds
+
+export async function getWeeklyQBPerformancesFromSupabase(week: number): Promise<any[]> {
+  const now = Date.now();
+  
+  // Check if we have cached data that's still fresh
+  if (qbPerformancesCache[week] && (now - cacheTimestamp) < CACHE_DURATION) {
+    console.log(`Using cached QB performances for week ${week}`);
+    return qbPerformancesCache[week];
+  }
+
+  console.log(`Fetching QB performances for week ${week} from Supabase`);
+  const { data, error } = await supabase
+    .from('game_stats')
+    .select('*')
+    .eq('week', week)
+    .order('team_abbr')
+
+  if (error) {
+    console.error(`Error loading QB performances for week ${week}:`, error)
+    return []
+  }
+
+  if (!data) return []
+
+  const performances = data.map(stat => {
+    const events: string[] = []
+    
+    // Add events based on performance thresholds
+    if (stat.completion_percent <= 30) events.push('Poor Completion %')
+    if (stat.pass_yards <= 100) events.push('Low Pass Yards')
+    if (stat.pass_tds === 0) events.push('No Touchdowns')
+    if (stat.interceptions >= 3) events.push('Multiple Interceptions')
+    if (stat.fumbles >= 2) events.push('Multiple Fumbles')
+    if (stat.defensive_td > 0) events.push('Defensive TD')
+    if (stat.safety > 0) events.push('Safety')
+    if (stat.game_ending_fumble > 0) events.push('Game-ending Fumble')
+    if (stat.game_winning_drive > 0) events.push('Game-winning Drive')
+    if (stat.benching > 0) events.push('Benching')
+
+    return {
+      team: stat.team_abbr,
+      passYards: stat.pass_yards,
+      touchdowns: stat.pass_tds,
+      completionPercent: stat.completion_percent,
+      turnovers: stat.interceptions + stat.fumbles,
+      events,
+      finalScore: stat.final_score,
+      // Additional stats from Supabase
+      passCompletions: stat.pass_completions,
+      passAttempts: stat.pass_attempts,
+      interceptions: stat.interceptions,
+      sacks: stat.sacks,
+      sackYards: stat.sack_yards,
+      qbr: stat.qbr,
+      rushYards: stat.rush_yards,
+      rushTouchdowns: stat.rush_tds,
+      longestPlay: stat.longest_play,
+      fumbles: stat.fumbles,
+      fumblesLost: stat.fumbles_lost,
+      defensiveTD: stat.defensive_td,
+      safety: stat.safety,
+      gameEndingFumble: stat.game_ending_fumble,
+      gameWinningDrive: stat.game_winning_drive,
+      benching: stat.benching,
+      netPassYards: stat.net_pass_yards,
+      totalTouchdowns: stat.total_tds
+    }
+  })
+
+  // Cache the result
+  qbPerformancesCache[week] = performances;
+  cacheTimestamp = now;
+
+  return performances
+}
+
+/**
+ * Clear the QB performances cache (useful when data is updated)
+ */
+export function clearQBPerformancesCache(): void {
+  qbPerformancesCache = {};
+  cacheTimestamp = 0;
+  console.log('QB performances cache cleared');
+}
+
 export async function loadLeagueSettings(): Promise<{ currentWeek: number; lockedWeeks: number[] }> {
   const { data, error } = await supabase
     .from('league_settings')
@@ -267,7 +421,7 @@ export async function lockWeek(week: number): Promise<void> {
   
   const { data: settings, error: fetchError } = await supabase
     .from('league_settings')
-    .select('locked_weeks')
+    .select('id, locked_weeks')
     .order('id', { ascending: false })
     .limit(1)
     .single()
