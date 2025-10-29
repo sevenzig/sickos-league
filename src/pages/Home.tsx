@@ -346,10 +346,9 @@ const Home: React.FC = () => {
               const team1Breakdown = matchupData?.team1Breakdown || [];
               const team2Breakdown = matchupData?.team2Breakdown || [];
               const hasData = !!matchupData && 
-                team1Breakdown.length > 0 && 
-                team1Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined) &&
-                team2Breakdown.length > 0 && 
-                team2Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined);
+                (team1Breakdown.length > 0 || team2Breakdown.length > 0) &&
+                (team1Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined) ||
+                 team2Breakdown.some((item: any) => item.breakdown !== null && item.breakdown !== undefined));
               
               return (
                 <div 
