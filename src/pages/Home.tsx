@@ -216,7 +216,19 @@ const Home: React.FC = () => {
   // Update selected week when data loads (only on initial load, not on manual navigation)
   const [hasInitialized, setHasInitialized] = useState(false);
   const [hasManuallyNavigated, setHasManuallyNavigated] = useState(false);
-  
+
+  // Detect if we're in production deployment (Vercel has different timing characteristics)
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // State declarations - must be declared before useEffects that reference them
+  const [loading, setLoading] = useState(true);
+  const [matchupScores, setMatchupScores] = useState<{ [key: string]: any }>({});
+  const [standings, setStandings] = useState<any[]>([]);
+  const [weeklyResults, setWeeklyResults] = useState<{ [teamName: string]: string[] }>({});
+  const [teamRecords, setTeamRecords] = useState<{ [teamName: string]: string }>({});
+  const [teamWeekResults, setTeamWeekResults] = useState<{ [key: string]: any }>({});
+  const [teamWeekMatchupDetails, setTeamWeekMatchupDetails] = useState<{ [key: string]: any }>({});
+
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMatchup, setSelectedMatchup] = useState<{
@@ -236,37 +248,65 @@ const Home: React.FC = () => {
     rect: DOMRect;
   } | null>(null);
   
-  // Unified week initialization logic
+  // Enhanced week initialization logic that waits for both matchups and scores
   useEffect(() => {
-    // Wait for data to be loaded before initializing week
-    if (!isDataLoaded || hasInitialized) return;
+    const initializeWeek = async () => {
+      // Wait for data to be loaded and ensure we haven't already initialized
+      if (!isDataLoaded || hasInitialized) return;
 
-    if (leagueData.matchups && leagueData.matchups.length > 0) {
+      // Ensure we have basic data before proceeding
+      if (!leagueData.matchups || leagueData.matchups.length === 0) return;
+
+      // In production, add a small delay to ensure all async operations have settled
+      if (isProduction) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
       const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
-      const newSelectedWeek = currentWeekMatchups.length > 0 ? leagueData.currentWeek : Math.max(1, leagueData.currentWeek - 1);
 
-      console.log(`🔄 Initial data load - setting selected week to ${newSelectedWeek}`);
+      // For Vercel deployment reliability, also check if we have meaningful data
+      const hasCurrentWeekData = currentWeekMatchups.length > 0 &&
+        (leagueData.lineups.some(l => l.week === leagueData.currentWeek) || !loading);
+
+      let newSelectedWeek;
+      if (hasCurrentWeekData) {
+        newSelectedWeek = leagueData.currentWeek;
+        console.log(`🔄 Initial data load - setting selected week to current week ${newSelectedWeek} (production: ${isProduction})`);
+      } else {
+        // Fall back to previous week or week 1
+        newSelectedWeek = Math.max(1, leagueData.currentWeek - 1);
+        console.log(`🔄 Initial data load - current week not ready, setting to week ${newSelectedWeek} (production: ${isProduction})`);
+      }
+
       setSelectedWeek(newSelectedWeek);
       setHasInitialized(true);
-    }
-  }, [isDataLoaded, leagueData.matchups, leagueData.currentWeek, hasInitialized]);
+    };
 
-  // Auto-switch to current week when matchups become available (only if user hasn't manually navigated)
+    initializeWeek();
+  }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.currentWeek, hasInitialized, loading, isProduction]);
+
+  // Enhanced auto-switch logic that waits for matchup scores to be calculated
   useEffect(() => {
-    // Wait for data to be loaded and initialization to complete
-    if (!isDataLoaded || !hasInitialized || hasManuallyNavigated) return;
+    // Wait for data to be loaded, initialization to complete, and user hasn't manually navigated
+    if (!isDataLoaded || !hasInitialized || hasManuallyNavigated || loading) return;
 
     const currentWeekMatchups = leagueData.matchups.filter(m => m.week === leagueData.currentWeek);
 
-    // Only auto-switch if we're on the previous week and current week matchups are now available
-    const isOnPreviousWeek = selectedWeek === leagueData.currentWeek - 1;
+    // Check if current week has both matchups and calculated scores
     const hasCurrentWeekMatchups = currentWeekMatchups.length > 0;
+    const hasCurrentWeekScores = currentWeekMatchups.some(matchup => {
+      const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
+      return matchupScores[key] !== undefined;
+    });
 
-    if (hasCurrentWeekMatchups && isOnPreviousWeek) {
-      console.log(`🔄 Auto-switching to Week ${leagueData.currentWeek} - matchups are now available`);
+    const isOnPreviousWeek = selectedWeek === leagueData.currentWeek - 1;
+
+    // Only auto-switch if we're on the previous week and current week is fully ready
+    if (hasCurrentWeekMatchups && hasCurrentWeekScores && isOnPreviousWeek) {
+      console.log(`🔄 Auto-switching to Week ${leagueData.currentWeek} - matchups and scores are now available`);
       setSelectedWeek(leagueData.currentWeek);
     }
-  }, [isDataLoaded, hasInitialized, leagueData.matchups, leagueData.currentWeek, selectedWeek, hasManuallyNavigated]);
+  }, [isDataLoaded, hasInitialized, leagueData.matchups, leagueData.currentWeek, selectedWeek, hasManuallyNavigated, loading, matchupScores]);
 
   // Memoize expensive calculations
   const weekMatchups = useMemo(() =>
@@ -293,15 +333,6 @@ const Home: React.FC = () => {
     Array.from({ length: 18 }, (_, i) => i + 1),
     []
   );
-
-  // Calculate standings using the centralized utility
-  const [standings, setStandings] = useState<any[]>([]);
-  const [weeklyResults, setWeeklyResults] = useState<{ [teamName: string]: string[] }>({});
-  const [loading, setLoading] = useState(true);
-  const [matchupScores, setMatchupScores] = useState<{ [key: string]: any }>({});
-  const [teamRecords, setTeamRecords] = useState<{ [teamName: string]: string }>({});
-  const [teamWeekResults, setTeamWeekResults] = useState<{ [key: string]: any }>({});
-  const [teamWeekMatchupDetails, setTeamWeekMatchupDetails] = useState<{ [key: string]: any }>({});
 
   // Debug logging for data loading flow
   useEffect(() => {
@@ -409,27 +440,60 @@ const Home: React.FC = () => {
     calculateGlobalData();
   }, [isDataLoaded, leagueData.matchups, leagueData.lineups, leagueData.teams, weeksWithMatchups]);
 
-  // Calculate matchup scores for selected week only
+  // Calculate matchup scores for selected week only with retry logic for deployment
   useEffect(() => {
     const calculateWeekMatchups = async () => {
       if (!isDataLoaded || weekMatchups.length === 0) {
         return;
       }
 
+      console.log(`🔄 Calculating matchup scores for Week ${selectedWeek}...`);
       const matchupScoresData: { [key: string]: any } = {};
+      let retryCount = 0;
+      const maxRetries = 3;
+
       for (const matchup of weekMatchups) {
         const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
-        try {
-          matchupScoresData[key] = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
-        } catch (error) {
-          console.error(`Error calculating matchup score for ${key}:`, error);
+        let success = false;
+
+        while (!success && retryCount < maxRetries) {
+          try {
+            const result = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
+            if (result && (result.team1Score !== undefined || result.team2Score !== undefined)) {
+              matchupScoresData[key] = result;
+              success = true;
+              console.log(`✅ Successfully calculated score for ${key}`);
+            } else {
+              throw new Error('Invalid score data returned');
+            }
+          } catch (error) {
+            retryCount++;
+            console.warn(`⚠️ Attempt ${retryCount} failed for ${key}:`, error);
+
+            if (retryCount < maxRetries) {
+              // Wait before retry, with exponential backoff
+              await new Promise(resolve => setTimeout(resolve, 200 * retryCount));
+            } else {
+              console.error(`❌ Failed to calculate matchup score for ${key} after ${maxRetries} attempts:`, error);
+              // Set empty data to prevent infinite loading
+              matchupScoresData[key] = {
+                team1Score: 0,
+                team2Score: 0,
+                team1Breakdown: [],
+                team2Breakdown: []
+              };
+            }
+          }
         }
+        retryCount = 0; // Reset for next matchup
       }
-      setMatchupScores(matchupScoresData);
+
+      setMatchupScores(prev => ({ ...prev, ...matchupScoresData }));
+      console.log(`✅ Finished calculating matchup scores for Week ${selectedWeek}`);
     };
 
     calculateWeekMatchups();
-  }, [isDataLoaded, weekMatchups, leagueData.lineups]);
+  }, [isDataLoaded, weekMatchups, leagueData.lineups, selectedWeek]);
 
 
   // Modal helper functions (memoized to prevent re-renders)
