@@ -303,8 +303,7 @@ export async function lockWeek(week: number): Promise<void> {
     const { error: updateError } = await supabase
       .from('league_settings')
       .update({ locked_weeks: updatedLockedWeeks })
-      .order('id', { ascending: false })
-      .limit(1)
+      .eq('id', settings.id)
 
     if (updateError) {
       console.error('❌ Error updating locked weeks:', updateError)
@@ -344,8 +343,7 @@ export async function updateCurrentWeek(week: number): Promise<void> {
     const { error: updateError } = await supabase
       .from('league_settings')
       .update({ current_week: week })
-      .order('id', { ascending: false })
-      .limit(1)
+      .eq('id', settings.id)
 
     if (updateError) {
       console.error('❌ Error updating current week:', updateError)
