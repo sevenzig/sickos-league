@@ -183,8 +183,8 @@ const AdminLineups: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 px-4">
-      {/* Simple Breadcrumb */}
-      <div className="py-4">
+      {/* Breadcrumb with Team Status */}
+      <div className="py-4 flex items-center justify-between">
         <Link
           to="/admin"
           className="text-slate-400 hover:text-slate-200 transition-colors"
@@ -192,6 +192,17 @@ const AdminLineups: React.FC = () => {
         >
           ← Admin
         </Link>
+
+        <div className="flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <span className="text-slate-300">{leagueData.teams.filter(team => isTeamLineupLocked(team.name, selectedWeek)).length} of {leagueData.teams.length} teams locked</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+            <span className="text-slate-300">{Object.values(lineups).filter(qbs => qbs.length === 2).length} of {leagueData.teams.length} teams finalized</span>
+          </div>
+        </div>
       </div>
 
       {/* Week Selection and Finalize Section */}
@@ -213,24 +224,14 @@ const AdminLineups: React.FC = () => {
           </div>
 
           {/* Collapsible info section */}
-          {showMobileInfo && (
-            <div className="mb-4 space-y-3 text-sm text-slate-300">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-                <span>{Object.values(lineups).filter(qbs => qbs.length === 2).length} of {leagueData.teams.length} teams complete</span>
+          {showMobileInfo && !canEditWeek && (
+            <div className="mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg border border-yellow-500/30 text-sm font-medium">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+                Lineups locked
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>{leagueData.teams.filter(team => isTeamLineupLocked(team.name, selectedWeek)).length} teams locked</span>
-              </div>
-              {!canEditWeek && (
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg border border-yellow-500/30 text-sm font-medium">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                  </svg>
-                  Lineups locked
-                </div>
-              )}
             </div>
           )}
 
@@ -264,7 +265,7 @@ const AdminLineups: React.FC = () => {
                   onClick={finalizeWeeklyLineups}
                   className="px-3 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 rounded-lg text-xs font-medium transition-all duration-200 focus-ring"
                 >
-                  Finalize ({getUnlockedTeamsCount()})
+                  Finalize
                 </button>
               </div>
             )}
@@ -275,14 +276,6 @@ const AdminLineups: React.FC = () => {
         <div className="hidden sm:flex items-center justify-between">
           <div className="flex items-center gap-6">
             <h2 className="text-xl font-black text-slate-50 tracking-tight">Finalize Lineups</h2>
-            <div className="flex items-center gap-2 text-sm text-slate-300">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-              <span>{Object.values(lineups).filter(qbs => qbs.length === 2).length} of {leagueData.teams.length} teams complete</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-slate-300">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>{leagueData.teams.filter(team => isTeamLineupLocked(team.name, selectedWeek)).length} teams locked</span>
-            </div>
             {!canEditWeek && (
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 rounded-lg border border-yellow-500/30 text-sm font-medium">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -322,7 +315,7 @@ const AdminLineups: React.FC = () => {
                   onClick={finalizeWeeklyLineups}
                   className="px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 rounded-lg text-sm font-medium transition-all duration-200 focus-ring"
                 >
-                  Finalize Weekly Lineups ({getUnlockedTeamsCount()} remaining)
+                  Finalize Weekly Lineups
                 </button>
               </>
             )}
