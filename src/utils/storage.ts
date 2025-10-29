@@ -1,20 +1,21 @@
 import { LeagueData } from '../types';
 import { initialLeagueData } from '../data/initialData';
-import { getAvailableWeeks } from './csvLoader';
 import { loadFullLeagueData } from '../services/database';
 import { migrateHistoricalData, checkMigrationStatus } from '../services/migration';
 
 const STORAGE_KEY = 'bad-qb-league-data';
 
 /**
- * Auto-determine locked weeks based on CSV data and complete lineups
+ * Auto-determine locked weeks based on database game stats and complete lineups
  */
 function determineLockedWeeks(data: LeagueData): number[] {
   const lockedWeeks: number[] = [];
-  const availableWeeks = getAvailableWeeks(); // Weeks with CSV data
-  
-  // Any week with CSV data AND complete lineups is automatically locked
-  for (const week of availableWeeks) {
+
+  // Get weeks that have game stats (indicating CSV data was imported)
+  const weeksWithData = [...new Set(data.gameStats.map(stat => stat.week))];
+
+  // Any week with game stats AND complete lineups is automatically locked
+  for (const week of weeksWithData) {
     const weekLineups = data.lineups.filter(l => l.week === week);
     const hasAllLineups = weekLineups.length === data.teams.length;
     if (hasAllLineups) {

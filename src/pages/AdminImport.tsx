@@ -204,9 +204,14 @@ export default function AdminImport() {
               {importResult.success ? '✅ Import Successful' : '❌ Import Failed'}
             </h3>
             <p className="text-slate-200">Records imported: <span className="font-bold">{importResult.recordsImported}</span></p>
-            {importResult.newCurrentWeek && (
+            {importResult.weekAdvanced && importResult.newCurrentWeek && (
               <p className="text-blue-400 font-medium mt-1">
                 🔄 Current week automatically advanced to Week {importResult.newCurrentWeek}
+              </p>
+            )}
+            {importResult.weekAdvanceError && (
+              <p className="text-yellow-400 font-medium mt-1">
+                ⚠️ Week advancement failed: {importResult.weekAdvanceError}
               </p>
             )}
             {importResult.errors.length > 0 && (

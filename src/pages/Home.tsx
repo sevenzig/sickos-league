@@ -43,9 +43,6 @@ const MatchupCard = React.memo(({
   const team2Wins = hasData && team2Score > team1Score;
   const isTie = hasData && team1Score === team2Score;
 
-  // Check if week is final (locked or past current week)
-  const isWeekFinal = selectedWeek < leagueData.currentWeek || isWeekLocked(selectedWeek);
-
   const handleClick = React.useCallback(() => {
     openMatchupModal(matchup, selectedWeek);
   }, [matchup, selectedWeek, openMatchupModal]);
@@ -55,18 +52,6 @@ const MatchupCard = React.memo(({
       className="bg-gradient-to-br from-[#1a2942] to-[#0f1d31] rounded-2xl border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden cursor-pointer hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:scale-[1.02] transition-all duration-200"
       onClick={handleClick}
     >
-      {/* TOP BAR */}
-      <div className="bg-black/30 px-5 py-2.5 flex justify-between items-center">
-        <div className="text-[#64748b] text-[11px] uppercase tracking-[1px] font-semibold">
-          Week {matchup.week}
-        </div>
-        {isWeekFinal && (
-          <div className="bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-[0.5px]">
-            Final
-          </div>
-        )}
-      </div>
-
       {/* SCORE STRIP */}
       <div className="flex bg-black/20">
         {/* Team 1 Score Half */}

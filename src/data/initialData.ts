@@ -205,7 +205,7 @@ export const initialLeagueData: LeagueData = {
   lineups: initialLineups,
   gameStats: week1GameStats, // Week 1 scoring data
   matchups: initialMatchups,
-  currentWeek: 8, // Will be auto-calculated based on available CSV data
+  currentWeek: 9, // Updated after week 8 data import
   records: initialRecords,
   lockedWeeks: [] // Will be auto-calculated based on CSV data + complete lineups
 };

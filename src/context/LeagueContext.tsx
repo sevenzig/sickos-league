@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { LeagueData } from '../types';
 import { loadLeagueData, saveLeagueData, loadLeagueDataFromLocal, hasPendingChanges, isOnline, syncToDatabase, syncFromDatabase } from '../utils/storage';
 import { calculateTeamRecords } from '../utils/scoring';
-import { getAvailableWeeks } from '../utils/csvLoader';
 import { saveLineup, updateMatchupScores, lockWeek as lockWeekDB, lockTeamLineup as lockTeamLineupDB, updateCurrentWeek } from '../services/database';
 
 interface LeagueContextType {
@@ -125,23 +124,8 @@ export function LeagueProvider({ children }: LeagueProviderProps) {
     setHasPendingChangesState(hasPendingChanges());
   }, [leagueData]);
 
-  // Auto-detect current week based on available CSV data (only if not loaded from database)
-  useEffect(() => {
-    // Only auto-detect if we're using fallback data (not from database)
-    if (leagueData.teams.length === 0) return;
-    
-    const availableWeeks = getAvailableWeeks();
-    if (availableWeeks.length > 0) {
-      const lastAvailableWeek = Math.max(...availableWeeks);
-      const nextWeek = lastAvailableWeek + 1;
-      
-      // Only update if the calculated week is different from current
-      // and we're not using database data (which should have correct currentWeek)
-      if (nextWeek !== leagueData.currentWeek && leagueData.currentWeek === 1) {
-        setLeagueData(prev => ({ ...prev, currentWeek: nextWeek }));
-      }
-    }
-  }, []); // Run once on mount
+  // Note: Removed auto-detection of current week based on CSV files
+  // Current week is now managed exclusively by database and CSV import events
 
   // Save to localStorage whenever data changes
   useEffect(() => {

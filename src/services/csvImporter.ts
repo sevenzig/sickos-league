@@ -8,6 +8,8 @@ export interface ImportResult {
   errors: string[]
   week: number
   newCurrentWeek?: number
+  weekAdvanced?: boolean
+  weekAdvanceError?: string
 }
 
 export async function importWeeklyCSV(csvData: string, week: number, season: number = 2025): Promise<ImportResult> {
@@ -97,8 +99,10 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
     result.success = true
     result.recordsImported = insertedData?.length || 0
 
-    // Auto-advance current week if we just imported data for the current week
+    // Auto-advance current week if we just imported data that should advance the week
     try {
+      console.log(`📊 Checking if week should advance after importing week ${week} data...`)
+
       const { data: currentSettings } = await supabase
         .from('league_settings')
         .select('current_week')
@@ -107,15 +111,39 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
         .single()
 
       const currentWeek = currentSettings?.current_week || 1
-      
-      if (week === currentWeek) {
+      console.log(`📊 Current week in database: ${currentWeek}`)
+
+      // Advance if we imported data for current week OR if the imported week is >= current week
+      // This handles cases where data might be re-imported or imported out of order
+      if (week >= currentWeek) {
         const newCurrentWeek = week + 1
+        console.log(`🔄 Advancing current week from ${currentWeek} to ${newCurrentWeek}...`)
+
         await updateCurrentWeek(newCurrentWeek)
-        result.newCurrentWeek = newCurrentWeek
-        console.log(`🔄 Auto-advanced current week from ${currentWeek} to ${newCurrentWeek}`)
+
+        // Verify the update worked
+        const { data: verifySettings } = await supabase
+          .from('league_settings')
+          .select('current_week')
+          .order('id', { ascending: false })
+          .limit(1)
+          .single()
+
+        const actualNewWeek = verifySettings?.current_week || currentWeek
+
+        if (actualNewWeek === newCurrentWeek) {
+          result.newCurrentWeek = newCurrentWeek
+          result.weekAdvanced = true
+          console.log(`✅ Successfully auto-advanced current week from ${currentWeek} to ${newCurrentWeek} (imported week ${week})`)
+        } else {
+          console.error(`❌ Week advance failed: expected ${newCurrentWeek}, got ${actualNewWeek}`)
+        }
+      } else {
+        console.log(`📊 Imported week ${week} data, but current week ${currentWeek} is already ahead - no advancement needed`)
       }
     } catch (error) {
-      console.warn('Failed to auto-advance current week:', error)
+      console.error('❌ Failed to auto-advance current week:', error)
+      result.weekAdvanceError = error instanceof Error ? error.message : 'Unknown error'
       // Don't fail the import if week advancement fails
     }
 
