@@ -1,9 +1,58 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xjmiczrvfagyavlfaspb.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqbWljenJ2ZmFneWF2bGZhc3BiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI2MDgsImV4cCI6MjA3Njg5ODYwOH0.8zCP-BuV_3kwXd_7X8HkCAUaPjN6WTWrtY0uYeZ7r9k'
+// Environment-specific configuration
+const isDevelopment = import.meta.env.MODE === 'development'
+
+// Get Supabase configuration with fail-fast behavior
+function getSupabaseConfig() {
+  let supabaseUrl: string
+  let supabaseAnonKey: string
+
+  if (isDevelopment && import.meta.env.VITE_DEV_SUPABASE_URL) {
+    // Use development Supabase project if configured
+    supabaseUrl = import.meta.env.VITE_DEV_SUPABASE_URL
+    supabaseAnonKey = import.meta.env.VITE_DEV_SUPABASE_ANON_KEY
+  } else {
+    // Use production Supabase project
+    supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+  }
+
+  // Fail fast if environment variables are missing
+  if (!supabaseUrl) {
+    throw new Error(
+      `Missing required environment variable: ${
+        isDevelopment ? 'VITE_DEV_SUPABASE_URL or VITE_SUPABASE_URL' : 'VITE_SUPABASE_URL'
+      }`
+    )
+  }
+
+  if (!supabaseAnonKey) {
+    throw new Error(
+      `Missing required environment variable: ${
+        isDevelopment ? 'VITE_DEV_SUPABASE_ANON_KEY or VITE_SUPABASE_ANON_KEY' : 'VITE_SUPABASE_ANON_KEY'
+      }`
+    )
+  }
+
+  return { supabaseUrl, supabaseAnonKey }
+}
+
+const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig()
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Feature flags
+export const FEATURE_FLAGS = {
+  ENABLE_MULTI_LEAGUE: import.meta.env.VITE_ENABLE_MULTI_LEAGUE === 'true',
+} as const
+
+// Environment info
+export const ENV_INFO = {
+  isDevelopment,
+  supabaseUrl,
+  multiLeagueEnabled: FEATURE_FLAGS.ENABLE_MULTI_LEAGUE,
+} as const
 
 // Database types for TypeScript
 export interface Database {

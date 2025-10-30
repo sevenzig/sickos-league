@@ -1,48 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useLeagueData } from '../context/LeagueContext';
 import { useAuth } from '../context/AuthContext';
 import { FEATURE_FLAGS } from '../utils/supabase';
+import WelcomeHero from '../components/welcome/WelcomeHero';
+import JoinPublicLeagueCard from '../components/welcome/JoinPublicLeagueCard';
+import CreatePrivateLeagueCard from '../components/welcome/CreatePrivateLeagueCard';
+import FeatureOverview from '../components/welcome/FeatureOverview';
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Welcome: React.FC = () => {
+  const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
-  const { isAdmin, signOut, user } = useAuth();
-
-  // Safety check for context availability during hot-reload scenarios
-  let contextData;
-  try {
-    contextData = useLeagueData();
-  } catch (error) {
-    console.error('Layout: Context not available during hot-reload:', error);
-    // Return loading state while context initializes
-    return (
-      <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-300">Initializing...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Additional safety check for context data
-  if (!contextData || !contextData.leagueData) {
-    return (
-      <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-300">Loading league data...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Sync functions removed - moved to Admin page
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  if (!FEATURE_FLAGS.ENABLE_MULTI_LEAGUE) {
+    // Redirect to existing home page if multi-league is disabled
+    return null;
+  }
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -59,72 +32,33 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
-  // Close menu when route changes
-  useEffect(() => {
-    setIsMenuOpen(false);
-  }, [location.pathname]);
+  // Navigation items
+  const publicNavItems = [
+    { path: '/scores', label: 'Scores' },
+    { path: '/rules', label: 'Rules' }
+  ];
 
-  // Base navigation items
-  const getNavigationItems = () => {
-    if (FEATURE_FLAGS.ENABLE_MULTI_LEAGUE) {
-      // Multi-league navigation
-      const publicNavItems = [
-        { path: '/scores', label: 'Scores' },
-        { path: '/rules', label: 'Rules' }
-      ];
+  const authNavItems = user ? [
+    { path: '/my-leagues', label: 'My Leagues' },
+    { path: '/leagues/new', label: 'Create League' }
+  ] : [];
 
-      const authNavItems = user ? [
-        { path: '/my-leagues', label: 'My Leagues' },
-        { path: '/leagues/new', label: 'Create League' }
-      ] : [];
+  const adminNavItems = isAdmin ? [
+    { path: '/admin', label: 'Legacy Admin' }
+  ] : [];
 
-      const adminNavItems = isAdmin ? [
-        { path: '/admin', label: 'Legacy Admin' }
-      ] : [];
-
-      return {
-        desktop: [...publicNavItems, ...authNavItems, ...adminNavItems],
-        mobile: [...publicNavItems, ...authNavItems, ...(isAdmin ? [
-          { path: '/admin', label: 'Legacy Admin Dashboard' },
-          { path: '/admin/lineups', label: 'Legacy Manage Lineups' },
-          { path: '/admin/import', label: 'Legacy Import Data' },
-          { path: '/admin/migration', label: 'Legacy Data Migration' }
-        ] : [])]
-      };
-    } else {
-      // Original single-league navigation
-      const publicNavItems = [
-        { path: '/', label: 'Home' },
-        { path: '/rosters', label: 'Rosters' },
-        { path: '/scores', label: 'Scores' },
-        { path: '/rules', label: 'Rules' }
-      ];
-
-      const adminNavItems = [
-        ...publicNavItems,
-        { path: '/admin', label: 'Admin' }
-      ];
-
-      const adminSubroutes = [
-        { path: '/admin', label: 'Admin Dashboard' },
-        { path: '/admin/lineups', label: 'Manage Lineups' },
-        { path: '/admin/import', label: 'Import Data' },
-        { path: '/admin/migration', label: 'Data Migration' }
-      ];
-
-      return {
-        desktop: isAdmin ? adminNavItems : publicNavItems,
-        mobile: isAdmin ? [...publicNavItems, ...adminSubroutes] : publicNavItems
-      };
-    }
-  };
-
-  const navigationItems = getNavigationItems();
+  const desktopNavItems = [...publicNavItems, ...authNavItems, ...adminNavItems];
+  const mobileNavItems = [...publicNavItems, ...authNavItems, ...(isAdmin ? [
+    { path: '/admin', label: 'Legacy Admin Dashboard' },
+    { path: '/admin/lineups', label: 'Legacy Manage Lineups' },
+    { path: '/admin/import', label: 'Legacy Import Data' },
+    { path: '/admin/migration', label: 'Legacy Data Migration' }
+  ] : [])];
 
   return (
-    <div className="min-h-screen bg-dark-bg">
+    <div className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-y-auto">
       {/* Header */}
-      <header className="bg-dark-surface border-b border-gray-700">
+      <header className="absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-sm border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
@@ -134,7 +68,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               {/* Desktop Navigation */}
               <div className="hidden md:block">
                 <nav className="flex space-x-8">
-                  {navigationItems.desktop.map((item) => (
+                  {desktopNavItems.map((item) => (
                     <Link
                       key={item.path}
                       to={item.path}
@@ -150,8 +84,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </nav>
               </div>
 
-              {/* Desktop Sign Out for Multi-League */}
-              {FEATURE_FLAGS.ENABLE_MULTI_LEAGUE && user && (
+              {/* Desktop Sign Out */}
+              {user && (
                 <div className="hidden md:flex items-center space-x-4">
                   <div className="text-xs text-gray-400">
                     {user.email?.split('@')[0] || 'User'}
@@ -182,11 +116,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-6">
-        {children}
-      </main>
-
       {/* Mobile Menu */}
       {isMenuOpen && (
         <>
@@ -197,10 +126,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           ></div>
 
           {/* Menu Panel */}
-          <div className="mobile-menu fixed top-16 left-0 right-0 z-50 bg-dark-surface border-b border-gray-600 shadow-xl md:hidden">
+          <div className="mobile-menu fixed top-16 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-sm border-b border-gray-600 shadow-xl md:hidden">
             {/* Navigation Items */}
             <nav className="py-2">
-              {navigationItems.mobile.map((item) => (
+              {mobileNavItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
@@ -240,8 +169,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </>
       )}
 
+      {/* Main Content - starts below header */}
+      <div className="pt-16">
+        {/* Hero Section */}
+        <WelcomeHero />
+
+        {/* League Entry Cards */}
+        <div className="py-12 px-8">
+          <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <JoinPublicLeagueCard />
+            <CreatePrivateLeagueCard />
+          </div>
+        </div>
+
+        {/* Feature Overview */}
+        <FeatureOverview />
+      </div>
     </div>
   );
 };
 
-export default Layout;
+export default Welcome;
