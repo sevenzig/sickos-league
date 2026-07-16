@@ -9,6 +9,7 @@ const TOKEN_TTL = '30d';
 export interface AuthedRequest extends Request {
   userId?: string;
   userEmail?: string;
+  isPlatformAdmin?: boolean;
 }
 
 /** Optional auth: attaches userId if a valid Bearer token is present. */
@@ -20,6 +21,7 @@ export function attachUser(req: AuthedRequest, _res: Response, next: NextFunctio
       if (typeof payload.sub === 'string') {
         req.userId = payload.sub;
         req.userEmail = typeof payload.email === 'string' ? payload.email : undefined;
+        req.isPlatformAdmin = payload.is_platform_admin === true;
       }
     } catch {
       // invalid/expired token -> treated as anonymous
@@ -36,11 +38,41 @@ export function requireUser(req: AuthedRequest, res: Response, next: NextFunctio
   next();
 }
 
-function issueToken(userId: string, email: string) {
-  return jwt.sign({ sub: userId, email }, JWT_SECRET, { expiresIn: TOKEN_TTL });
+export function requirePlatformAdmin(req: AuthedRequest, res: Response, next: NextFunction): void {
+  if (!req.userId) {
+    res.status(401).json({ error: { message: 'Authentication required' } });
+    return;
+  }
+  if (!req.isPlatformAdmin) {
+    res.status(403).json({ error: { message: 'Platform admin required' } });
+    return;
+  }
+  next();
+}
+
+function issueToken(userId: string, email: string, isPlatformAdmin: boolean) {
+  return jwt.sign(
+    { sub: userId, email, is_platform_admin: isPlatformAdmin },
+    JWT_SECRET,
+    { expiresIn: TOKEN_TTL }
+  );
 }
 
 export const authRouter = Router();
+
+function publicUser(row: {
+  id: string;
+  email: string;
+  created_at: string;
+  is_platform_admin: boolean;
+}) {
+  return {
+    id: row.id,
+    email: row.email,
+    created_at: row.created_at,
+    is_platform_admin: row.is_platform_admin === true,
+  };
+}
 
 authRouter.post('/signup', async (req, res) => {
   const { email, password } = req.body ?? {};
@@ -51,11 +83,11 @@ authRouter.post('/signup', async (req, res) => {
   const hash = await bcrypt.hash(password, 10);
   try {
     const { rows } = await adminPool.query(
-      'INSERT INTO auth.users (email, encrypted_password) VALUES (LOWER($1), $2) RETURNING id, email, created_at',
+      'INSERT INTO auth.users (email, encrypted_password) VALUES (LOWER($1), $2) RETURNING id, email, created_at, is_platform_admin',
       [email, hash]
     );
-    const user = rows[0];
-    res.json({ token: issueToken(user.id, user.email), user });
+    const user = publicUser(rows[0]);
+    res.json({ token: issueToken(user.id, user.email, user.is_platform_admin), user });
   } catch (err) {
     if ((err as { code?: string }).code === '23505') {
       res.status(409).json({ error: { message: 'An account with this email already exists' } });
@@ -68,18 +100,19 @@ authRouter.post('/signup', async (req, res) => {
 authRouter.post('/login', async (req, res) => {
   const { email, password } = req.body ?? {};
   const { rows } = await adminPool.query(
-    'SELECT id, email, encrypted_password, created_at FROM auth.users WHERE email = LOWER($1)',
+    'SELECT id, email, encrypted_password, created_at, is_platform_admin FROM auth.users WHERE email = LOWER($1)',
     [String(email ?? '')]
   );
-  const user = rows[0];
-  const ok = user && (await bcrypt.compare(String(password ?? ''), user.encrypted_password));
+  const row = rows[0];
+  const ok = row && (await bcrypt.compare(String(password ?? ''), row.encrypted_password));
   if (!ok) {
     res.status(401).json({ error: { message: 'Invalid email or password' } });
     return;
   }
+  const user = publicUser(row);
   res.json({
-    token: issueToken(user.id, user.email),
-    user: { id: user.id, email: user.email, created_at: user.created_at },
+    token: issueToken(user.id, user.email, user.is_platform_admin),
+    user,
   });
 });
 
@@ -89,12 +122,12 @@ authRouter.get('/me', async (req: AuthedRequest, res) => {
     return;
   }
   const { rows } = await adminPool.query(
-    'SELECT id, email, created_at FROM auth.users WHERE id = $1',
+    'SELECT id, email, created_at, is_platform_admin FROM auth.users WHERE id = $1',
     [req.userId]
   );
   if (!rows[0]) {
     res.status(401).json({ error: { message: 'User no longer exists' } });
     return;
   }
-  res.json({ user: rows[0] });
+  res.json({ user: publicUser(rows[0]) });
 });

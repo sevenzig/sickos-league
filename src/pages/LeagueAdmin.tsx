@@ -4,6 +4,8 @@ import { MultiLeagueApi } from '../utils/multiLeagueApi';
 import { getLeagueUrl } from '../utils/urlUtils';
 import TeamManagement from '../components/league/TeamManagement';
 import CommissionerLineups from '../components/league/CommissionerLineups';
+import DraftControls from '../components/league/DraftControls';
+import MemberManagement from '../components/league/MemberManagement';
 
 interface LeagueDetails {
   id: string;
@@ -16,6 +18,7 @@ interface LeagueDetails {
   member_count: number;
   fantasy_teams_count: number;
   owner_user_id?: string; // Add owner user ID for team slot ordering
+  draft_status: 'pending' | 'in_progress' | 'complete';
 }
 
 const LeagueAdmin: React.FC = () => {
@@ -26,6 +29,7 @@ const LeagueAdmin: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [generatingSchedule, setGeneratingSchedule] = useState(false);
   const [scheduleGenerated, setScheduleGenerated] = useState(false);
+  const [deletingLeague, setDeletingLeague] = useState(false);
 
   useEffect(() => {
     if (leagueId) {
@@ -79,6 +83,30 @@ const LeagueAdmin: React.FC = () => {
     }
   };
 
+  const handleDeleteLeague = async () => {
+    if (!leagueId || !league) return;
+
+    const typed = window.prompt(
+      `This permanently deletes "${league.name}" and all its data (teams, rosters, schedule, lineups). ` +
+      `Type the league name to confirm:`
+    );
+    if (typed === null) return;
+    if (typed.trim() !== league.name) {
+      setError('League name did not match - deletion cancelled');
+      return;
+    }
+
+    try {
+      setDeletingLeague(true);
+      setError(null);
+      await MultiLeagueApi.deleteLeague(leagueId);
+      navigate('/my-leagues');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete league');
+      setDeletingLeague(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -125,8 +153,14 @@ const LeagueAdmin: React.FC = () => {
     );
   }
 
-  // Allow schedule generation with 2+ teams (can be changed to require 8 if needed)
-  const canGenerateSchedule = league.member_count >= 2;
+  // Server enforces: exactly 8 teams, completed draft, pre-season only
+  const canGenerateSchedule = league.fantasy_teams_count === 8 && league.draft_status === 'complete';
+  const scheduleHint =
+    league.fantasy_teams_count !== 8
+      ? 'Schedule generation requires 8 fantasy teams'
+      : league.draft_status !== 'complete'
+        ? 'Schedule generation requires a completed draft'
+        : '';
 
   return (
     <div className="min-h-screen bg-slate-900">
@@ -163,7 +197,7 @@ const LeagueAdmin: React.FC = () => {
                 onClick={handleGenerateSchedule}
                 disabled={!canGenerateSchedule || generatingSchedule}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-md font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
-                title={!canGenerateSchedule ? 'Need at least 2 teams to generate schedule' : ''}
+                title={scheduleHint}
               >
                 {generatingSchedule && (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -225,6 +259,20 @@ const LeagueAdmin: React.FC = () => {
             ownerId={league.owner_user_id}
           />
 
+          {/* Draft controls (Phase 5.1: set order, start, jump to draft room) */}
+          <DraftControls
+            leagueId={league.id}
+            draftStatus={league.draft_status}
+            onDraftStarted={loadLeagueData}
+          />
+
+          {/* Member management (Phase 5.1: remove pre-draft, transfer commissioner) */}
+          <MemberManagement
+            leagueId={league.id}
+            ownerUserId={league.owner_user_id}
+            draftStatus={league.draft_status}
+          />
+
           {/* Weekly Lineups (Phase 3.2: status, override, finalize) */}
           <CommissionerLineups
             leagueId={league.id}
@@ -272,10 +320,11 @@ const LeagueAdmin: React.FC = () => {
                   Permanently delete this league and all associated data. This action cannot be undone.
                 </p>
                 <button
-                  disabled
-                  className="px-4 py-2 bg-red-600/50 text-red-300 rounded-md font-medium cursor-not-allowed"
+                  onClick={handleDeleteLeague}
+                  disabled={deletingLeague}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 disabled:cursor-not-allowed text-white rounded-md font-medium transition-colors"
                 >
-                  Delete League (Coming Soon)
+                  {deletingLeague ? 'Deleting...' : 'Delete League'}
                 </button>
               </div>
             </div>

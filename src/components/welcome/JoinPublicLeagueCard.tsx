@@ -12,18 +12,18 @@ const JoinPublicLeagueCard: React.FC = () => {
         </div>
         <h3 className="text-xl font-medium text-white mb-3">Join a League</h3>
         <p className="text-slate-400 leading-relaxed">
-          Jump into the action with a public league. Play against other Bad QB enthusiasts and compete for weekly bragging rights.
+          Have an invite code? Redeem it to join a private friend league and draft your NFL teams.
         </p>
       </div>
 
       <div className="space-y-4 mb-6">
         <div className="flex items-start text-slate-400">
           <div className="w-1 h-1 bg-slate-500 rounded-full mt-2.5 mr-3 flex-shrink-0"></div>
-          <span className="text-sm">Quick setup - join instantly</span>
+          <span className="text-sm">Enter the code your commissioner shared</span>
         </div>
         <div className="flex items-start text-slate-400">
           <div className="w-1 h-1 bg-slate-500 rounded-full mt-2.5 mr-3 flex-shrink-0"></div>
-          <span className="text-sm">Play with active community</span>
+          <span className="text-sm">Pick a team name when you join</span>
         </div>
         <div className="flex items-start text-slate-400">
           <div className="w-1 h-1 bg-slate-500 rounded-full mt-2.5 mr-3 flex-shrink-0"></div>

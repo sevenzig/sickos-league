@@ -1,4 +1,4 @@
-import { supabase } from '../utils/supabase'
+import { db } from '../utils/db'
 import { initialLeagueData } from '../data/initialData'
 import { week1GameStats } from '../data/week1Data'
 
@@ -29,7 +29,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     let teamsError = null
     
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('teams')
         .insert(
           initialLeagueData.teams.map(team => ({
@@ -60,7 +60,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     console.log('Importing matchups...')
     
     // Get team IDs for matchup creation
-    const { data: allTeams, error: teamsFetchError } = await supabase
+    const { data: allTeams, error: teamsFetchError } = await db
       .from('teams')
       .select('id, name')
 
@@ -90,7 +90,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     })
 
     // Check for existing matchups
-    const { data: existingMatchups } = await supabase
+    const { data: existingMatchups } = await db
       .from('matchups')
       .select('week, team1_id, team2_id')
     
@@ -106,7 +106,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     let matchupsError = null
     
     if (matchupsToInsert.length > 0) {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('matchups')
         .insert(matchupsToInsert)
         .select()
@@ -142,7 +142,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     })
 
     // Check for existing lineups
-    const { data: existingLineups } = await supabase
+    const { data: existingLineups } = await db
       .from('lineups')
       .select('team_id, week')
     
@@ -158,7 +158,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     let lineupsError = null
     
     if (lineupsToInsert.length > 0) {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('lineups')
         .insert(lineupsToInsert)
         .select()
@@ -210,7 +210,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     }))
 
     // Check for existing game stats
-    const { data: existingGameStats } = await supabase
+    const { data: existingGameStats } = await db
       .from('game_stats')
       .select('team_abbr, week, season')
     
@@ -226,7 +226,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     let gameStatsError = null
     
     if (gameStatsToInsert.length > 0) {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('game_stats')
         .insert(gameStatsToInsert)
         .select()
@@ -248,7 +248,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     // 5. Create League Settings (only if none exist)
     console.log('Creating league settings...')
     
-    const { data: existingSettings } = await supabase
+    const { data: existingSettings } = await db
       .from('league_settings')
       .select('id')
       .limit(1)
@@ -256,7 +256,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
     let settingsError = null
     
     if (!existingSettings || existingSettings.length === 0) {
-      const { error } = await supabase
+      const { error } = await db
         .from('league_settings')
         .insert({
           current_week: initialLeagueData.currentWeek,
@@ -296,10 +296,10 @@ export async function checkMigrationStatus(): Promise<{
 }> {
   try {
     const [teamsResult, lineupsResult, matchupsResult, gameStatsResult] = await Promise.all([
-      supabase.from('teams').select('id', { count: 'exact', head: true }),
-      supabase.from('lineups').select('id', { count: 'exact', head: true }),
-      supabase.from('matchups').select('id', { count: 'exact', head: true }),
-      supabase.from('game_stats').select('id', { count: 'exact', head: true })
+      db.from('teams').select('id', { count: 'exact', head: true }),
+      db.from('lineups').select('id', { count: 'exact', head: true }),
+      db.from('matchups').select('id', { count: 'exact', head: true }),
+      db.from('game_stats').select('id', { count: 'exact', head: true })
     ])
 
     const teamsCount = teamsResult.count || 0

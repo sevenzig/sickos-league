@@ -126,7 +126,7 @@ export default function AdminMigration() {
         {!migrationStatus?.isMigrated ? (
           <div className="space-y-4">
             <p className="text-gray-600">
-              This will migrate all historical data from the initial data files to the Supabase database.
+              This will migrate all historical data from the initial data files to the database.
               This includes:
             </p>
             <ul className="list-disc list-inside text-gray-600 space-y-1">

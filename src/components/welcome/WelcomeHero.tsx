@@ -20,10 +20,10 @@ const WelcomeHero: React.FC = () => {
             Learn the Rules
           </Link>
           <Link
-            to="/scores"
+            to="/archive"
             className="inline-flex items-center px-8 py-4 text-base font-medium text-slate-400 border border-slate-600 rounded-md"
           >
-            View Scores
+            View Archive
           </Link>
         </div>
       </div>

@@ -1,12 +1,22 @@
+import * as Sentry from '@sentry/node';
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { migrate } from './db.js';
 import { attachUser, authRouter } from './auth.js';
 import { rpcRouter } from './rpc.js';
 import { tablesRouter } from './tables.js';
 import { photosRouter, PHOTOS_DIR } from './photos.js';
+import { startEmailWorkers } from './email.js';
 
 const PORT = Number(process.env.PORT || 3001);
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+  });
+}
 
 async function main() {
   await migrate();
@@ -16,8 +26,33 @@ async function main() {
   app.use(express.json({ limit: '2mb' }));
   app.use(attachUser);
 
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: { message: 'Too many auth attempts, try again later' } },
+  });
+  const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: { message: 'Rate limit exceeded' } },
+  });
+
+  app.get('/', (_req, res) => {
+    res.json({
+      ok: true,
+      service: 'sickos-league-api',
+      health: '/api/health',
+      app: process.env.APP_BASE_URL || 'http://localhost:5173',
+    });
+  });
+  app.get('/favicon.ico', (_req, res) => res.status(204).end());
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
-  app.use('/api/auth', authRouter);
+  app.use('/api/auth', authLimiter, authRouter);
+  app.use('/api', apiLimiter);
   app.use('/api/rpc', rpcRouter);
   app.use('/api/db', tablesRouter);
   app.use('/api/photos', photosRouter);
@@ -26,13 +61,20 @@ async function main() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Unhandled error:', err);
+    if (process.env.SENTRY_DSN) {
+      Sentry.captureException(err);
+    }
     res.status(500).json({ error: { message: err.message || 'Internal server error' } });
   });
 
+  startEmailWorkers();
   app.listen(PORT, () => console.log(`API listening on :${PORT}`));
 }
 
 main().catch((err) => {
   console.error('Fatal startup error:', err);
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(err);
+  }
   process.exit(1);
 });

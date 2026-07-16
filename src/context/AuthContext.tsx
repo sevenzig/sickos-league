@@ -101,9 +101,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null);
   };
 
-  // For now, any authenticated user is considered admin
-  // You can later add role-based logic here
-  const isAdmin = !!user;
+  // Platform admin (CSV import, migration, finalize_week_scores) — distinct from league commissioner
+  const isAdmin = !!user?.is_platform_admin;
 
   const value: AuthContextType = {
     user,

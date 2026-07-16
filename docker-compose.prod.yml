@@ -1,0 +1,91 @@
+# Production stack: Postgres + API + Caddy (TLS + static SPA) + nightly backups.
+# Usage:
+#   export DOMAIN=bqbl.example.com JWT_SECRET=... RESEND_API_KEY=...
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      APP_DATABASE_URL: postgres://app_user:app_user@db:5432/postgres
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      PHOTOS_DIR: /data/photos
+      SQL_DIR: /app/db
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-BQBL <noreply@example.com>}
+      APP_BASE_URL: https://${DOMAIN}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - photos:/data/photos
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+      args:
+        VITE_API_URL: /api
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backup:
+    image: postgres:16-alpine
+    environment:
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/postgres
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: "14"
+      BACKUP_INTERVAL_SECONDS: "86400"
+    volumes:
+      - ./scripts:/scripts:ro
+      - backups:/backups
+    entrypoint: ["/bin/sh", "/scripts/pg-backup-loop.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  photos:
+  backups:
+  caddy_data:
+  caddy_config:

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { runAsUser } from './db.js';
-import type { AuthedRequest } from './auth.js';
+import { requireUser, type AuthedRequest } from './auth.js';
 
 /** Public-schema tables/views the generic query endpoint may touch. RLS still applies. */
 const TABLE_ALLOWLIST = new Set([
@@ -17,6 +17,7 @@ const TABLE_ALLOWLIST = new Set([
   'league_matchups',
   'league_weeks',
   'user_profiles',
+  'audit_logs',
   'v_league_standings',
   'v_user_leagues',
 ]);
@@ -154,7 +155,7 @@ function buildWhere(filters: Filter[], params: unknown[]): string[] {
 
 export const tablesRouter = Router();
 
-tablesRouter.post('/query', async (req: AuthedRequest, res) => {
+tablesRouter.post('/query', requireUser, async (req: AuthedRequest, res) => {
   const body = req.body as QueryBody;
   try {
     if (!body || typeof body.table !== 'string' || !TABLE_ALLOWLIST.has(body.table)) {

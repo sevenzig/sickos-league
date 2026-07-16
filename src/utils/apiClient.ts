@@ -10,6 +10,7 @@ export interface ApiUser {
   id: string
   email: string
   created_at?: string
+  is_platform_admin?: boolean
 }
 
 export interface ApiError {
@@ -245,6 +246,14 @@ export async function uploadPhoto(file: File): Promise<string> {
 export async function deletePhoto(): Promise<void> {
   const { json } = await apiFetch('/photos', { method: 'DELETE' })
   if (json.error) throw new Error(json.error.message)
+}
+
+export async function uploadTeamPhoto(teamId: string, file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { json } = await apiFetch(`/photos/team/${teamId}`, { method: 'POST', formData })
+  if (json.error) throw new Error(json.error.message)
+  return json.url
 }
 
 /** Base URL for statically served photos (sibling of /api on the same host). */

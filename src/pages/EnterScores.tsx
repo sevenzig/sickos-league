@@ -3,7 +3,7 @@ import { useLeagueData } from '../context/LeagueContext';
 import { calculateScore, getDetailedScoringBreakdown, SCORING_EVENTS, QBStats } from '../utils/scoring';
 import TeamLogo from '../components/TeamLogo';
 import { clearAndReloadData } from '../utils/storage';
-import { getWeeklyQBPerformancesFromSupabase, clearQBPerformancesCache } from '../services/database';
+import { getWeeklyQBPerformancesFromDb, clearQBPerformancesCache } from '../services/database';
 
 const EnterScores: React.FC = () => {
   const { leagueData, updateLeagueData } = useLeagueData();
@@ -173,7 +173,7 @@ const EnterScores: React.FC = () => {
     const loadScoringData = async () => {
       setLoading(true);
       try {
-        const performances = await getWeeklyQBPerformancesFromSupabase(selectedWeek);
+        const performances = await getWeeklyQBPerformancesFromDb(selectedWeek);
         setScoringData(performances || []);
       } catch (error) {
         console.error('Error loading scoring data:', error);

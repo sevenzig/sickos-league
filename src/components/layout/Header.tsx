@@ -68,9 +68,9 @@ const Header: React.FC = () => {
     const isHomeRoute = location.pathname === '/' || location.pathname === '/welcome';
 
     const baseItems = [
-      { path: '/my-leagues', label: 'My Leagues', authRequired: true }, // Always show for logged-in users
+      { path: '/my-leagues', label: 'My Leagues', authRequired: true },
       { path: '/rules', label: 'Rules', authRequired: false },
-      { path: '/scores', label: 'Scores', authRequired: false }
+      { path: '/archive', label: 'Archive', authRequired: true }
     ];
 
     // Only add "Create League" on home routes

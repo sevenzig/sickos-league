@@ -27,7 +27,7 @@ function determineLockedWeeks(data: LeagueData): number[] {
 
 /**
  * Load league data from database with localStorage fallback
- * DATABASE-FIRST: Attempts to load from Supabase database first, falls back to localStorage only if database fails
+ * DATABASE-FIRST: Attempts to load from the database first, falls back to localStorage only if database fails
  */
 export async function loadLeagueData(): Promise<LeagueData> {
   try {

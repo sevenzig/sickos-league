@@ -1,10 +1,10 @@
 import { Matchup, Team, WeeklyLineup, TeamRecord } from '../types';
-import { getQBPerformanceFromSupabase, getWeeklyQBPerformancesFromSupabase } from '../services/database';
+import { getQBPerformanceFromDb, getWeeklyQBPerformancesFromDb } from '../services/database';
 
 /**
- * Calculate team score for a specific week based on lineup selections and Supabase data
+ * Calculate team score for a specific week based on lineup selections and database data
  */
-export async function calculateTeamScoreForWeekFromSupabase(
+export async function calculateTeamScoreForWeekFromDb(
   teamName: string,
   week: number,
   lineups: WeeklyLineup[]
@@ -14,10 +14,10 @@ export async function calculateTeamScoreForWeekFromSupabase(
     return { totalScore: 0, qbBreakdown: [] };
   }
 
-  // Get QB performances from Supabase
-  const qbPerformances = await getWeeklyQBPerformancesFromSupabase(week);
+  // Get QB performances from database
+  const qbPerformances = await getWeeklyQBPerformancesFromDb(week);
   if (!qbPerformances || qbPerformances.length === 0) {
-    // Return QB names even when there's no Supabase data
+    // Return QB names even when there's no database data
     const qbBreakdown = teamLineup.activeQBs.map(qb => ({ qb, breakdown: null }));
     return { totalScore: 0, qbBreakdown };
   }
@@ -28,7 +28,7 @@ export async function calculateTeamScoreForWeekFromSupabase(
   teamLineup.activeQBs.forEach(qb => {
     const teamPerformance = qbPerformances.find(team => team.team === qb);
     if (teamPerformance) {
-      // Use Supabase finalScore as source of truth; do not re-add event points
+      // Use database finalScore as source of truth; do not re-add event points
       totalScore += teamPerformance.finalScore;
       qbBreakdown.push({ qb, breakdown: teamPerformance });
     }
@@ -38,19 +38,19 @@ export async function calculateTeamScoreForWeekFromSupabase(
 }
 
 /**
- * Calculate matchup scores for both teams in a specific week using Supabase data
+ * Calculate matchup scores for both teams in a specific week using database data
  */
-export async function calculateMatchupScoreFromSupabase(
+export async function calculateMatchupScoreFromDb(
   matchup: Matchup,
   lineups: WeeklyLineup[]
 ): Promise<{ team1Score: number; team2Score: number; team1Breakdown: any[]; team2Breakdown: any[] }> {
-  const { totalScore: team1Score, qbBreakdown: team1Breakdown } = await calculateTeamScoreForWeekFromSupabase(
+  const { totalScore: team1Score, qbBreakdown: team1Breakdown } = await calculateTeamScoreForWeekFromDb(
     matchup.team1,
     matchup.week,
     lineups
   );
   
-  const { totalScore: team2Score, qbBreakdown: team2Breakdown } = await calculateTeamScoreForWeekFromSupabase(
+  const { totalScore: team2Score, qbBreakdown: team2Breakdown } = await calculateTeamScoreForWeekFromDb(
     matchup.team2,
     matchup.week,
     lineups
@@ -60,10 +60,10 @@ export async function calculateMatchupScoreFromSupabase(
 }
 
 /**
- * Calculate team standings based on matchups, lineups, and Supabase data
- * Only counts weeks that have both complete lineups AND Supabase data
+ * Calculate team standings based on matchups, lineups, and database data
+ * Only counts weeks that have both complete lineups AND database data
  */
-export async function calculateStandingsFromSupabase(
+export async function calculateStandingsFromDb(
   matchups: Matchup[],
   lineups: WeeklyLineup[],
   teams: Team[]
@@ -82,10 +82,10 @@ export async function calculateStandingsFromSupabase(
 
   // Process each matchup
   for (const matchup of matchups) {
-    // Check if Supabase data is available for this week
-    const qbPerformances = await getWeeklyQBPerformancesFromSupabase(matchup.week);
+    // Check if database data is available for this week
+    const qbPerformances = await getWeeklyQBPerformancesFromDb(matchup.week);
     if (!qbPerformances || qbPerformances.length === 0) {
-      continue; // Skip weeks without Supabase data
+      continue; // Skip weeks without database data
     }
 
     // Check if both teams have lineups for this week
@@ -97,9 +97,9 @@ export async function calculateStandingsFromSupabase(
     }
 
     // Calculate scores dynamically
-    const { team1Score, team2Score } = await calculateMatchupScoreFromSupabase(matchup, lineups);
+    const { team1Score, team2Score } = await calculateMatchupScoreFromDb(matchup, lineups);
     
-    // Count all games where both teams have lineups and Supabase data is available
+    // Count all games where both teams have lineups and database data is available
     // (regardless of whether scores are positive, zero, or negative)
     const isTie = team1Score === team2Score;
     const team1Won = team1Score > team2Score;
@@ -137,10 +137,10 @@ export async function calculateStandingsFromSupabase(
 }
 
 /**
- * Calculate weekly results for the W/L/T chart using Supabase data
+ * Calculate weekly results for the W/L/T chart using database data
  * Returns an object with team names as keys and arrays of weekly results
  */
-export async function calculateWeeklyResultsFromSupabase(
+export async function calculateWeeklyResultsFromDb(
   matchups: Matchup[],
   lineups: WeeklyLineup[],
   teams: Team[]
@@ -154,10 +154,10 @@ export async function calculateWeeklyResultsFromSupabase(
 
   // Process each week
   for (let week = 1; week <= 18; week++) {
-    // Check if Supabase data is available for this week
-    const qbPerformances = await getWeeklyQBPerformancesFromSupabase(week);
+    // Check if database data is available for this week
+    const qbPerformances = await getWeeklyQBPerformancesFromDb(week);
     if (!qbPerformances || qbPerformances.length === 0) {
-      // No Supabase data, mark all teams as null for this week
+      // No database data, mark all teams as null for this week
       teams.forEach(team => {
         weeklyResults[team.name].push('');
       });
@@ -183,9 +183,9 @@ export async function calculateWeeklyResultsFromSupabase(
       }
 
       // Calculate scores dynamically
-      const { team1Score, team2Score } = await calculateMatchupScoreFromSupabase(matchup, lineups);
+      const { team1Score, team2Score } = await calculateMatchupScoreFromDb(matchup, lineups);
       
-      // Show result for all games where both teams have lineups and Supabase data is available
+      // Show result for all games where both teams have lineups and database data is available
       // (regardless of whether scores are positive, zero, or negative)
       if (team1Score === team2Score) {
         weeklyResults[matchup.team1][week - 1] = 'T';
@@ -204,9 +204,9 @@ export async function calculateWeeklyResultsFromSupabase(
 }
 
 /**
- * Get team result for a specific week (W/L/T or null if no data) using Supabase data
+ * Get team result for a specific week (W/L/T or null if no data) using database data
  */
-export async function getTeamWeekResultFromSupabase(
+export async function getTeamWeekResultFromDb(
   teamName: string,
   week: number,
   matchups: Matchup[],
@@ -219,8 +219,8 @@ export async function getTeamWeekResultFromSupabase(
 
   if (!matchup) return null;
 
-  // Check if Supabase data is available for this week
-  const qbPerformances = await getWeeklyQBPerformancesFromSupabase(week);
+  // Check if database data is available for this week
+  const qbPerformances = await getWeeklyQBPerformancesFromDb(week);
   if (!qbPerformances || qbPerformances.length === 0) return null;
 
   // Check if both teams have lineups for this week
@@ -230,9 +230,9 @@ export async function getTeamWeekResultFromSupabase(
   if (!team1Lineup || !team2Lineup) return null;
 
   // Calculate scores dynamically
-  const { team1Score, team2Score } = await calculateMatchupScoreFromSupabase(matchup, lineups);
+  const { team1Score, team2Score } = await calculateMatchupScoreFromDb(matchup, lineups);
 
-  // Show result for all games where both teams have lineups and Supabase data is available
+  // Show result for all games where both teams have lineups and database data is available
   // (regardless of whether scores are positive, zero, or negative)
 
   if (team1Score === team2Score) {
@@ -247,9 +247,9 @@ export async function getTeamWeekResultFromSupabase(
 }
 
 /**
- * Get current record string for a team (e.g., "5-2-1") using Supabase data
+ * Get current record string for a team (e.g., "5-2-1") using database data
  */
-export async function getCurrentRecordFromSupabase(
+export async function getCurrentRecordFromDb(
   teamName: string,
   matchups: Matchup[],
   lineups: WeeklyLineup[]
@@ -261,7 +261,7 @@ export async function getCurrentRecordFromSupabase(
   // Count wins/losses/ties from all matchups using dynamic scoring
   for (const matchup of matchups) {
     if (matchup.team1 === teamName || matchup.team2 === teamName) {
-      const result = await getTeamWeekResultFromSupabase(teamName, matchup.week, matchups, lineups);
+      const result = await getTeamWeekResultFromDb(teamName, matchup.week, matchups, lineups);
       
       if (result === 'W') wins++;
       else if (result === 'L') losses++;
@@ -273,10 +273,10 @@ export async function getCurrentRecordFromSupabase(
 }
 
 /**
- * Get detailed matchup information for a team and week using Supabase data
+ * Get detailed matchup information for a team and week using database data
  * Returns opponent details, scores, and active QBs for tooltip display
  */
-export async function getTeamWeekMatchupDetailsFromSupabase(
+export async function getTeamWeekMatchupDetailsFromDb(
   teamName: string,
   week: number,
   matchups: Matchup[],
@@ -296,8 +296,8 @@ export async function getTeamWeekMatchupDetailsFromSupabase(
 
   if (!matchup) return null;
 
-  // Check if Supabase data is available for this week
-  const qbPerformances = await getWeeklyQBPerformancesFromSupabase(week);
+  // Check if database data is available for this week
+  const qbPerformances = await getWeeklyQBPerformancesFromDb(week);
   if (!qbPerformances || qbPerformances.length === 0) return null;
 
   // Check if both teams have lineups for this week
@@ -307,7 +307,7 @@ export async function getTeamWeekMatchupDetailsFromSupabase(
   if (!team1Lineup || !team2Lineup) return null;
 
   // Calculate scores dynamically
-  const { team1Score, team2Score } = await calculateMatchupScoreFromSupabase(matchup, lineups);
+  const { team1Score, team2Score } = await calculateMatchupScoreFromDb(matchup, lineups);
 
   // Determine which team is the current team
   const isTeam1 = matchup.team1 === teamName;

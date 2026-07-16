@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { adminPool, runAsUser } from './db.js';
-import type { AuthedRequest } from './auth.js';
+import { requireUser, type AuthedRequest } from './auth.js';
 
 /** SQL functions the client is allowed to call (mirrors the old Supabase RPC surface). */
 const RPC_ALLOWLIST = new Set([
@@ -30,6 +30,9 @@ const RPC_ALLOWLIST = new Set([
   'get_user_profile_with_teams',
   'update_user_profile',
   'update_fantasy_team_name',
+  'remove_league_member',
+  'transfer_commissioner',
+  'delete_league',
 ]);
 
 interface FnSignature {
@@ -65,7 +68,7 @@ async function getSignature(fn: string): Promise<FnSignature | null> {
 
 export const rpcRouter = Router();
 
-rpcRouter.post('/:fn', async (req: AuthedRequest, res) => {
+rpcRouter.post('/:fn', requireUser, async (req: AuthedRequest, res) => {
   const fn = req.params.fn;
   if (!/^[a-z_][a-z0-9_]*$/.test(fn) || !RPC_ALLOWLIST.has(fn)) {
     res.status(404).json({ error: { message: `Could not find the function public.${fn}`, code: 'PGRST202' } });

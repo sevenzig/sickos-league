@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MultiLeagueApi, LeagueMatchup } from '../../utils/multiLeagueApi';
+import FantasyTeamAvatar from './FantasyTeamAvatar';
 
 interface MatchupCardsProps {
   leagueId: string;
@@ -8,6 +9,7 @@ interface MatchupCardsProps {
 
 const MatchupCards: React.FC<MatchupCardsProps> = ({ leagueId, week }) => {
   const [matchups, setMatchups] = useState<LeagueMatchup[]>([]);
+  const [logos, setLogos] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,8 +21,12 @@ const MatchupCards: React.FC<MatchupCardsProps> = ({ leagueId, week }) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await MultiLeagueApi.getLeagueSchedule(leagueId, week);
+      const [data, teams] = await Promise.all([
+        MultiLeagueApi.getLeagueSchedule(leagueId, week),
+        MultiLeagueApi.getLeagueFantasyTeams(leagueId),
+      ]);
       setMatchups(data);
+      setLogos(Object.fromEntries(teams.map(t => [t.id, t.logo_url ?? null])));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load matchups');
     } finally {
@@ -87,15 +93,22 @@ const MatchupCards: React.FC<MatchupCardsProps> = ({ leagueId, week }) => {
           >
             <div className="flex items-center justify-between">
               {/* Team 1 */}
-              <div className="flex-1">
-                <div className="text-white font-medium">
-                  {matchup.fantasy_team1_name}
-                </div>
-                {matchup.team1_manager_email && (
-                  <div className="text-slate-400 text-sm">
-                    {matchup.team1_manager_email.split('@')[0]}
+              <div className="flex-1 flex items-center gap-3">
+                <FantasyTeamAvatar
+                  teamName={matchup.fantasy_team1_name}
+                  logoUrl={logos[matchup.fantasy_team1_id]}
+                  size="md"
+                />
+                <div>
+                  <div className="text-white font-medium">
+                    {matchup.fantasy_team1_name}
                   </div>
-                )}
+                  {matchup.team1_manager_email && (
+                    <div className="text-slate-400 text-sm">
+                      {matchup.team1_manager_email.split('@')[0]}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* VS */}
@@ -104,15 +117,22 @@ const MatchupCards: React.FC<MatchupCardsProps> = ({ leagueId, week }) => {
               </div>
 
               {/* Team 2 */}
-              <div className="flex-1 text-right">
-                <div className="text-white font-medium">
-                  {matchup.fantasy_team2_name}
-                </div>
-                {matchup.team2_manager_email && (
-                  <div className="text-slate-400 text-sm">
-                    {matchup.team2_manager_email.split('@')[0]}
+              <div className="flex-1 flex items-center justify-end gap-3 text-right">
+                <div>
+                  <div className="text-white font-medium">
+                    {matchup.fantasy_team2_name}
                   </div>
-                )}
+                  {matchup.team2_manager_email && (
+                    <div className="text-slate-400 text-sm">
+                      {matchup.team2_manager_email.split('@')[0]}
+                    </div>
+                  )}
+                </div>
+                <FantasyTeamAvatar
+                  teamName={matchup.fantasy_team2_name}
+                  logoUrl={logos[matchup.fantasy_team2_id]}
+                  size="md"
+                />
               </div>
             </div>
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { importWeeklyCSV, getImportHistory, ImportResult } from '../services/csvImporter';
-import { useLeagueData } from '../context/LeagueContext';
 
 interface ImportHistoryItem {
   week: number;
@@ -10,7 +9,6 @@ interface ImportHistoryItem {
 }
 
 export default function AdminImport() {
-  const { syncFromDatabase } = useLeagueData();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
   const [isImporting, setIsImporting] = useState(false);
@@ -87,15 +85,6 @@ export default function AdminImport() {
         if (nextWeek <= 18) {
           setSelectedWeek(nextWeek);
           console.log(`📈 Import successful, auto-incremented to Week ${nextWeek}`);
-        }
-
-        // If week was auto-advanced, refresh the league data
-        if (result.newCurrentWeek) {
-          try {
-            await syncFromDatabase();
-          } catch (error) {
-            console.warn('Failed to refresh league data after week advancement:', error);
-          }
         }
       }
     } catch (error) {
@@ -196,16 +185,6 @@ export default function AdminImport() {
               {importResult.success ? '✅ Import Successful' : '❌ Import Failed'}
             </h3>
             <p className="text-slate-200">Records imported: <span className="font-bold">{importResult.recordsImported}</span></p>
-            {importResult.weekAdvanced && importResult.newCurrentWeek && (
-              <p className="text-blue-400 font-medium mt-1">
-                🔄 Current week automatically advanced to Week {importResult.newCurrentWeek}
-              </p>
-            )}
-            {importResult.weekAdvanceError && (
-              <p className="text-yellow-400 font-medium mt-1">
-                ⚠️ Week advancement failed: {importResult.weekAdvanceError}
-              </p>
-            )}
             {importResult.matchupsFinalized !== undefined && (
               <p className="text-blue-400 font-medium mt-1">
                 📊 League matchups finalized: {importResult.matchupsFinalized}

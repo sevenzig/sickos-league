@@ -1,8 +1,8 @@
 // Multi-League API utilities
 // Functions for interacting with the new multi-league system
 
-import { supabase } from './supabase'
-import { uploadPhoto, deletePhoto, photoUrl } from './apiClient'
+import { db } from './db'
+import { uploadPhoto, deletePhoto, uploadTeamPhoto, photoUrl } from './apiClient'
 import { generateLeagueId, isLeagueId, isValidLeagueId, isValidUUID, isShortId, isValidShortId } from './urlUtils'
 
 // Types for proper multi-league system
@@ -27,6 +27,7 @@ export interface FantasyTeam {
   manager_user_id?: string
   manager_email?: string
   created_at: string
+  logo_url?: string | null
 }
 
 export interface Invitation {
@@ -189,7 +190,7 @@ export class MultiLeagueApi {
     ownerTeamName?: string
   ): Promise<string> {
     // Use the existing create_league RPC function
-    const { data, error } = await supabase.rpc('create_league', {
+    const { data, error } = await db.rpc('create_league', {
       league_name: name,
       season,
       teams_started_per_week: teamsStartedPerWeek,
@@ -202,7 +203,7 @@ export class MultiLeagueApi {
 
   // Get user's leagues
   static async getUserLeagues(): Promise<League[]> {
-    const { data, error } = await supabase.rpc('get_user_leagues')
+    const { data, error } = await db.rpc('get_user_leagues')
 
     if (error) throw error
     return data || []
@@ -211,7 +212,7 @@ export class MultiLeagueApi {
   // Get league details
   static async getLeagueDetails(leagueId: string) {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('get_league_details', {
+    const { data, error } = await db.rpc('get_league_details', {
       league_id: fullLeagueId,
     })
 
@@ -221,7 +222,7 @@ export class MultiLeagueApi {
 
   // Get league fantasy teams
   static async getLeagueFantasyTeams(leagueId: string): Promise<FantasyTeam[]> {
-    const { data, error } = await supabase.rpc('get_league_fantasy_teams', {
+    const { data, error } = await db.rpc('get_league_fantasy_teams', {
       p_league_id: leagueId,
     })
 
@@ -235,7 +236,7 @@ export class MultiLeagueApi {
     teamName: string,
     managerUserId?: string
   ): Promise<string> {
-    const { data, error } = await supabase.rpc('create_fantasy_team', {
+    const { data, error } = await db.rpc('create_fantasy_team', {
       p_league_id: leagueId,
       p_team_name: teamName,
       p_manager_user_id: managerUserId,
@@ -247,7 +248,7 @@ export class MultiLeagueApi {
 
   // Set draft time
   static async setDraftTime(leagueId: string, draftTime: string): Promise<boolean> {
-    const { data, error } = await supabase.rpc('set_draft_time', {
+    const { data, error } = await db.rpc('set_draft_time', {
       league_id: leagueId,
       draft_time: draftTime,
     })
@@ -270,7 +271,7 @@ export class MultiLeagueApi {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('league_invitations')
       .insert({
         code,
@@ -287,7 +288,7 @@ export class MultiLeagueApi {
 
   static async getLeagueInvitations(leagueId: string): Promise<Invitation[]> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('league_invitations')
       .select(`
         code,
@@ -316,7 +317,7 @@ export class MultiLeagueApi {
   }
 
   static async validateInviteCode(code: string): Promise<Invitation | null> {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('league_invitations')
       .select(`
         code,
@@ -347,7 +348,7 @@ export class MultiLeagueApi {
   }
 
   static async redeemInviteCode(code: string, teamName: string): Promise<string> {
-    const { data, error } = await supabase.rpc('redeem_invite_code', {
+    const { data, error } = await db.rpc('redeem_invite_code', {
       p_invite_code: code.toUpperCase(),
       p_team_name: teamName
     });
@@ -359,7 +360,7 @@ export class MultiLeagueApi {
   // Team slot management
   static async getLeagueSlots(leagueId: string): Promise<TeamSlot[]> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('get_league_slots', {
+    const { data, error } = await db.rpc('get_league_slots', {
       p_league_id: fullLeagueId
     });
 
@@ -369,7 +370,7 @@ export class MultiLeagueApi {
 
   static async createSlotInvite(leagueId: string, slotId: string): Promise<string> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('create_slot_invite', {
+    const { data, error } = await db.rpc('create_slot_invite', {
       p_league_id: fullLeagueId,
       p_slot_id: slotId
     });
@@ -379,7 +380,7 @@ export class MultiLeagueApi {
   }
 
   static async revokeInvite(inviteCode: string): Promise<boolean> {
-    const { data, error } = await supabase.rpc('revoke_invite', {
+    const { data, error } = await db.rpc('revoke_invite', {
       p_invite_code: inviteCode
     });
 
@@ -395,7 +396,7 @@ export class MultiLeagueApi {
 
   // Schedule management
   static async generateSchedule(leagueId: string): Promise<boolean> {
-    const { data, error } = await supabase.rpc('generate_league_schedule', {
+    const { data, error } = await db.rpc('generate_league_schedule', {
       p_league_id: leagueId,
     })
 
@@ -407,7 +408,7 @@ export class MultiLeagueApi {
     leagueId: string,
     week?: number
   ): Promise<LeagueMatchup[]> {
-    const { data, error } = await supabase.rpc('get_league_schedule', {
+    const { data, error } = await db.rpc('get_league_schedule', {
       p_league_id: leagueId,
       p_week: week,
     })
@@ -423,7 +424,7 @@ export class MultiLeagueApi {
     locksAt?: string,
     isLocked: boolean = false
   ): Promise<boolean> {
-    const { data, error } = await supabase.rpc('set_week_lock', {
+    const { data, error } = await db.rpc('set_week_lock', {
       league_id: leagueId,
       week_number: weekNumber,
       locks_at: locksAt,
@@ -439,7 +440,7 @@ export class MultiLeagueApi {
     weekNumber: number,
     lockState: boolean
   ): Promise<boolean> {
-    const { data, error } = await supabase.rpc('toggle_week_lock', {
+    const { data, error } = await db.rpc('toggle_week_lock', {
       p_league_id: leagueId,
       p_week_number: weekNumber,
       p_lock_state: lockState,
@@ -452,7 +453,7 @@ export class MultiLeagueApi {
   // Persist matchup scores for a week across ALL leagues (Phase 4).
   // Idempotent; returns the number of matchups finalized.
   static async finalizeWeekScores(week: number, season: number = 2025): Promise<number> {
-    const { data, error } = await supabase.rpc('finalize_week_scores', {
+    const { data, error } = await db.rpc('finalize_week_scores', {
       p_week: week,
       p_season: season,
     })
@@ -466,7 +467,7 @@ export class MultiLeagueApi {
     week: number,
     activeNflTeams: string[]
   ): Promise<boolean> {
-    const { data, error } = await supabase.rpc('set_fantasy_lineup', {
+    const { data, error } = await db.rpc('set_fantasy_lineup', {
       p_fantasy_team_id: fantasyTeamId,
       p_week: week,
       p_active_nfl_teams: activeNflTeams,
@@ -479,7 +480,7 @@ export class MultiLeagueApi {
   // Async snake draft (Phase 2)
   static async startDraft(leagueId: string, draftOrder?: string[]): Promise<boolean> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('start_draft', {
+    const { data, error } = await db.rpc('start_draft', {
       p_league_id: fullLeagueId,
       p_draft_order: draftOrder,
     })
@@ -490,7 +491,7 @@ export class MultiLeagueApi {
 
   static async makeDraftPick(leagueId: string, nflTeamId: string): Promise<boolean> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('make_draft_pick', {
+    const { data, error } = await db.rpc('make_draft_pick', {
       p_league_id: fullLeagueId,
       p_nfl_team_id: nflTeamId,
     })
@@ -501,7 +502,7 @@ export class MultiLeagueApi {
 
   static async makeDraftPickFor(leagueId: string, nflTeamId: string): Promise<boolean> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('make_draft_pick_for', {
+    const { data, error } = await db.rpc('make_draft_pick_for', {
       p_league_id: fullLeagueId,
       p_nfl_team_id: nflTeamId,
     })
@@ -512,7 +513,7 @@ export class MultiLeagueApi {
 
   static async getDraftState(leagueId: string): Promise<DraftState> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('get_draft_state', {
+    const { data, error } = await db.rpc('get_draft_state', {
       p_league_id: fullLeagueId,
     })
 
@@ -524,7 +525,7 @@ export class MultiLeagueApi {
     fantasyTeamId: string,
     week: number
   ): Promise<boolean> {
-    const { data, error } = await supabase.rpc('lock_fantasy_lineup', {
+    const { data, error } = await db.rpc('lock_fantasy_lineup', {
       p_fantasy_team_id: fantasyTeamId,
       p_week: week,
     })
@@ -540,7 +541,7 @@ export class MultiLeagueApi {
     week: number
   ): Promise<number> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('finalize_week_lineups', {
+    const { data, error } = await db.rpc('finalize_week_lineups', {
       p_league_id: fullLeagueId,
       p_week: week,
     })
@@ -551,7 +552,7 @@ export class MultiLeagueApi {
 
   // Roster ownership (Phase 1)
   static async getTeamRoster(fantasyTeamId: string): Promise<RosterEntry[]> {
-    const { data, error } = await supabase.rpc('get_team_roster', {
+    const { data, error } = await db.rpc('get_team_roster', {
       p_fantasy_team_id: fantasyTeamId,
     })
 
@@ -561,7 +562,7 @@ export class MultiLeagueApi {
 
   static async getLeagueRosters(leagueId: string): Promise<LeagueRosterEntry[]> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await supabase.rpc('get_league_rosters', {
+    const { data, error } = await db.rpc('get_league_rosters', {
       p_league_id: fullLeagueId,
     })
 
@@ -573,7 +574,7 @@ export class MultiLeagueApi {
     leagueId: string,
     week: number
   ): Promise<FantasyLineup[]> {
-    const { data, error } = await supabase.rpc('get_fantasy_lineups_for_week', {
+    const { data, error } = await db.rpc('get_fantasy_lineups_for_week', {
       p_league_id: leagueId,
       p_week: week,
     })
@@ -586,7 +587,7 @@ export class MultiLeagueApi {
     leagueId: string,
     weekNumber: number
   ): Promise<WeekStatus | null> {
-    const { data, error } = await supabase.rpc('get_week_status', {
+    const { data, error } = await db.rpc('get_week_status', {
       league_id: leagueId,
       week_number: weekNumber,
     })
@@ -597,7 +598,7 @@ export class MultiLeagueApi {
 
   // Standings (using existing view)
   static async getLeagueStandings(leagueId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('v_league_standings')
       .select('*')
       .eq('league_id', leagueId)
@@ -609,7 +610,7 @@ export class MultiLeagueApi {
 
   // User Profile Management
   static async getUserProfile(userId?: string): Promise<UserProfile | null> {
-    const { data, error } = await supabase.rpc('get_user_profile_with_teams', {
+    const { data, error } = await db.rpc('get_user_profile_with_teams', {
       p_user_id: userId || undefined
     })
 
@@ -623,7 +624,7 @@ export class MultiLeagueApi {
     profile_photo_url?: string
     email_preferences?: EmailPreferences
   }): Promise<boolean> {
-    const { data, error } = await supabase.rpc('update_user_profile', {
+    const { data, error } = await db.rpc('update_user_profile', {
       p_first_name: profileData.first_name,
       p_last_name: profileData.last_name,
       p_profile_photo_url: profileData.profile_photo_url,
@@ -635,7 +636,7 @@ export class MultiLeagueApi {
   }
 
   static async updateFantasyTeamName(teamId: string, teamName: string): Promise<boolean> {
-    const { data, error } = await supabase.rpc('update_fantasy_team_name', {
+    const { data, error } = await db.rpc('update_fantasy_team_name', {
       p_team_id: teamId,
       p_team_name: teamName
     })
@@ -644,9 +645,49 @@ export class MultiLeagueApi {
     return data
   }
 
+  // Team logo (Phase 5.2) - stored on the API's photos volume, path persisted
+  // onto fantasy_teams.logo_url by the server. Returns the absolute URL.
+  static async uploadTeamLogo(teamId: string, file: File): Promise<string> {
+    const relativeUrl = await uploadTeamPhoto(teamId, file)
+    return photoUrl(relativeUrl)
+  }
+
+  // League management (Phase 5.1) - commissioner toolkit
+  static async removeLeagueMember(leagueId: string, userId: string): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('remove_league_member', {
+      p_league_id: fullLeagueId,
+      p_user_id: userId,
+    })
+
+    if (error) throw error
+    return data
+  }
+
+  static async transferCommissioner(leagueId: string, newOwnerUserId: string): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('transfer_commissioner', {
+      p_league_id: fullLeagueId,
+      p_new_owner_user_id: newOwnerUserId,
+    })
+
+    if (error) throw error
+    return data
+  }
+
+  static async deleteLeague(leagueId: string): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('delete_league', {
+      p_league_id: fullLeagueId,
+    })
+
+    if (error) throw error
+    return data
+  }
+
   // Profile Photo Management (stored on the API's photos volume)
   static async uploadProfilePhoto(file: File): Promise<string> {
-    const { data: userData, error: userError } = await supabase.auth.getUser()
+    const { data: userData, error: userError } = await db.auth.getUser()
     if (userError || !userData.user) throw new Error('User not authenticated')
 
     const relativeUrl = await uploadPhoto(file)
@@ -654,7 +695,7 @@ export class MultiLeagueApi {
   }
 
   static async deleteProfilePhoto(): Promise<boolean> {
-    const { data: userData, error: userError } = await supabase.auth.getUser()
+    const { data: userData, error: userError } = await db.auth.getUser()
     if (userError || !userData.user) throw new Error('User not authenticated')
 
     await deletePhoto()

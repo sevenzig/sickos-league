@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { MultiLeagueApi, DraftState } from '../utils/multiLeagueApi';
-import { supabase } from '../utils/supabase';
+import { db } from '../utils/db';
 import { getLeagueUrl } from '../utils/urlUtils';
 import { useAuth } from '../context/AuthContext';
 import TeamLogo from '../components/TeamLogo';
@@ -47,7 +47,7 @@ const LeagueDraft: React.FC = () => {
         setLoading(true);
         const [details, teamsResult] = await Promise.all([
           MultiLeagueApi.getLeagueDetails(leagueId),
-          supabase.from('teams').select('uuid_id, name').eq('is_nfl', true).order('name'),
+          db.from('teams').select('uuid_id, name').eq('is_nfl', true).order('name'),
         ]);
         if (details) {
           setIsOwner(details.user_role === 'owner');

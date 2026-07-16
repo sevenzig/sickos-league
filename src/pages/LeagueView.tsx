@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { MultiLeagueApi, FantasyTeam, LeagueMatchup } from '../utils/multiLeagueApi';
-import { supabase } from '../utils/supabase';
-import { getWeeklyQBPerformancesFromSupabase } from '../services/database';
+import { db } from '../utils/db';
+import { getWeeklyQBPerformancesFromDb } from '../services/database';
 import WeekNavigation from '../components/navigation/WeekNavigation';
+import LeagueHeader from '../components/league/LeagueHeader';
 import MatchupCard from '../components/matchup-cards/2-team/MatchupCard';
 import MatchupModal from '../components/matchup-modals/2-team/MatchupModal';
 import LeagueStandings from '../components/tables/LeagueStandings';
@@ -66,7 +67,7 @@ const LeagueView: React.FC = () => {
             console.error('Error loading schedule (might not be generated yet):', err);
             return [] as LeagueMatchup[];
           }),
-          supabase.from('teams').select('uuid_id, name'),
+          db.from('teams').select('uuid_id, name'),
         ]);
 
         if (nflTeamsResult.error) throw new Error(nflTeamsResult.error.message);
@@ -78,7 +79,7 @@ const LeagueView: React.FC = () => {
         // All lineups for the league's fantasy teams (RLS: members only)
         let lineupRows: LineupRow[] = [];
         if (teams.length > 0) {
-          const { data, error: lineupError } = await supabase
+          const { data, error: lineupError } = await db
             .from('fantasy_lineups')
             .select('fantasy_team_id, week, active_nfl_teams, is_locked')
             .in('fantasy_team_id', teams.map(t => t.id));
@@ -109,7 +110,7 @@ const LeagueView: React.FC = () => {
   useEffect(() => {
     if (!isDataLoaded) return;
     let cancelled = false;
-    getWeeklyQBPerformancesFromSupabase(selectedWeek).then(stats => {
+    getWeeklyQBPerformancesFromDb(selectedWeek).then(stats => {
       if (!cancelled) setWeekStats(stats);
     });
     return () => {
@@ -297,6 +298,9 @@ const LeagueView: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {/* League header: name, tabs, draft callout (Phase 5.3) */}
+      <LeagueHeader leagueId={leagueId!} active="home" />
+
       {/* Week Navigation */}
       <WeekNavigation
         selectedWeek={selectedWeek}
@@ -339,7 +343,9 @@ const LeagueView: React.FC = () => {
           </div>
         ) : (
           <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-6 text-center text-slate-400">
-            {`No matchups scheduled for Week ${selectedWeek}`}
+            {schedule.length === 0
+              ? 'No schedule yet. Finish the draft, then the commissioner can generate the season schedule.'
+              : `No matchups scheduled for Week ${selectedWeek}`}
           </div>
         )}
         </div>

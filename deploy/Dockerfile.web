@@ -1,0 +1,18 @@
+# Multi-stage: build Vite app, then Caddy serves static + proxies /api
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY index.html vite.config.ts tsconfig*.json tailwind.config.js postcss.config.js ./
+COPY public ./public
+COPY src ./src
+ARG VITE_API_URL=/api
+ARG VITE_SENTRY_DSN=
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+RUN npm run build
+
+FROM caddy:2-alpine
+COPY deploy/Caddyfile /etc/caddy/Caddyfile
+COPY --from=build /app/dist /srv
+EXPOSE 80 443

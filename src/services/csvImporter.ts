@@ -1,15 +1,11 @@
-import { supabase } from '../utils/supabase'
+import { db } from '../utils/db'
 import { parseWeeklyCSV } from '../utils/csvParser'
-import { updateCurrentWeek } from './database'
 
 export interface ImportResult {
   success: boolean
   recordsImported: number
   errors: string[]
   week: number
-  newCurrentWeek?: number
-  weekAdvanced?: boolean
-  weekAdvanceError?: string
   matchupsFinalized?: number
   finalizeError?: string
 }
@@ -62,7 +58,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
     }))
 
     // Check if data for this week already exists
-    const { data: existingData, error: checkError } = await supabase
+    const { data: existingData, error: checkError } = await db
       .from('game_stats')
       .select('id')
       .eq('week', week)
@@ -75,7 +71,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
 
     if (existingData && existingData.length > 0) {
       // Delete existing data for this week
-      const { error: deleteError } = await supabase
+      const { error: deleteError } = await db
         .from('game_stats')
         .delete()
         .eq('week', week)
@@ -88,7 +84,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
     }
 
     // Insert new data
-    const { data: insertedData, error: insertError } = await supabase
+    const { data: insertedData, error: insertError } = await db
       .from('game_stats')
       .insert(gameStatsData)
       .select()
@@ -104,7 +100,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
     // Persist matchup scores across ALL multi-league leagues with this week
     // locked (one site-wide upload serves every league). Non-fatal on error.
     try {
-      const { data: finalized, error: finalizeError } = await supabase.rpc('finalize_week_scores', {
+      const { data: finalized, error: finalizeError } = await db.rpc('finalize_week_scores', {
         p_week: week,
         p_season: season
       })
@@ -121,54 +117,6 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
       console.error('❌ finalize_week_scores failed:', error)
     }
 
-    // Auto-advance current week if we just imported data that should advance the week
-    try {
-      console.log(`📊 Checking if week should advance after importing week ${week} data...`)
-
-      const { data: currentSettings } = await supabase
-        .from('league_settings')
-        .select('current_week')
-        .order('id', { ascending: false })
-        .limit(1)
-        .single()
-
-      const currentWeek = currentSettings?.current_week || 1
-      console.log(`📊 Current week in database: ${currentWeek}`)
-
-      // Advance if we imported data for current week OR if the imported week is >= current week
-      // This handles cases where data might be re-imported or imported out of order
-      if (week >= currentWeek) {
-        const newCurrentWeek = week + 1
-        console.log(`🔄 Advancing current week from ${currentWeek} to ${newCurrentWeek}...`)
-
-        await updateCurrentWeek(newCurrentWeek)
-
-        // Verify the update worked
-        const { data: verifySettings } = await supabase
-          .from('league_settings')
-          .select('current_week')
-          .order('id', { ascending: false })
-          .limit(1)
-          .single()
-
-        const actualNewWeek = verifySettings?.current_week || currentWeek
-
-        if (actualNewWeek === newCurrentWeek) {
-          result.newCurrentWeek = newCurrentWeek
-          result.weekAdvanced = true
-          console.log(`✅ Successfully auto-advanced current week from ${currentWeek} to ${newCurrentWeek} (imported week ${week})`)
-        } else {
-          console.error(`❌ Week advance failed: expected ${newCurrentWeek}, got ${actualNewWeek}`)
-        }
-      } else {
-        console.log(`📊 Imported week ${week} data, but current week ${currentWeek} is already ahead - no advancement needed`)
-      }
-    } catch (error) {
-      console.error('❌ Failed to auto-advance current week:', error)
-      result.weekAdvanceError = error instanceof Error ? error.message : 'Unknown error'
-      // Don't fail the import if week advancement fails
-    }
-
     return result
 
   } catch (error) {
@@ -178,7 +126,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
 }
 
 export async function getImportHistory(): Promise<{ week: number; season: number; recordsCount: number; importedAt: string }[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('game_stats')
     .select('week, season, created_at')
     .order('week', { ascending: false })
@@ -209,7 +157,7 @@ export async function getImportHistory(): Promise<{ week: number; season: number
 
 export async function deleteWeekData(week: number, season: number = 2025): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await db
       .from('game_stats')
       .delete()
       .eq('week', week)

@@ -1,0 +1,21 @@
+{
+	email {$DOMAIN}
+}
+
+{$DOMAIN} {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy api:3001
+	}
+
+	handle /photos/* {
+		reverse_proxy api:3001
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { MultiLeagueApi, FantasyTeam, RosterEntry, FantasyLineup, LeagueMatchup } from '../utils/multiLeagueApi';
 import WeekNavigation from '../components/navigation/WeekNavigation';
 import TeamLogo from '../components/TeamLogo';
+import TeamIdentityEditor from '../components/league/TeamIdentityEditor';
+import LeagueHeader from '../components/league/LeagueHeader';
 
 interface LeagueInfo {
   id: string;
@@ -203,6 +205,8 @@ const LeagueLineups: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 px-4 py-8">
+      <LeagueHeader leagueId={leagueId!} active="lineups" />
+
       <WeekNavigation
         selectedWeek={selectedWeek}
         currentWeek={currentWeek}
@@ -226,7 +230,10 @@ const LeagueLineups: React.FC = () => {
       <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-xl font-black text-slate-50 tracking-tight">{myTeam.team_name}</h2>
+            <TeamIdentityEditor
+              team={myTeam}
+              onUpdated={changes => setMyTeam(prev => (prev ? { ...prev, ...changes } : prev))}
+            />
             <p className="text-sm text-slate-400 mt-1">
               Pick {startersNeeded} of your {roster.length} rostered teams to start
             </p>

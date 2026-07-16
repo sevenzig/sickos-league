@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAdmin, loading } = useAuth();
+  const { user, loading } = useAuth();
 
   // Show loading spinner while checking authentication
   if (loading) {
@@ -24,7 +24,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
 
   // Show login form if not authenticated
-  if (!isAdmin) {
+  if (!user) {
     return <AdminLogin />;
   }
 

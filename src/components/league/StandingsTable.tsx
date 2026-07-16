@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MultiLeagueApi } from '../../utils/multiLeagueApi';
+import FantasyTeamAvatar from './FantasyTeamAvatar';
 
 interface Standing {
   rank: number;
@@ -11,6 +12,7 @@ interface Standing {
   points_for: number;
   points_against: number;
   win_percentage: number;
+  logo_url?: string | null;
 }
 
 interface StandingsTableProps {
@@ -106,15 +108,18 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
                   </span>
                 </td>
                 <td className="py-3">
-                  <div>
-                    <div className="text-white font-medium text-sm">
-                      {team.team_name}
-                    </div>
-                    {team.manager_email && (
-                      <div className="text-slate-400 text-xs">
-                        {team.manager_email.split('@')[0]}
+                  <div className="flex items-center gap-2">
+                    <FantasyTeamAvatar teamName={team.team_name} logoUrl={team.logo_url} size="sm" />
+                    <div>
+                      <div className="text-white font-medium text-sm">
+                        {team.team_name}
                       </div>
-                    )}
+                      {team.manager_email && (
+                        <div className="text-slate-400 text-xs">
+                          {team.manager_email.split('@')[0]}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="py-3 text-center">

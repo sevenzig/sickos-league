@@ -2,176 +2,157 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { LeagueProvider } from './context/LeagueContext';
 import { AuthProvider } from './context/AuthContext';
-import { FEATURE_FLAGS } from './utils/supabase';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import Home from './pages/Home';
 import Rosters from './pages/Rosters';
-import EnterScores from './pages/EnterScores';
 import Rules from './pages/Rules';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminLineups from './pages/AdminLineups';
 import AdminImport from './pages/AdminImport';
 import AdminMigration from './pages/AdminMigration';
 import Welcome from './pages/Welcome';
 import MyLeagues from './pages/MyLeagues';
 import CreateLeague from './pages/CreateLeague';
 import InviteRedeem from './pages/InviteRedeem';
-import LeagueDashboard from './pages/LeagueDashboard';
 import LeagueView from './pages/LeagueView';
 import LeagueAdmin from './pages/LeagueAdmin';
 import LeagueLineups from './pages/LeagueLineups';
 import LeagueDraft from './pages/LeagueDraft';
+import LeagueSchedule from './pages/LeagueSchedule';
+import LeagueStandingsPage from './pages/LeagueStandingsPage';
 import UserProfile from './pages/UserProfile';
 import EditProfile from './pages/EditProfile';
 import BQBLTest from './pages/BQBLTest';
 
 function App() {
-  // Choose the home route based on feature flag
-  const HomeComponent = FEATURE_FLAGS.ENABLE_MULTI_LEAGUE ? Welcome : Home;
-
   return (
     <AuthProvider>
       <LeagueProvider>
         <Router>
           <div className="min-h-screen bg-dark-bg text-white">
             <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={
-                FEATURE_FLAGS.ENABLE_MULTI_LEAGUE ? <Welcome /> : (
-                  <Layout>
-                    <Home />
-                  </Layout>
-                )
-              } />
-
-              {/* Routes that need Layout wrapper */}
-              <Route path="/rosters" element={<Layout><Rosters /></Layout>} />
-              <Route path="/scores" element={<Layout><EnterScores /></Layout>} />
+              <Route path="/" element={<Welcome />} />
+              <Route path="/welcome" element={<Welcome />} />
               <Route path="/rules" element={<Layout><Rules /></Layout>} />
-
-              {/* Hidden Test Route - Not in navigation, no layout */}
               <Route path="/bqbl-test" element={<BQBLTest />} />
 
-              {/* Multi-League Routes (feature flagged) */}
-              {FEATURE_FLAGS.ENABLE_MULTI_LEAGUE && (
-                <>
-                  <Route path="/welcome" element={<Welcome />} />
-                  <Route path="/invite" element={<Layout><InviteRedeem /></Layout>} />
-                  <Route path="/invite/:code" element={<Layout><InviteRedeem /></Layout>} />
-                  <Route path="/my-leagues" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <MyLeagues />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  <Route path="/leagues/new" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <CreateLeague />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  {/* Profile Routes */}
-                  <Route path="/profile" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <UserProfile />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  <Route path="/profile/edit" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <EditProfile />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  {/* League-specific routes */}
-                  <Route path="/leagues/:leagueId" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <LeagueView />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  <Route path="/leagues/:leagueId/draft" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <LeagueDraft />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  <Route path="/leagues/:leagueId/admin" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <LeagueAdmin />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  <Route path="/leagues/:leagueId/schedule" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                          <p className="text-white">Schedule - Coming Soon</p>
-                        </div>
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  <Route path="/leagues/:leagueId/standings" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                          <p className="text-white">Standings - Coming Soon</p>
-                        </div>
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  <Route path="/leagues/:leagueId/lineups" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <LeagueLineups />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                  <Route path="/leagues/:leagueId/*" element={
-                    <Layout>
-                      <ProtectedRoute>
-                        <LeagueView />
-                      </ProtectedRoute>
-                    </Layout>
-                  } />
-                </>
-              )}
-
-              {/* Protected Admin Routes (legacy single-league) */}
-              <Route path="/admin" element={
+              {/* Legacy single-league archive (read-only; requires sign-in because /api/db requires auth) */}
+              <Route path="/archive" element={
                 <Layout>
                   <ProtectedRoute>
-                    <AdminDashboard />
+                    <Home />
                   </ProtectedRoute>
                 </Layout>
               } />
-              <Route path="/admin/lineups" element={
+              <Route path="/rosters" element={
                 <Layout>
                   <ProtectedRoute>
-                    <AdminLineups />
+                    <Rosters />
                   </ProtectedRoute>
+                </Layout>
+              } />
+
+              <Route path="/invite" element={<Layout><InviteRedeem /></Layout>} />
+              <Route path="/invite/:code" element={<Layout><InviteRedeem /></Layout>} />
+              <Route path="/my-leagues" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <MyLeagues />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/new" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <CreateLeague />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/profile" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <UserProfile />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/profile/edit" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <EditProfile />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/:leagueId" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <LeagueView />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/:leagueId/draft" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <LeagueDraft />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/:leagueId/admin" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <LeagueAdmin />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/:leagueId/schedule" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <LeagueSchedule />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/:leagueId/standings" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <LeagueStandingsPage />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/:leagueId/lineups" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <LeagueLineups />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/:leagueId/*" element={
+                <Layout>
+                  <ProtectedRoute>
+                    <LeagueView />
+                  </ProtectedRoute>
+                </Layout>
+              } />
+
+              {/* Platform-admin routes */}
+              <Route path="/admin" element={
+                <Layout>
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
                 </Layout>
               } />
               <Route path="/admin/import" element={
                 <Layout>
-                  <ProtectedRoute>
+                  <AdminRoute>
                     <AdminImport />
-                  </ProtectedRoute>
+                  </AdminRoute>
                 </Layout>
               } />
               <Route path="/admin/migration" element={
                 <Layout>
-                  <ProtectedRoute>
+                  <AdminRoute>
                     <AdminMigration />
-                  </ProtectedRoute>
+                  </AdminRoute>
                 </Layout>
               } />
             </Routes>

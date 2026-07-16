@@ -1,10 +1,10 @@
-import { supabase } from '../utils/supabase'
+import { db } from '../utils/db'
 import { Team, WeeklyLineup, Matchup, GameStats, LeagueData } from '../types'
 
-// Database service layer for all Supabase operations
+// Database service layer for all API-backed database operations
 
 export async function loadTeams(): Promise<Team[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('teams')
     .select('*')
     .order('name')
@@ -23,7 +23,7 @@ export async function loadTeams(): Promise<Team[]> {
 export async function loadLineups(): Promise<WeeklyLineup[]> {
   console.log('🔄 Loading lineups from database...');
   
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('lineups')
     .select(`
       week,
@@ -50,7 +50,7 @@ export async function loadLineups(): Promise<WeeklyLineup[]> {
 }
 
 export async function loadMatchups(): Promise<Matchup[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('matchups')
     .select(`
       week,
@@ -80,7 +80,7 @@ export async function loadMatchups(): Promise<Matchup[]> {
 }
 
 export async function loadGameStats(week?: number): Promise<GameStats[]> {
-  let query = supabase
+  let query = db
     .from('game_stats')
     .select('*')
     .order('week')
@@ -124,10 +124,10 @@ export async function loadGameStats(week?: number): Promise<GameStats[]> {
 }
 
 /**
- * Get QB performance data from Supabase for a specific week and team
+ * Get QB performance data from the database for a specific week and team
  */
-export async function getQBPerformanceFromSupabase(week: number, teamAbbr: string): Promise<any | null> {
-  const { data, error } = await supabase
+export async function getQBPerformanceFromDb(week: number, teamAbbr: string): Promise<any | null> {
+  const { data, error } = await db
     .from('game_stats')
     .select('*')
     .eq('week', week)
@@ -141,7 +141,7 @@ export async function getQBPerformanceFromSupabase(week: number, teamAbbr: strin
 
   if (!data) return null
 
-  // Convert Supabase data to match the QBPerformance interface
+  // Convert database rows to match the QBPerformance interface
   const events: string[] = []
   
   // Add events based on performance thresholds
@@ -164,7 +164,7 @@ export async function getQBPerformanceFromSupabase(week: number, teamAbbr: strin
     turnovers: data.interceptions + data.fumbles,
     events,
     finalScore: data.final_score,
-    // Additional stats from Supabase
+    // Additional stats from the database
     passCompletions: data.pass_completions,
     passAttempts: data.pass_attempts,
     interceptions: data.interceptions,
@@ -187,13 +187,13 @@ export async function getQBPerformanceFromSupabase(week: number, teamAbbr: strin
 }
 
 /**
- * Get all QB performances for a specific week from Supabase (with caching)
+ * Get all QB performances for a specific week from the database (with caching)
  */
 let qbPerformancesCache: { [week: number]: any[] } = {};
 let cacheTimestamp: number = 0;
 const CACHE_DURATION = 30000; // 30 seconds
 
-export async function getWeeklyQBPerformancesFromSupabase(week: number): Promise<any[]> {
+export async function getWeeklyQBPerformancesFromDb(week: number): Promise<any[]> {
   const now = Date.now();
   
   // Check if we have cached data that's still fresh
@@ -202,8 +202,8 @@ export async function getWeeklyQBPerformancesFromSupabase(week: number): Promise
     return qbPerformancesCache[week];
   }
 
-  console.log(`Fetching QB performances for week ${week} from Supabase`);
-  const { data, error } = await supabase
+  console.log(`Fetching QB performances for week ${week} from the database`);
+  const { data, error } = await db
     .from('game_stats')
     .select('*')
     .eq('week', week)
@@ -239,7 +239,7 @@ export async function getWeeklyQBPerformancesFromSupabase(week: number): Promise
       turnovers: stat.interceptions + stat.fumbles,
       events,
       finalScore: stat.final_score,
-      // Additional stats from Supabase
+      // Additional stats from the database
       passCompletions: stat.pass_completions,
       passAttempts: stat.pass_attempts,
       interceptions: stat.interceptions,
@@ -278,7 +278,7 @@ export function clearQBPerformancesCache(): void {
 }
 
 export async function loadLeagueSettings(): Promise<{ currentWeek: number; lockedWeeks: number[] }> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('league_settings')
     .select('current_week, locked_weeks')
     .order('id', { ascending: false })
@@ -296,215 +296,32 @@ export async function loadLeagueSettings(): Promise<{ currentWeek: number; locke
   }
 }
 
-export async function saveLineup(teamName: string, week: number, activeQBs: string[]): Promise<void> {
-  console.log(`🔄 Saving lineup for ${teamName} week ${week}:`, activeQBs);
-  
-  // First get team ID
-  const { data: team, error: teamError } = await supabase
-    .from('teams')
-    .select('id')
-    .eq('name', teamName)
-    .single()
+const ARCHIVE_READONLY = 'Legacy archive is read-only'
 
-  if (teamError || !team) {
-    console.error(`❌ Team ${teamName} not found:`, teamError);
-    throw new Error(`Team ${teamName} not found`)
-  }
-
-  console.log(`✅ Found team ${teamName} with ID:`, team.id);
-
-  // Get existing lineup to preserve lock status
-  const { data: existingLineup } = await supabase
-    .from('lineups')
-    .select('is_locked')
-    .eq('team_id', team.id)
-    .eq('week', week)
-    .single()
-
-  console.log(`📋 Existing lineup lock status:`, existingLineup?.is_locked || false);
-
-  const { error } = await supabase
-    .from('lineups')
-    .upsert({
-      team_id: team.id,
-      week,
-      active_qbs: activeQBs,
-      is_locked: existingLineup?.is_locked || false
-    }, {
-      onConflict: 'team_id,week'  // Specify the unique constraint
-    })
-
-  if (error) {
-    console.error('❌ Error saving lineup:', error)
-    throw error
-  }
-  
-  console.log(`✅ Successfully saved lineup for ${teamName} week ${week}`);
+export async function saveLineup(_teamName: string, _week: number, _activeQBs: string[]): Promise<void> {
+  throw new Error(ARCHIVE_READONLY)
 }
 
 export async function updateMatchupScores(
-  week: number, 
-  team1: string, 
-  team2: string, 
-  team1Score: number, 
-  team2Score: number
+  _week: number,
+  _team1: string,
+  _team2: string,
+  _team1Score: number,
+  _team2Score: number
 ): Promise<void> {
-  // Get team IDs
-  const { data: teams, error: teamsError } = await supabase
-    .from('teams')
-    .select('id, name')
-    .in('name', [team1, team2])
-
-  if (teamsError || teams.length !== 2) {
-    throw new Error('Teams not found')
-  }
-
-  const team1Data = teams.find((t: any) => t.name === team1)
-  const team2Data = teams.find((t: any) => t.name === team2)
-
-  if (!team1Data || !team2Data) {
-    throw new Error('Teams not found')
-  }
-
-  const winnerId = team1Score > team2Score ? team1Data.id : team2Data.id
-
-  const { error } = await supabase
-    .from('matchups')
-    .update({
-      team1_score: team1Score,
-      team2_score: team2Score,
-      winner_id: winnerId
-    })
-    .eq('week', week)
-    .eq('team1_id', team1Data.id)
-    .eq('team2_id', team2Data.id)
-
-  if (error) {
-    console.error('Error updating matchup scores:', error)
-    throw error
-  }
+  throw new Error(ARCHIVE_READONLY)
 }
 
-export async function lockTeamLineup(teamName: string, week: number): Promise<void> {
-  console.log(`🔒 Locking lineup for ${teamName} week ${week}`);
-  
-  // First get team ID
-  const { data: team, error: teamError } = await supabase
-    .from('teams')
-    .select('id')
-    .eq('name', teamName)
-    .single()
-
-  if (teamError || !team) {
-    console.error(`❌ Team ${teamName} not found:`, teamError);
-    throw new Error(`Team ${teamName} not found`)
-  }
-
-  console.log(`✅ Found team ${teamName} with ID:`, team.id);
-
-  const { error } = await supabase
-    .from('lineups')
-    .update({ is_locked: true })
-    .eq('team_id', team.id)
-    .eq('week', week)
-
-  if (error) {
-    console.error('❌ Error locking team lineup:', error)
-    throw error
-  }
-  
-  console.log(`✅ Successfully locked lineup for ${teamName} week ${week}`);
+export async function lockTeamLineup(_teamName: string, _week: number): Promise<void> {
+  throw new Error(ARCHIVE_READONLY)
 }
 
-export async function lockWeek(week: number): Promise<void> {
-  console.log(`🔒 Attempting to lock week ${week}`);
-  
-  const { data: settings, error: fetchError } = await supabase
-    .from('league_settings')
-    .select('id, locked_weeks')
-    .order('id', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (fetchError) {
-    console.log('📝 No existing league settings found, creating new settings');
-    // Create new settings if none exist
-    const { error: insertError } = await supabase
-      .from('league_settings')
-      .insert({
-        current_week: 1,
-        locked_weeks: [week],
-        season: 2025
-      })
-
-    if (insertError) {
-      console.error('❌ Error creating league settings:', insertError)
-      throw new Error(`Failed to create league settings: ${insertError.message}`)
-    }
-    console.log(`✅ Successfully created league settings and locked week ${week}`);
-  } else {
-    const currentLockedWeeks = settings?.locked_weeks || []
-    
-    // Check if week is already locked
-    if (currentLockedWeeks.includes(week)) {
-      console.log(`ℹ️ Week ${week} is already locked - no action needed`);
-      return; // Don't throw an error, just return successfully
-    }
-    
-    const updatedLockedWeeks = [...new Set([...currentLockedWeeks, week])]
-    console.log(`📝 Updating locked weeks from [${currentLockedWeeks.join(', ')}] to [${updatedLockedWeeks.join(', ')}]`);
-
-    const { error: updateError } = await supabase
-      .from('league_settings')
-      .update({ locked_weeks: updatedLockedWeeks })
-      .eq('id', settings.id)
-
-    if (updateError) {
-      console.error('❌ Error updating locked weeks:', updateError)
-      throw new Error(`Failed to lock week ${week}: ${updateError.message}`)
-    }
-    console.log(`✅ Successfully locked week ${week}`);
-  }
+export async function lockWeek(_week: number): Promise<void> {
+  throw new Error(ARCHIVE_READONLY)
 }
 
-export async function updateCurrentWeek(week: number): Promise<void> {
-  console.log(`🔄 Updating current week to ${week}`);
-  
-  const { data: settings, error: fetchError } = await supabase
-    .from('league_settings')
-    .select('*')
-    .order('id', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (fetchError) {
-    console.log('📝 No existing league settings found, creating new settings');
-    // Create new settings if none exist
-    const { error: insertError } = await supabase
-      .from('league_settings')
-      .insert({
-        current_week: week,
-        locked_weeks: [],
-        season: 2025
-      })
-
-    if (insertError) {
-      console.error('❌ Error creating league settings:', insertError)
-      throw new Error(`Failed to create league settings: ${insertError.message}`)
-    }
-    console.log(`✅ Successfully created league settings with current week ${week}`);
-  } else {
-    const { error: updateError } = await supabase
-      .from('league_settings')
-      .update({ current_week: week })
-      .eq('id', settings.id)
-
-    if (updateError) {
-      console.error('❌ Error updating current week:', updateError)
-      throw new Error(`Failed to update current week to ${week}: ${updateError.message}`)
-    }
-    console.log(`✅ Successfully updated current week to ${week}`);
-  }
+export async function updateCurrentWeek(_week: number): Promise<void> {
+  throw new Error(ARCHIVE_READONLY)
 }
 
 export async function loadFullLeagueData(): Promise<LeagueData> {

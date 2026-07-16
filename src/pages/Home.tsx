@@ -4,13 +4,13 @@ import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
 import MatchupModal from '../components/MatchupModal';
 import {
-  calculateStandingsFromSupabase,
-  calculateWeeklyResultsFromSupabase,
-  getTeamWeekResultFromSupabase,
-  getCurrentRecordFromSupabase,
-  calculateMatchupScoreFromSupabase,
-  getTeamWeekMatchupDetailsFromSupabase
-} from '../utils/supabaseStandingsCalculator';
+  calculateStandingsFromDb,
+  calculateWeeklyResultsFromDb,
+  getTeamWeekResultFromDb,
+  getCurrentRecordFromDb,
+  calculateMatchupScoreFromDb,
+  getTeamWeekMatchupDetailsFromDb
+} from '../utils/dbStandingsCalculator';
 import { getDetailedScoringBreakdown } from '../utils/scoring';
 
 // Memoized MatchupCard component to prevent unnecessary re-renders
@@ -350,11 +350,11 @@ const Home: React.FC = () => {
       try {
         // Batch all calculations in parallel to avoid blocking the UI
         const [standingsData, weeklyResultsData, ...teamRecordsPromises] = await Promise.all([
-          calculateStandingsFromSupabase(leagueData.matchups, leagueData.lineups, leagueData.teams),
-          calculateWeeklyResultsFromSupabase(leagueData.matchups, leagueData.lineups, leagueData.teams),
+          calculateStandingsFromDb(leagueData.matchups, leagueData.lineups, leagueData.teams),
+          calculateWeeklyResultsFromDb(leagueData.matchups, leagueData.lineups, leagueData.teams),
           // Calculate all team records in parallel
           ...leagueData.teams.map(team =>
-            getCurrentRecordFromSupabase(team.name, leagueData.matchups, leagueData.lineups)
+            getCurrentRecordFromDb(team.name, leagueData.matchups, leagueData.lineups)
               .catch(error => {
                 console.error(`Error calculating record for ${team.name}:`, error);
                 return '0-0';
@@ -386,8 +386,8 @@ const Home: React.FC = () => {
               const key = `${team.name}-${week}`;
               try {
                 const [result, matchupDetails] = await Promise.all([
-                  getTeamWeekResultFromSupabase(team.name, week, leagueData.matchups, leagueData.lineups),
-                  getTeamWeekMatchupDetailsFromSupabase(team.name, week, leagueData.matchups, leagueData.lineups)
+                  getTeamWeekResultFromDb(team.name, week, leagueData.matchups, leagueData.lineups),
+                  getTeamWeekMatchupDetailsFromDb(team.name, week, leagueData.matchups, leagueData.lineups)
                 ]);
                 return { key, result, matchupDetails };
               } catch (error) {
@@ -443,7 +443,7 @@ const Home: React.FC = () => {
 
         while (!success && retryCount < maxRetries) {
           try {
-            const result = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
+            const result = await calculateMatchupScoreFromDb(matchup, leagueData.lineups);
             if (result && (result.team1Score !== undefined || result.team2Score !== undefined)) {
               matchupScoresData[key] = result;
               success = true;
@@ -484,7 +484,7 @@ const Home: React.FC = () => {
   // Modal helper functions (memoized to prevent re-renders)
   const openMatchupModal = useCallback(async (matchup: any, week: number) => {
     try {
-      const { team1Score, team2Score, team1Breakdown, team2Breakdown } = await calculateMatchupScoreFromSupabase(matchup, leagueData.lineups);
+      const { team1Score, team2Score, team1Breakdown, team2Breakdown } = await calculateMatchupScoreFromDb(matchup, leagueData.lineups);
       setSelectedMatchup({
         week,
         team1: matchup.team1,
@@ -502,7 +502,7 @@ const Home: React.FC = () => {
 
   const openWLTModal = useCallback(async (teamName: string, week: number) => {
     try {
-      const matchupDetails = await getTeamWeekMatchupDetailsFromSupabase(teamName, week, leagueData.matchups, leagueData.lineups);
+      const matchupDetails = await getTeamWeekMatchupDetailsFromDb(teamName, week, leagueData.matchups, leagueData.lineups);
       if (!matchupDetails) return;
 
       const matchup = leagueData.matchups.find(m =>
