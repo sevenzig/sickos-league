@@ -14,7 +14,7 @@ export async function loadTeams(): Promise<Team[]> {
     throw error
   }
 
-  return data?.map(team => ({
+  return data?.map((team: any) => ({
     name: team.name,
     rosters: team.rosters
   })) || []
@@ -99,7 +99,7 @@ export async function loadGameStats(week?: number): Promise<GameStats[]> {
   // Group by team and week to match GameStats interface
   const groupedStats: { [key: string]: GameStats } = {}
 
-  data?.forEach(stat => {
+  data?.forEach((stat: any) => {
     const key = `${stat.team_abbr}-${stat.week}`
     if (!groupedStats[key]) {
       groupedStats[key] = {
@@ -216,7 +216,7 @@ export async function getWeeklyQBPerformancesFromSupabase(week: number): Promise
 
   if (!data) return []
 
-  const performances = data.map(stat => {
+  const performances = data.map((stat: any) => {
     const events: string[] = []
     
     // Add events based on performance thresholds
@@ -359,8 +359,8 @@ export async function updateMatchupScores(
     throw new Error('Teams not found')
   }
 
-  const team1Data = teams.find(t => t.name === team1)
-  const team2Data = teams.find(t => t.name === team2)
+  const team1Data = teams.find((t: any) => t.name === team1)
+  const team2Data = teams.find((t: any) => t.name === team2)
 
   if (!team1Data || !team2Data) {
     throw new Error('Teams not found')

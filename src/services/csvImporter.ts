@@ -10,6 +10,8 @@ export interface ImportResult {
   newCurrentWeek?: number
   weekAdvanced?: boolean
   weekAdvanceError?: string
+  matchupsFinalized?: number
+  finalizeError?: string
 }
 
 export async function importWeeklyCSV(csvData: string, week: number, season: number = 2025): Promise<ImportResult> {
@@ -99,6 +101,26 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
     result.success = true
     result.recordsImported = insertedData?.length || 0
 
+    // Persist matchup scores across ALL multi-league leagues with this week
+    // locked (one site-wide upload serves every league). Non-fatal on error.
+    try {
+      const { data: finalized, error: finalizeError } = await supabase.rpc('finalize_week_scores', {
+        p_week: week,
+        p_season: season
+      })
+
+      if (finalizeError) {
+        result.finalizeError = finalizeError.message
+        console.error('❌ finalize_week_scores failed:', finalizeError.message)
+      } else {
+        result.matchupsFinalized = finalized ?? 0
+        console.log(`✅ Finalized ${result.matchupsFinalized} league matchup(s) for week ${week}`)
+      }
+    } catch (error) {
+      result.finalizeError = error instanceof Error ? error.message : 'Unknown error'
+      console.error('❌ finalize_week_scores failed:', error)
+    }
+
     // Auto-advance current week if we just imported data that should advance the week
     try {
       console.log(`📊 Checking if week should advance after importing week ${week} data...`)
@@ -169,7 +191,7 @@ export async function getImportHistory(): Promise<{ week: number; season: number
   // Group by week and season to get counts
   const weekGroups: { [key: string]: { week: number; season: number; recordsCount: number; importedAt: string } } = {}
 
-  data?.forEach(stat => {
+  data?.forEach((stat: any) => {
     const key = `${stat.season}-${stat.week}`
     if (!weekGroups[key]) {
       weekGroups[key] = {

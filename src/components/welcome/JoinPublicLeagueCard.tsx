@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const JoinPublicLeagueCard: React.FC = () => {
   return (
-    <div className="bg-white/5 border border-slate-700 rounded-lg p-8">
+    <div className="bg-white/5 border border-slate-700 rounded-lg p-6">
       <div className="mb-6">
         <div className="w-8 h-8 bg-blue-600 rounded mb-4">
           <svg className="w-8 h-8 p-1.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -16,7 +16,7 @@ const JoinPublicLeagueCard: React.FC = () => {
         </p>
       </div>
 
-      <div className="space-y-3 mb-8">
+      <div className="space-y-4 mb-6">
         <div className="flex items-start text-slate-400">
           <div className="w-1 h-1 bg-slate-500 rounded-full mt-2.5 mr-3 flex-shrink-0"></div>
           <span className="text-sm">Quick setup - join instantly</span>
@@ -32,10 +32,10 @@ const JoinPublicLeagueCard: React.FC = () => {
       </div>
 
       <Link
-        to="/leagues/public"
+        to="/invite"
         className="block w-full text-center px-6 py-3 bg-blue-600 text-white font-medium rounded-md text-sm"
       >
-        Join Now
+        Join with Code
       </Link>
     </div>
   );

@@ -35,8 +35,12 @@ export interface QBPerformance {
   eventScore: number;
 }
 
-// Map team abbreviations to full names
-const teamNameMap: { [key: string]: string } = {
+// Map team abbreviations to full names.
+// THE single abbr <-> name mapping (Phase 4.1): game_stats.team_abbr stores
+// these full names, which must match teams.name exactly - the scoring join
+// is teams.uuid_id -> teams.name -> game_stats.team_abbr.
+// scripts/verify-phase4.mjs round-trips all 32 entries against the teams table.
+export const teamNameMap: { [key: string]: string } = {
   'CAR': 'Carolina',
   'JAX': 'Jacksonville', 
   'CIN': 'Cincinnati',

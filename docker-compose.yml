@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432" # host access for psql debugging; API uses the compose network
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      APP_DATABASE_URL: postgres://app_user:app_user@db:5432/postgres
+      JWT_SECRET: local-dev-secret-change-me
+      PHOTOS_DIR: /data/photos
+      SQL_DIR: /app/db
+    volumes:
+      - photos:/data/photos
+      - ./db:/app/db:ro # live-edit migrations without rebuilding
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  photos:

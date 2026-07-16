@@ -71,3 +71,7 @@ Higher scores are better - poor quarterback performance earns more points!
 
 All league data is stored in localStorage and persists across sessions.
 
+## Documentation
+
+See [`docs/`](./docs/) for setup, troubleshooting, schema, and the platform buildout plan.
+

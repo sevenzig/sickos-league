@@ -18,6 +18,12 @@ import MyLeagues from './pages/MyLeagues';
 import CreateLeague from './pages/CreateLeague';
 import InviteRedeem from './pages/InviteRedeem';
 import LeagueDashboard from './pages/LeagueDashboard';
+import LeagueView from './pages/LeagueView';
+import LeagueAdmin from './pages/LeagueAdmin';
+import LeagueLineups from './pages/LeagueLineups';
+import LeagueDraft from './pages/LeagueDraft';
+import UserProfile from './pages/UserProfile';
+import EditProfile from './pages/EditProfile';
 import BQBLTest from './pages/BQBLTest';
 
 function App() {
@@ -51,6 +57,7 @@ function App() {
               {FEATURE_FLAGS.ENABLE_MULTI_LEAGUE && (
                 <>
                   <Route path="/welcome" element={<Welcome />} />
+                  <Route path="/invite" element={<Layout><InviteRedeem /></Layout>} />
                   <Route path="/invite/:code" element={<Layout><InviteRedeem /></Layout>} />
                   <Route path="/my-leagues" element={
                     <Layout>
@@ -66,20 +73,72 @@ function App() {
                       </ProtectedRoute>
                     </Layout>
                   } />
+                  {/* Profile Routes */}
+                  <Route path="/profile" element={
+                    <Layout>
+                      <ProtectedRoute>
+                        <UserProfile />
+                      </ProtectedRoute>
+                    </Layout>
+                  } />
+                  <Route path="/profile/edit" element={
+                    <Layout>
+                      <ProtectedRoute>
+                        <EditProfile />
+                      </ProtectedRoute>
+                    </Layout>
+                  } />
                   {/* League-specific routes */}
                   <Route path="/leagues/:leagueId" element={
                     <Layout>
                       <ProtectedRoute>
-                        <LeagueDashboard />
+                        <LeagueView />
+                      </ProtectedRoute>
+                    </Layout>
+                  } />
+                  <Route path="/leagues/:leagueId/draft" element={
+                    <Layout>
+                      <ProtectedRoute>
+                        <LeagueDraft />
+                      </ProtectedRoute>
+                    </Layout>
+                  } />
+                  <Route path="/leagues/:leagueId/admin" element={
+                    <Layout>
+                      <ProtectedRoute>
+                        <LeagueAdmin />
+                      </ProtectedRoute>
+                    </Layout>
+                  } />
+                  <Route path="/leagues/:leagueId/schedule" element={
+                    <Layout>
+                      <ProtectedRoute>
+                        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+                          <p className="text-white">Schedule - Coming Soon</p>
+                        </div>
+                      </ProtectedRoute>
+                    </Layout>
+                  } />
+                  <Route path="/leagues/:leagueId/standings" element={
+                    <Layout>
+                      <ProtectedRoute>
+                        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+                          <p className="text-white">Standings - Coming Soon</p>
+                        </div>
+                      </ProtectedRoute>
+                    </Layout>
+                  } />
+                  <Route path="/leagues/:leagueId/lineups" element={
+                    <Layout>
+                      <ProtectedRoute>
+                        <LeagueLineups />
                       </ProtectedRoute>
                     </Layout>
                   } />
                   <Route path="/leagues/:leagueId/*" element={
                     <Layout>
                       <ProtectedRoute>
-                        <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-                          <p className="text-white">League Pages - Coming Soon</p>
-                        </div>
+                        <LeagueView />
                       </ProtectedRoute>
                     </Layout>
                   } />

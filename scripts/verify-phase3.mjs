@@ -1,0 +1,269 @@
+// Phase 3 verification against the self-contained stack (docker compose up).
+// Covers the plan's verify criteria:
+//   3.1 manager can set/lock a lineup; a second account cannot modify it;
+//       non-rostered teams are rejected; opponent lineups hidden pre-lock
+//   3.2 finalize locks all lineups and the week; further edits blocked at RPC
+//   3.3 finalizing with missing lineups auto-fills lowest-pick rostered teams
+//
+// Run: node scripts/verify-phase3.mjs
+// Roster seeding goes through psql (docker compose exec) because roster rows
+// are only writable via SECURITY DEFINER RPCs (the draft) in production.
+
+import { execSync } from 'node:child_process';
+
+const API = process.env.API_URL || 'http://localhost:3001/api';
+
+let failures = 0;
+function check(name, ok, detail = '') {
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
+  if (!ok) failures++;
+}
+
+async function api(path, { method, body, token } = {}) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let payload;
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+    payload = JSON.stringify(body);
+  }
+  const res = await fetch(`${API}${path}`, {
+    method: method || (payload !== undefined ? 'POST' : 'GET'),
+    headers,
+    body: payload,
+  });
+  const text = await res.text();
+  try {
+    return { status: res.status, ...(text ? JSON.parse(text) : {}) };
+  } catch {
+    return { status: res.status, error: { message: `Non-JSON response: ${text.slice(0, 200)}` } };
+  }
+}
+
+const rpc = (fn, args, token) => api(`/rpc/${fn}`, { body: args ?? {}, token });
+const dbq = (query, token) => api('/db/query', { body: query, token });
+
+function psql(sql) {
+  execSync('docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 -f -', {
+    input: sql,
+    stdio: ['pipe', 'ignore', 'inherit'],
+  });
+}
+
+const stamp = Date.now();
+const ownerEmail = `ph3-owner-${stamp}@test.local`;
+const managerEmail = `ph3-manager-${stamp}@test.local`;
+const password = 'verify-test-password';
+
+// --- Setup: two users, a league, 8 teams, seeded rosters ---------------------
+
+const ownerSignup = await api('/auth/signup', { body: { email: ownerEmail, password } });
+check('setup: owner sign up', !!ownerSignup.token, ownerSignup.error?.message);
+const ownerToken = ownerSignup.token;
+
+const managerSignup = await api('/auth/signup', { body: { email: managerEmail, password } });
+check('setup: manager sign up', !!managerSignup.token, managerSignup.error?.message);
+const managerToken = managerSignup.token;
+const managerId = managerSignup.user?.id;
+
+const { data: leagueId, error: leagueErr } = await rpc(
+  'create_league',
+  {
+    league_name: `Phase3 ${stamp}`,
+    season: 2025,
+    teams_started_per_week: 2,
+    owner_team_name: 'Owner Team',
+  },
+  ownerToken
+);
+check('setup: create_league', !leagueErr && !!leagueId, leagueErr?.message);
+
+{
+  const rows = Array.from({ length: 7 }, (_, i) => ({
+    league_id: leagueId,
+    team_name: `Team ${i + 2}`,
+  }));
+  const { error } = await dbq({ table: 'fantasy_teams', action: 'insert', values: rows }, ownerToken);
+  check('setup: seed 7 additional fantasy teams', !error, error?.message);
+}
+
+// Manager joins the league and takes over Team 2; rosters seeded 4 NFL teams
+// per fantasy team with draft pick numbers 1..32 (stand-in for the draft).
+psql(`
+  INSERT INTO league_members (league_id, user_id, role)
+  VALUES ('${leagueId}', '${managerId}', 'member');
+
+  UPDATE fantasy_teams SET manager_user_id = '${managerId}'
+  WHERE league_id = '${leagueId}' AND team_name = 'Team 2';
+
+  INSERT INTO fantasy_team_rosters (league_id, fantasy_team_id, nfl_team_id, draft_pick_number)
+  SELECT '${leagueId}', ft.id, t.uuid_id, t.rn
+  FROM (
+    SELECT id, row_number() OVER (ORDER BY created_at, id) AS ft_rn
+    FROM fantasy_teams WHERE league_id = '${leagueId}'
+  ) ft
+  JOIN (
+    -- the teams table also holds legacy fantasy-team rows; only real NFL teams
+    SELECT uuid_id, row_number() OVER (ORDER BY name) AS rn FROM teams
+    WHERE name IN (
+      'Arizona','Atlanta','Baltimore','Buffalo','Carolina','Chicago',
+      'Cincinnati','Cleveland','Dallas','Denver','Detroit','Green Bay',
+      'Houston','Indianapolis','Jacksonville','Kansas City','Las Vegas',
+      'LA Chargers','LA Rams','Miami','Minnesota','New England',
+      'New Orleans','NY Giants','NY Jets','Philadelphia','Pittsburgh',
+      'San Francisco','Seattle','Tampa Bay','Tennessee','Washington'
+    )
+  ) t ON ((t.rn - 1) % 8) + 1 = ft.ft_rn;
+`);
+console.log('setup: rosters seeded via psql');
+
+// Resolve team ids and rosters (as owner, through the same API the app uses)
+const { data: fantasyTeams } = await rpc('get_league_fantasy_teams', { p_league_id: leagueId }, ownerToken);
+const myTeam = fantasyTeams.find((t) => t.team_name === 'Team 2');
+const ownerTeam = fantasyTeams.find((t) => t.team_name === 'Owner Team');
+const team3 = fantasyTeams.find((t) => t.team_name === 'Team 3');
+check('setup: Team 2 managed by second account', myTeam?.manager_user_id === managerId);
+
+const { data: allRosters } = await rpc('get_league_rosters', { p_league_id: leagueId }, ownerToken);
+check('setup: 32 roster entries (8 teams x 4)', allRosters?.length === 32, `got ${allRosters?.length}`);
+const rosterOf = (teamId) =>
+  allRosters
+    .filter((r) => r.fantasy_team_id === teamId)
+    .sort((a, b) => a.draft_pick_number - b.draft_pick_number);
+
+const myRoster = rosterOf(myTeam.id);
+const myLineup = [myRoster[0].nfl_team_id, myRoster[1].nfl_team_id];
+
+// --- 3.1: set/lock own lineup; roster + auth enforcement ---------------------
+
+{
+  const { data, error } = await rpc(
+    'set_fantasy_lineup',
+    { p_fantasy_team_id: myTeam.id, p_week: 1, p_active_nfl_teams: myLineup },
+    managerToken
+  );
+  check('3.1: manager saves own lineup (rostered teams)', !error && data === true, error?.message);
+}
+{
+  const foreign = rosterOf(ownerTeam.id)[0].nfl_team_id;
+  const { error } = await rpc(
+    'set_fantasy_lineup',
+    { p_fantasy_team_id: myTeam.id, p_week: 1, p_active_nfl_teams: [myRoster[0].nfl_team_id, foreign] },
+    managerToken
+  );
+  check('3.1: non-rostered team rejected', !!error, error?.message);
+}
+{
+  const { error } = await rpc(
+    'set_fantasy_lineup',
+    { p_fantasy_team_id: ownerTeam.id, p_week: 1, p_active_nfl_teams: myLineup.slice(0, 2) },
+    managerToken
+  );
+  check('3.1: second account cannot set another team\'s lineup', !!error, error?.message);
+}
+
+// Owner sets Team 3's lineup (owner may manage unmanaged teams) so we can
+// test pre-lock visibility from the manager's perspective.
+const team3Roster = rosterOf(team3.id);
+{
+  const { data, error } = await rpc(
+    'set_fantasy_lineup',
+    {
+      p_fantasy_team_id: team3.id,
+      p_week: 1,
+      p_active_nfl_teams: [team3Roster[2].nfl_team_id, team3Roster[3].nfl_team_id],
+    },
+    ownerToken
+  );
+  check('3.1: owner may set an unmanaged team\'s lineup', !error && data === true, error?.message);
+}
+
+{
+  const { data } = await rpc('get_fantasy_lineups_for_week', { p_league_id: leagueId, p_week: 1 }, managerToken);
+  const mine = data?.find((l) => l.fantasy_team_id === myTeam.id);
+  const others = data?.find((l) => l.fantasy_team_id === team3.id);
+  check('3.1: manager sees own lineup pre-lock', mine?.active_nfl_teams?.length === 2);
+  check('3.1: opponent lineup hidden pre-lock', others?.active_nfl_teams?.length === 0, JSON.stringify(others?.active_nfl_teams));
+}
+{
+  const { data } = await rpc('get_fantasy_lineups_for_week', { p_league_id: leagueId, p_week: 1 }, ownerToken);
+  const others = data?.find((l) => l.fantasy_team_id === team3.id);
+  check('3.1: owner sees all lineups pre-lock', others?.active_nfl_teams?.length === 2);
+}
+
+// Lock own lineup, then edits must fail (manager) but owner override works
+{
+  const { data, error } = await rpc(
+    'lock_fantasy_lineup',
+    { p_fantasy_team_id: myTeam.id, p_week: 1 },
+    managerToken
+  );
+  check('3.1: manager locks own lineup', !error && data === true, error?.message);
+}
+{
+  const { error } = await rpc(
+    'set_fantasy_lineup',
+    { p_fantasy_team_id: myTeam.id, p_week: 1, p_active_nfl_teams: [myRoster[2].nfl_team_id, myRoster[3].nfl_team_id] },
+    managerToken
+  );
+  check('3.1: locked lineup rejects manager edits', !!error, error?.message);
+}
+{
+  const { data, error } = await rpc(
+    'set_fantasy_lineup',
+    { p_fantasy_team_id: myTeam.id, p_week: 1, p_active_nfl_teams: myLineup },
+    ownerToken
+  );
+  check('3.1: owner override on locked lineup succeeds', !error && data === true, error?.message);
+  const { data: after } = await rpc('get_fantasy_lineups_for_week', { p_league_id: leagueId, p_week: 1 }, ownerToken);
+  check('3.1: lineup stays locked after owner override', after?.find((l) => l.fantasy_team_id === myTeam.id)?.is_locked === true);
+}
+
+// --- 3.2 / 3.3: finalize week (owner-only, auto-fill, full lock) -------------
+
+{
+  const { error } = await rpc('finalize_week_lineups', { p_league_id: leagueId, p_week: 1 }, managerToken);
+  check('3.2: finalize rejected for non-owner', !!error, error?.message);
+}
+
+{
+  const { data: autoFilled, error } = await rpc('finalize_week_lineups', { p_league_id: leagueId, p_week: 1 }, ownerToken);
+  // 8 teams; Team 2 and Team 3 already have complete lineups -> 6 auto-filled
+  check('3.3: finalize succeeds and auto-fills 6 missing lineups', !error && autoFilled === 6, error?.message ?? `auto_filled=${autoFilled}`);
+}
+
+{
+  const { data } = await rpc('get_week_status', { league_id: leagueId, week_number: 1 }, ownerToken);
+  const row = data?.[0];
+  check('3.2: week locked after finalize', row?.is_locked === true, JSON.stringify(row));
+  check('3.2: all 8 lineups submitted after finalize', row?.lineups_submitted === 8, `got ${row?.lineups_submitted}`);
+}
+
+{
+  const { data } = await rpc('get_fantasy_lineups_for_week', { p_league_id: leagueId, p_week: 1 }, ownerToken);
+  check('3.2: every lineup locked after finalize', data?.length === 8 && data.every((l) => l.is_locked && l.active_nfl_teams.length === 2));
+
+  // 3.3: an auto-filled team starts its two lowest-pick-number rostered teams
+  const autoTeam = fantasyTeams.find((t) => t.team_name === 'Team 4');
+  const expected = rosterOf(autoTeam.id).slice(0, 2).map((r) => r.nfl_team_id).sort();
+  const actual = [...(data.find((l) => l.fantasy_team_id === autoTeam.id)?.active_nfl_teams ?? [])].sort();
+  check('3.3: auto-filled lineup = lowest two draft picks', JSON.stringify(actual) === JSON.stringify(expected));
+}
+
+{
+  const { error } = await rpc(
+    'set_fantasy_lineup',
+    { p_fantasy_team_id: myTeam.id, p_week: 1, p_active_nfl_teams: myLineup },
+    managerToken
+  );
+  check('3.2: edits blocked at RPC after finalize', !!error, error?.message);
+}
+
+{
+  const { data } = await rpc('get_fantasy_lineups_for_week', { p_league_id: leagueId, p_week: 1 }, managerToken);
+  const others = data?.find((l) => l.fantasy_team_id === team3.id);
+  check('3.1: opponent lineup visible once week locked', others?.active_nfl_teams?.length === 2);
+}
+
+console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
+process.exit(failures === 0 ? 0 : 1);

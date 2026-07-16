@@ -69,7 +69,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
       return result
     }
 
-    const teamIdMap = new Map(allTeams.map(team => [team.name, team.id]))
+    const teamIdMap = new Map(allTeams.map((team: any) => [team.name, team.id]))
 
     const matchupData = initialLeagueData.matchups.map(matchup => {
       const team1Id = teamIdMap.get(matchup.team1)
@@ -95,7 +95,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
       .select('week, team1_id, team2_id')
     
     const existingMatchupKeys = new Set(
-      existingMatchups?.map(m => `${m.week}-${m.team1_id}-${m.team2_id}`) || []
+      existingMatchups?.map((m: any) => `${m.week}-${m.team1_id}-${m.team2_id}`) || []
     )
     
     const matchupsToInsert = matchupData.filter(matchup => 
@@ -147,7 +147,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
       .select('team_id, week')
     
     const existingLineupKeys = new Set(
-      existingLineups?.map(l => `${l.team_id}-${l.week}`) || []
+      existingLineups?.map((l: any) => `${l.team_id}-${l.week}`) || []
     )
     
     const lineupsToInsert = lineupData.filter(lineup => 
@@ -215,7 +215,7 @@ export async function migrateHistoricalData(): Promise<MigrationResult> {
       .select('team_abbr, week, season')
     
     const existingGameStatsKeys = new Set(
-      existingGameStats?.map(g => `${g.team_abbr}-${g.week}-${g.season}`) || []
+      existingGameStats?.map((g: any) => `${g.team_abbr}-${g.week}-${g.season}`) || []
     )
     
     const gameStatsToInsert = gameStatsData.filter(stat => 

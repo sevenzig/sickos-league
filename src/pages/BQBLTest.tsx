@@ -44,7 +44,7 @@ const Card: React.FC<{
 };
 
 const BQBLTest: React.FC = () => {
-  const { user, signInWithGoogle } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [leagues, setLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,13 +100,8 @@ const BQBLTest: React.FC = () => {
     }
   };
 
-  const handleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (err) {
-      console.error('Sign in error:', err);
-      setError('Failed to sign in');
-    }
+  const handleSignIn = () => {
+    navigate('/');
   };
 
   if (!user) {
@@ -130,7 +125,7 @@ const BQBLTest: React.FC = () => {
             onClick={handleSignIn}
             className="w-full bg-blue-600 hover:bg-blue-700"
           >
-            Sign In with Google
+            Sign In
           </Button>
         </Card>
       </div>

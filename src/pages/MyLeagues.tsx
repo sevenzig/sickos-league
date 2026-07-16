@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MultiLeagueApi, League } from '../utils/multiLeagueApi';
+import { getLeagueUrl } from '../utils/urlUtils';
 
 const MyLeagues: React.FC = () => {
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -106,22 +107,29 @@ const MyLeagues: React.FC = () => {
             {leagues.map((league) => (
               <Link
                 key={league.id}
-                to={`/leagues/${league.id}`}
+                to={getLeagueUrl(league.id)}
                 className="block bg-slate-800 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors p-6"
               >
                 <div className="flex items-start justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white truncate">
                     {league.name}
                   </h3>
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      league.user_role === 'owner'
-                        ? 'bg-blue-900/50 text-blue-300'
-                        : 'bg-green-900/50 text-green-300'
-                    }`}
-                  >
-                    {league.user_role}
-                  </span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {league.my_pick && (
+                      <span className="px-2 py-1 text-xs font-bold rounded-full bg-green-600 text-white animate-pulse">
+                        Your pick!
+                      </span>
+                    )}
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        league.user_role === 'owner'
+                          ? 'bg-blue-900/50 text-blue-300'
+                          : 'bg-green-900/50 text-green-300'
+                      }`}
+                    >
+                      {league.user_role}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-2 text-sm text-slate-400">
@@ -132,7 +140,7 @@ const MyLeagues: React.FC = () => {
                   <div className="flex justify-between">
                     <span>Teams Filled:</span>
                     <span className="text-slate-300">
-                      {league.slots_filled}/8
+                      {league.fantasy_teams_count}/8
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -155,14 +163,30 @@ const MyLeagues: React.FC = () => {
                       </span>
                     </div>
                   )}
+                  <div className="flex justify-between">
+                    <span>Draft Status:</span>
+                    <span className={
+                      league.draft_status === 'complete'
+                        ? 'text-green-400'
+                        : league.draft_status === 'in_progress'
+                          ? 'text-yellow-400'
+                          : 'text-slate-300'
+                    }>
+                      {league.draft_status === 'in_progress'
+                        ? 'In progress'
+                        : league.draft_status === 'complete'
+                          ? 'Complete'
+                          : 'Not started'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-slate-700">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500">
-                      {league.slots_filled === 8
+                      {league.fantasy_teams_count === 8
                         ? 'Ready to play'
-                        : `${8 - league.slots_filled} spots remaining`}
+                        : `${8 - league.fantasy_teams_count} spots remaining`}
                     </span>
                     <svg
                       className="h-4 w-4 text-slate-500"

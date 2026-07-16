@@ -206,6 +206,16 @@ export default function AdminImport() {
                 ⚠️ Week advancement failed: {importResult.weekAdvanceError}
               </p>
             )}
+            {importResult.matchupsFinalized !== undefined && (
+              <p className="text-blue-400 font-medium mt-1">
+                📊 League matchups finalized: {importResult.matchupsFinalized}
+              </p>
+            )}
+            {importResult.finalizeError && (
+              <p className="text-yellow-400 font-medium mt-1">
+                ⚠️ Matchup finalization failed: {importResult.finalizeError}
+              </p>
+            )}
             {importResult.errors.length > 0 && (
               <div className="mt-3">
                 <p className="font-bold text-slate-200">Errors:</p>

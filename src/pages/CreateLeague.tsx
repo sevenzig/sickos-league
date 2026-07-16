@@ -1,22 +1,37 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MultiLeagueApi } from '../utils/multiLeagueApi';
+import { getLeagueUrl } from '../utils/urlUtils';
+import AuthCheck from '../components/auth/AuthCheck';
+import LeagueNameInput from '../components/league/LeagueNameInput';
+import PlayerCountInfo from '../components/league/PlayerCountInfo';
+import WeeklyTeamSelector from '../components/league/WeeklyTeamSelector';
 
 const CreateLeague: React.FC = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    name: '',
-    season: 2025,
-    teamsStartedPerWeek: 1,
-  });
+  const [leagueName, setLeagueName] = useState('');
+  const [teamsPerWeek, setTeamsPerWeek] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const validateForm = () => {
+    if (!leagueName.trim()) {
+      setNameError('League name is required');
+      return false;
+    }
+    if (leagueName.trim().length < 3) {
+      setNameError('League name must be at least 3 characters');
+      return false;
+    }
+    setNameError(null);
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.name.trim()) {
-      setError('League name is required');
+    if (!validateForm()) {
       return;
     }
 
@@ -25,13 +40,13 @@ const CreateLeague: React.FC = () => {
       setError(null);
 
       const leagueId = await MultiLeagueApi.createLeague(
-        formData.name.trim(),
-        formData.season,
-        formData.teamsStartedPerWeek
+        leagueName.trim(),
+        2025, // Current season
+        teamsPerWeek
       );
 
-      // Redirect to the new league dashboard
-      navigate(`/leagues/${leagueId}`);
+      // Redirect to the new league dashboard using 8-character ID
+      navigate(getLeagueUrl(leagueId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create league');
     } finally {
@@ -39,130 +54,67 @@ const CreateLeague: React.FC = () => {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'season' || name === 'teamsStartedPerWeek' ? parseInt(value) : value,
-    }));
+  const handleNameChange = (value: string) => {
+    setLeagueName(value);
+    if (nameError) {
+      setNameError(null);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">Create New League</h1>
-          <p className="text-slate-400 mt-2">
-            Set up your Bad QB League with custom settings
-          </p>
-        </div>
+    <AuthCheck>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+        <div className="max-w-3xl mx-auto px-8 py-24">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="text-3xl md:text-4xl font-light text-white mb-4 leading-tight">
+              Create Your League
+            </h1>
+            <p className="text-slate-400 leading-relaxed font-light max-w-2xl mx-auto">
+              Set up your Bad QB League with custom settings and invite your friends
+              to compete for the worst quarterback performances.
+            </p>
+          </div>
 
-        {/* Form */}
-        <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-8">
             {error && (
-              <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
+              <div className="bg-red-600/10 border border-red-600/20 rounded-lg p-4">
                 <p className="text-red-400">{error}</p>
               </div>
             )}
 
-            {/* League Name */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-slate-300 mb-2">
-                League Name *
-              </label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="Enter your league name"
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Choose a unique name for your league (e.g., "Office Bad QB League 2025")
-              </p>
-            </div>
+            <LeagueNameInput
+              value={leagueName}
+              onChange={handleNameChange}
+              error={nameError ?? undefined}
+            />
 
-            {/* Season */}
-            <div>
-              <label htmlFor="season" className="block text-sm font-medium text-slate-300 mb-2">
-                Season
-              </label>
-              <select
-                id="season"
-                name="season"
-                value={formData.season}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={2025}>2025</option>
-                <option value={2024}>2024</option>
-                <option value={2026}>2026</option>
-              </select>
-              <p className="text-xs text-slate-500 mt-1">
-                The NFL season for this league
-              </p>
-            </div>
+            <PlayerCountInfo />
 
-            {/* Teams Started Per Week */}
-            <div>
-              <label htmlFor="teamsStartedPerWeek" className="block text-sm font-medium text-slate-300 mb-2">
-                Starters Per Week
-              </label>
-              <select
-                id="teamsStartedPerWeek"
-                name="teamsStartedPerWeek"
-                value={formData.teamsStartedPerWeek}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={1}>1 QB Team</option>
-                <option value={2}>2 QB Teams</option>
-                <option value={3}>3 QB Teams</option>
-                <option value={4}>4 QB Teams</option>
-              </select>
-              <p className="text-xs text-slate-500 mt-1">
-                How many QB teams each manager must start each week
-              </p>
-            </div>
-
-            {/* League Info */}
-            <div className="bg-slate-700/50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-slate-300 mb-2">League Information</h3>
-              <ul className="text-xs text-slate-400 space-y-1">
-                <li>• 8 team slots (fixed)</li>
-                <li>• Round-robin scheduling (no playoffs)</li>
-                <li>• Invitation-only membership</li>
-                <li>• 18-week regular season</li>
-                <li>• You will be the league owner with full admin privileges</li>
-              </ul>
-            </div>
+            <WeeklyTeamSelector
+              value={teamsPerWeek}
+              onChange={setTeamsPerWeek}
+            />
 
             {/* Submit Buttons */}
-            <div className="flex items-center justify-between pt-4">
+            <div className="flex items-center justify-between pt-8 border-t border-slate-700">
               <button
                 type="button"
-                onClick={() => navigate('/my-leagues')}
-                className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+                onClick={() => navigate('/')}
+                className="px-6 py-3 text-slate-400 font-medium"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-md font-medium transition-colors disabled:cursor-not-allowed"
+                className="px-8 py-3 bg-blue-600 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Creating...
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                    Creating League...
                   </span>
                 ) : (
                   'Create League'
@@ -171,29 +123,8 @@ const CreateLeague: React.FC = () => {
             </div>
           </form>
         </div>
-
-        {/* Help Section */}
-        <div className="mt-8 text-center">
-          <h3 className="text-lg font-medium text-slate-300 mb-4">Need Help?</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="bg-slate-800 rounded-lg p-4">
-              <h4 className="font-medium text-slate-300 mb-2">Getting Started</h4>
-              <p className="text-slate-400">
-                After creating your league, you'll need to invite 7 other managers
-                and assign QB teams to each slot before generating the schedule.
-              </p>
-            </div>
-            <div className="bg-slate-800 rounded-lg p-4">
-              <h4 className="font-medium text-slate-300 mb-2">League Rules</h4>
-              <p className="text-slate-400">
-                Bad QB League follows inverse scoring - the worst performing
-                quarterbacks score the most points. Check the rules page for details.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
-    </div>
+    </AuthCheck>
   );
 };
 
