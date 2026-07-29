@@ -41,7 +41,6 @@ async function api(path, { method, body, token } = {}) {
 }
 
 const rpc = (fn, args, token) => api(`/rpc/${fn}`, { body: args ?? {}, token });
-const dbq = (query, token) => api('/db/query', { body: query, token });
 
 function psql(sql) {
   execSync('docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 -f -', {
@@ -57,11 +56,11 @@ const password = 'verify-test-password';
 
 // --- Setup: two users, a league, 8 teams, seeded rosters ---------------------
 
-const ownerSignup = await api('/auth/signup', { body: { email: ownerEmail, password } });
+const ownerSignup = await api('/auth/signup', { body: { email: ownerEmail, username: `ph3_own_${stamp}`, password } });
 check('setup: owner sign up', !!ownerSignup.token, ownerSignup.error?.message);
 const ownerToken = ownerSignup.token;
 
-const managerSignup = await api('/auth/signup', { body: { email: managerEmail, password } });
+const managerSignup = await api('/auth/signup', { body: { email: managerEmail, username: `ph3_mgr_${stamp}`, password } });
 check('setup: manager sign up', !!managerSignup.token, managerSignup.error?.message);
 const managerToken = managerSignup.token;
 const managerId = managerSignup.user?.id;
@@ -78,18 +77,16 @@ const { data: leagueId, error: leagueErr } = await rpc(
 );
 check('setup: create_league', !leagueErr && !!leagueId, leagueErr?.message);
 
-{
-  const rows = Array.from({ length: 7 }, (_, i) => ({
-    league_id: leagueId,
-    team_name: `Team ${i + 2}`,
-  }));
-  const { error } = await dbq({ table: 'fantasy_teams', action: 'insert', values: rows }, ownerToken);
-  check('setup: seed 7 additional fantasy teams', !error, error?.message);
-}
-
-// Manager joins the league and takes over Team 2; rosters seeded 4 NFL teams
-// per fantasy team with draft pick numbers 1..32 (stand-in for the draft).
+// fantasy_teams has SELECT-only RLS (writes via SECURITY DEFINER RPCs), and
+// fantasy_team_rosters has no client write policies — seed both via psql.
 psql(`
+  INSERT INTO fantasy_teams (league_id, team_name)
+  SELECT '${leagueId}', x.team_name
+  FROM (VALUES
+    ('Team 2'), ('Team 3'), ('Team 4'), ('Team 5'),
+    ('Team 6'), ('Team 7'), ('Team 8')
+  ) AS x(team_name);
+
   INSERT INTO league_members (league_id, user_id, role)
   VALUES ('${leagueId}', '${managerId}', 'member');
 
@@ -115,17 +112,21 @@ psql(`
     )
   ) t ON ((t.rn - 1) % 8) + 1 = ft.ft_rn;
 `);
-console.log('setup: rosters seeded via psql');
+check('setup: seed 7 additional fantasy teams + rosters via psql', true);
 
 // Resolve team ids and rosters (as owner, through the same API the app uses)
 const { data: fantasyTeams } = await rpc('get_league_fantasy_teams', { p_league_id: leagueId }, ownerToken);
-const myTeam = fantasyTeams.find((t) => t.team_name === 'Team 2');
-const ownerTeam = fantasyTeams.find((t) => t.team_name === 'Owner Team');
-const team3 = fantasyTeams.find((t) => t.team_name === 'Team 3');
+const myTeam = fantasyTeams?.find((t) => t.team_name === 'Team 2');
+const ownerTeam = fantasyTeams?.find((t) => t.team_name === 'Owner Team');
+const team3 = fantasyTeams?.find((t) => t.team_name === 'Team 3');
 check('setup: Team 2 managed by second account', myTeam?.manager_user_id === managerId);
 
 const { data: allRosters } = await rpc('get_league_rosters', { p_league_id: leagueId }, ownerToken);
 check('setup: 32 roster entries (8 teams x 4)', allRosters?.length === 32, `got ${allRosters?.length}`);
+if (!myTeam || !ownerTeam || !team3 || allRosters?.length !== 32) {
+  console.log(`\n${failures} CHECK(S) FAILED — setup incomplete, aborting`);
+  process.exit(1);
+}
 const rosterOf = (teamId) =>
   allRosters
     .filter((r) => r.fantasy_team_id === teamId)
