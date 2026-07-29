@@ -18,6 +18,9 @@ export interface League {
   fantasy_teams_count: number
   draft_status: 'pending' | 'in_progress' | 'complete'
   my_pick: boolean
+  draft_mode: 'async' | 'live'
+  draft_pick_seconds: number
+  draft_paused: boolean
 }
 
 export interface FantasyTeam {
@@ -39,16 +42,6 @@ export interface Invitation {
   is_valid: boolean
   used_at?: string
   used_by_user_id?: string
-}
-
-export interface TeamSlot {
-  slot_id: string
-  slot_number: number
-  team_name?: string
-  manager_email?: string
-  manager_user_id?: string
-  has_active_invite: boolean
-  invite_code?: string
 }
 
 export interface LeagueMatchup {
@@ -97,17 +90,38 @@ export interface DraftPick {
   nfl_team_id: string | null
   nfl_team_name: string | null
   picked_at: string | null
+  is_auto: boolean
 }
 
 export interface DraftState {
   draft_status: 'pending' | 'in_progress' | 'complete'
+  draft_mode: 'async' | 'live'
+  draft_at: string | null
+  draft_pick_seconds: number
+  draft_paused: boolean
+  draft_pick_deadline: string | null
   draft_current_pick: number | null
+  room_opens_at: string | null
+  draft_order_set: boolean
   on_clock: {
     fantasy_team_id: string
     team_name: string
     manager_user_id: string | null
   } | null
   picks: DraftPick[]
+}
+
+export interface CreateLeagueOptions {
+  ownerTeamName?: string
+  draftMode?: 'async' | 'live'
+  draftAt?: string | null
+  draftPickSeconds?: 30 | 60 | 90
+}
+
+export interface DraftSettingsUpdate {
+  draftMode?: 'async' | 'live'
+  draftAt?: string | null
+  draftPickSeconds?: 30 | 60 | 90
 }
 
 export interface WeekStatus {
@@ -187,14 +201,20 @@ export class MultiLeagueApi {
     name: string,
     season: number = 2025,
     teamsStartedPerWeek: number = 1,
-    ownerTeamName?: string
+    options?: CreateLeagueOptions | string
   ): Promise<string> {
-    // Use the existing create_league RPC function
+    // Back-compat: fourth arg used to be ownerTeamName string
+    const opts: CreateLeagueOptions =
+      typeof options === 'string' ? { ownerTeamName: options } : options || {};
+
     const { data, error } = await db.rpc('create_league', {
       league_name: name,
       season,
       teams_started_per_week: teamsStartedPerWeek,
-      owner_team_name: ownerTeamName || null,
+      owner_team_name: opts.ownerTeamName || null,
+      p_draft_mode: opts.draftMode || 'async',
+      p_draft_at: opts.draftAt ?? null,
+      p_draft_pick_seconds: opts.draftPickSeconds ?? 90,
     });
 
     if (error) throw error;
@@ -222,8 +242,9 @@ export class MultiLeagueApi {
 
   // Get league fantasy teams
   static async getLeagueFantasyTeams(leagueId: string): Promise<FantasyTeam[]> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('get_league_fantasy_teams', {
-      p_league_id: leagueId,
+      p_league_id: fullLeagueId,
     })
 
     if (error) throw error
@@ -240,17 +261,6 @@ export class MultiLeagueApi {
       p_league_id: leagueId,
       p_team_name: teamName,
       p_manager_user_id: managerUserId,
-    })
-
-    if (error) throw error
-    return data
-  }
-
-  // Set draft time
-  static async setDraftTime(leagueId: string, draftTime: string): Promise<boolean> {
-    const { data, error } = await db.rpc('set_draft_time', {
-      league_id: leagueId,
-      draft_time: draftTime,
     })
 
     if (error) throw error
@@ -357,43 +367,6 @@ export class MultiLeagueApi {
     return data; // Returns the league_id
   }
 
-  // Team slot management
-  static async getLeagueSlots(leagueId: string): Promise<TeamSlot[]> {
-    const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await db.rpc('get_league_slots', {
-      p_league_id: fullLeagueId
-    });
-
-    if (error) throw error;
-    return data || [];
-  }
-
-  static async createSlotInvite(leagueId: string, slotId: string): Promise<string> {
-    const fullLeagueId = await this.resolveLeagueId(leagueId);
-    const { data, error } = await db.rpc('create_slot_invite', {
-      p_league_id: fullLeagueId,
-      p_slot_id: slotId
-    });
-
-    if (error) throw error;
-    return data; // Returns the invite code
-  }
-
-  static async revokeInvite(inviteCode: string): Promise<boolean> {
-    const { data, error } = await db.rpc('revoke_invite', {
-      p_invite_code: inviteCode
-    });
-
-    if (error) throw error;
-    return data;
-  }
-
-  // For TeamSlots component compatibility
-  static async getTeamSlots(leagueId: string): Promise<any[]> {
-    // This is an alias for getLeagueSlots to maintain compatibility
-    return this.getLeagueSlots(leagueId);
-  }
-
   // Schedule management
   static async generateSchedule(leagueId: string): Promise<boolean> {
     const { data, error } = await db.rpc('generate_league_schedule', {
@@ -477,7 +450,7 @@ export class MultiLeagueApi {
     return data
   }
 
-  // Async snake draft (Phase 2)
+  // Async snake draft (Phase 2) + live room controls
   static async startDraft(leagueId: string, draftOrder?: string[]): Promise<boolean> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('start_draft', {
@@ -487,6 +460,54 @@ export class MultiLeagueApi {
 
     if (error) throw error
     return data
+  }
+
+  static async setDraftOrder(leagueId: string, draftOrder: string[]): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('set_draft_order', {
+      p_league_id: fullLeagueId,
+      p_draft_order: draftOrder,
+    });
+    if (error) throw error;
+    return data;
+  }
+
+  /** Dev helper: fill empty slots with unmanaged Bot N teams (pending draft only). */
+  static async fillDraftBots(leagueId: string): Promise<number> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('fill_draft_bots', {
+      p_league_id: fullLeagueId,
+    });
+    if (error) throw error;
+    return data ?? 0;
+  }
+
+  static async updateLeagueDraftSettings(
+    leagueId: string,
+    settings: DraftSettingsUpdate
+  ): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const args: Record<string, unknown> = { p_league_id: fullLeagueId };
+    if (settings.draftMode !== undefined) args.p_draft_mode = settings.draftMode;
+    if (settings.draftAt !== undefined) args.p_draft_at = settings.draftAt;
+    if (settings.draftPickSeconds !== undefined) args.p_draft_pick_seconds = settings.draftPickSeconds;
+    const { data, error } = await db.rpc('update_league_draft_settings', args);
+    if (error) throw error;
+    return data;
+  }
+
+  static async pauseDraft(leagueId: string): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('pause_draft', { p_league_id: fullLeagueId });
+    if (error) throw error;
+    return data;
+  }
+
+  static async resumeDraft(leagueId: string): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('resume_draft', { p_league_id: fullLeagueId });
+    if (error) throw error;
+    return data;
   }
 
   static async makeDraftPick(leagueId: string, nflTeamId: string): Promise<boolean> {
@@ -583,7 +604,6 @@ export class MultiLeagueApi {
     return data || []
   }
 
-
   // Kickoff times for every NFL team playing in a given week (Phase 4).
   // Returns an empty array if game times haven't been seeded yet.
   static async getNflKickoffTimes(
@@ -624,12 +644,13 @@ export class MultiLeagueApi {
     return data?.[0] || null
   }
 
-  // Standings (using existing view)
+  // Standings (using existing view — 0-0 rows before any scores)
   static async getLeagueStandings(leagueId: string) {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db
       .from('v_league_standings')
       .select('*')
-      .eq('league_id', leagueId)
+      .eq('league_id', fullLeagueId)
       .order('rank')
 
     if (error) throw error

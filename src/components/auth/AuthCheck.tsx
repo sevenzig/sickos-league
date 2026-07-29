@@ -5,9 +5,15 @@ import SignInModal from './SignInModal';
 interface AuthCheckProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
+  /** Shown in the default "Sign In Required" screen. Override per page for context. */
+  message?: string;
 }
 
-const AuthCheck: React.FC<AuthCheckProps> = ({ children, fallback }) => {
+const AuthCheck: React.FC<AuthCheckProps> = ({
+  children,
+  fallback,
+  message = 'You need to be signed in to continue.',
+}) => {
   const { user, loading } = useAuth();
   const [showSignIn, setShowSignIn] = useState(false);
 
@@ -32,7 +38,7 @@ const AuthCheck: React.FC<AuthCheckProps> = ({ children, fallback }) => {
               <div className="max-w-md mx-auto text-center">
                 <h1 className="text-2xl font-light text-white mb-6">Sign In Required</h1>
                 <p className="text-slate-400 mb-8 leading-relaxed">
-                  You need to be signed in to create a league. Please sign in to continue.
+                  {message}
                 </p>
                 <button
                   onClick={() => setShowSignIn(true)}

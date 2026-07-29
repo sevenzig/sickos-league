@@ -7,13 +7,13 @@
 | Decision | Choice |
 |---|---|
 | Game model | BQBL: 8 fantasy teams × 4 NFL teams = all 32 drafted; bad-QB scoring |
-| Draft | Asynchronous turn-based snake draft — notified when it's your pick, no clock |
+| Draft | Async turn-based **or** live draft room (commissioner chooses at league setup). Live: lobby opens 1h before `draft_at`, autostart, 30/60/90s clock, pause/resume, alphabetical auto-pick on timeout. No chat / no ranked queue. |
 | Stats | Manual CSV upload, one site-wide upload per week serves all leagues |
 | League size | Fixed 8×4; no free agency, no undrafted teams |
 | Mid-season management | Weekly lineups + team identity only; no trades or waivers |
 | Audience | Private friend leagues now; architecture must not block public launch later |
 
-**Non-goals (explicitly out of scope):** player-level fantasy, live draft rooms with clocks, automated stats APIs, trades/waivers, variable league sizes, playoffs bracket customization.
+**Non-goals (explicitly out of scope):** player-level fantasy, draft chat / ranked pick queues, automated stats APIs, trades/waivers, variable league sizes, playoffs bracket customization.
 
 ---
 
@@ -254,7 +254,6 @@ Not required for friends leagues; do before opening signup.
     (see `scripts/data/week-kickoffs.example.json`) or calls
     `upsert_nfl_kickoff_times(p_week, p_games)`. Missing `game_time` leaves that
     NFL team editable — do not skip TNF/early games.
-
 
 ---
 

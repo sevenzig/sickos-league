@@ -40,11 +40,6 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
         fantasyTeams = await MultiLeagueApi.getLeagueFantasyTeams(leagueId);
       } catch (teamsError) {
         console.warn('Could not load fantasy teams:', teamsError);
-        // If fantasy teams can't be loaded, show migration needed message
-        if (teamsError instanceof Error && teamsError.message.includes('404')) {
-          setError('Database migration required. Restart the API server to apply migrations: docker compose restart api');
-          return;
-        }
         // For other errors, continue with empty teams array
       }
 
@@ -125,17 +120,7 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
 
     } catch (err) {
       console.error('Error generating invite:', err);
-
-      let errorMessage = 'Failed to generate invite';
-      if (err instanceof Error) {
-        if (err.message.includes('404') || err.message.includes('does not exist')) {
-          errorMessage = 'Database migration required. Restart the API server to apply migrations: docker compose restart api';
-        } else {
-          errorMessage = err.message;
-        }
-      }
-
-      setError(errorMessage);
+      setError(err instanceof Error ? err.message : 'Failed to generate invite');
 
       // Reset loading state
       setTeamSlots(prev => prev.map(slot =>
@@ -202,17 +187,6 @@ const TeamManagement: React.FC<TeamManagementProps> = ({
             </svg>
             <div className="flex-1">
               <p className="text-red-400 text-sm font-medium mb-2">{error}</p>
-              {error.includes('migration required') && (
-                <div className="text-slate-400 text-xs space-y-1">
-                  <p>The team management system requires database updates.</p>
-                  <p>Steps to fix:</p>
-                  <ol className="list-decimal list-inside space-y-1 ml-2">
-                    <li>Start Docker Desktop</li>
-                    <li>Run: <code className="bg-slate-800 px-1 rounded">docker compose restart api</code></li>
-                    <li>Refresh this page</li>
-                  </ol>
-                </div>
-              )}
             </div>
           </div>
         </div>

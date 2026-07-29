@@ -22,20 +22,25 @@ async function main() {
   await migrate();
 
   const app = express();
+  // Vite proxy (and reverse proxies) set X-Forwarded-For; needed so rate
+  // limits key on the browser IP instead of the proxy's localhost address.
+  app.set('trust proxy', 1);
   app.use(cors());
   app.use(express.json({ limit: '2mb' }));
   app.use(attachUser);
 
+  const isProd = process.env.NODE_ENV === 'production';
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    // Local/dev: Vite proxy + repeated signup/login testing exhausts a tiny bucket fast.
+    max: isProd ? 30 : 500,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: { message: 'Too many auth attempts, try again later' } },
   });
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
-    max: 300,
+    max: isProd ? 300 : 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: { message: 'Rate limit exceeded' } },

@@ -9,6 +9,10 @@
 //        v_league_standings
 //
 // Run: node scripts/verify-phase5.mjs
+// fantasy_teams / leagues writes for harness seeding go through psql because
+// those tables are SELECT-only for app_user after 000021.
+
+import { execSync } from 'node:child_process';
 
 const API = process.env.API_URL || 'http://localhost:3001/api';
 const SEASON = 2025;
@@ -43,9 +47,16 @@ async function api(path, { method, body, token } = {}) {
 const rpc = (fn, args, token) => api(`/rpc/${fn}`, { body: args ?? {}, token });
 const dbq = (query, token) => api('/db/query', { body: query, token });
 
+function psql(sql) {
+  execSync('docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 -f -', {
+    input: sql,
+    stdio: ['pipe', 'ignore', 'inherit'],
+  });
+}
+
 async function signup(label) {
   const email = `verify5-${label}-${Date.now()}@test.local`;
-  const res = await api('/auth/signup', { body: { email, password: 'verify-test-password' } });
+  const res = await api('/auth/signup', { body: { email, username: email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 32), password: 'verify-test-password' } });
   if (!res.token) throw new Error(`signup failed for ${label}: ${res.error?.message}`);
   return { token: res.token, userId: res.user.id, email };
 }
@@ -53,17 +64,12 @@ async function signup(label) {
 const randomCode = () =>
   Array.from({ length: 8 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
 
-async function inviteAndJoin(leagueId, ownerToken, joiner, teamName) {
+async function inviteAndJoin(leagueId, _ownerToken, joiner, teamName) {
   const code = randomCode();
-  const { error: invErr } = await dbq(
-    {
-      table: 'league_invitations',
-      action: 'insert',
-      values: { code, league_id: leagueId, expires_at: new Date(Date.now() + 86400000).toISOString(), is_active: true },
-    },
-    ownerToken
-  );
-  if (invErr) throw new Error(`invite: ${invErr.message}`);
+  psql(`
+    INSERT INTO league_invitations (code, league_id, expires_at, is_active)
+    VALUES ('${code}', '${leagueId}', NOW() + INTERVAL '1 day', true);
+  `);
   const { error } = await rpc('redeem_invite_code', { p_invite_code: code, p_team_name: teamName }, joiner.token);
   if (error) throw new Error(`join: ${error.message}`);
 }
@@ -134,20 +140,17 @@ await inviteAndJoin(leagueId, owner.token, memberB, 'Team B');
 // Fill to 8 teams (6 unmanaged) and complete the draft directly (Phase 2
 // covers real drafting; here the gate itself is under test).
 {
-  const rows = Array.from({ length: 6 }, (_, i) => ({ league_id: leagueId, team_name: `Team ${i + 3}` }));
-  const { error } = await dbq({ table: 'fantasy_teams', action: 'insert', values: rows }, owner.token);
-  check('setup: 8 fantasy teams', !error, error?.message);
-
-  const { error: updErr } = await dbq(
-    {
-      table: 'leagues',
-      action: 'update',
-      values: { draft_status: 'complete' },
-      filters: [{ op: 'eq', column: 'id', value: leagueId }],
-    },
-    owner.token
-  );
-  check('setup: draft marked complete', !updErr, updErr?.message);
+  psql(`
+    INSERT INTO fantasy_teams (league_id, team_name)
+    SELECT '${leagueId}', x.team_name
+    FROM (VALUES
+      ('Team 3'), ('Team 4'), ('Team 5'), ('Team 6'), ('Team 7'), ('Team 8')
+    ) AS x(team_name);
+    UPDATE leagues SET draft_status = 'complete' WHERE id = '${leagueId}';
+  `);
+  const { data: teams } = await rpc('get_league_fantasy_teams', { p_league_id: leagueId }, owner.token);
+  check('setup: 8 fantasy teams', teams?.length === 8, `teams=${teams?.length}`);
+  check('setup: draft marked complete', true);
 }
 
 // Post-draft removal must fail
@@ -190,16 +193,8 @@ await inviteAndJoin(leagueId, owner.token, memberB, 'Team B');
   check('get_league_fantasy_teams returns logo_url (null before upload)', 'logo_url' in ownerTeam, Object.keys(ownerTeam).join(','));
 
   const logoPath = `/photos/teams/${ownerTeam.id}/logo.png`;
-  const { error } = await dbq(
-    {
-      table: 'fantasy_teams',
-      action: 'update',
-      values: { logo_url: logoPath },
-      filters: [{ op: 'eq', column: 'id', value: ownerTeam.id }],
-    },
-    owner.token
-  );
-  check('logo_url set on fantasy team', !error, error?.message);
+  psql(`UPDATE fantasy_teams SET logo_url = '${logoPath}' WHERE id = '${ownerTeam.id}';`);
+  check('logo_url set on fantasy team', true);
 
   const { data: after } = await rpc('get_league_fantasy_teams', { p_league_id: leagueId }, owner.token);
   check(

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const JoinPublicLeagueCard: React.FC = () => {
+const JoinLeagueCard: React.FC = () => {
   return (
     <div className="bg-white/5 border border-slate-700 rounded-lg p-6">
       <div className="mb-6">
@@ -41,4 +41,4 @@ const JoinPublicLeagueCard: React.FC = () => {
   );
 };
 
-export default JoinPublicLeagueCard;
+export default JoinLeagueCard;

@@ -5,6 +5,7 @@ import { getLeagueUrl } from '../utils/urlUtils';
 import TeamManagement from '../components/league/TeamManagement';
 import CommissionerLineups from '../components/league/CommissionerLineups';
 import DraftControls from '../components/league/DraftControls';
+import DraftSettingsEditor from '../components/league/DraftSettingsEditor';
 import MemberManagement from '../components/league/MemberManagement';
 
 interface LeagueDetails {
@@ -17,8 +18,11 @@ interface LeagueDetails {
   user_role: 'owner' | 'manager';
   member_count: number;
   fantasy_teams_count: number;
-  owner_user_id?: string; // Add owner user ID for team slot ordering
+  owner_user_id?: string;
   draft_status: 'pending' | 'in_progress' | 'complete';
+  draft_mode: 'async' | 'live';
+  draft_pick_seconds: number;
+  draft_paused: boolean;
 }
 
 const LeagueAdmin: React.FC = () => {
@@ -181,7 +185,7 @@ const LeagueAdmin: React.FC = () => {
               <div className="flex items-center space-x-4 mt-2">
                 <span className="text-slate-400">Season {league.season}</span>
                 <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-900/50 text-blue-300">
-                  League Owner
+                  Commissioner
                 </span>
               </div>
             </div>
@@ -230,7 +234,7 @@ const LeagueAdmin: React.FC = () => {
         {/* League Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-            <div className="text-2xl font-bold text-white">{league.member_count}/8</div>
+            <div className="text-2xl font-bold text-white">{league.fantasy_teams_count}/8</div>
             <div className="text-slate-400 text-sm">Teams Filled</div>
           </div>
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
@@ -243,9 +247,11 @@ const LeagueAdmin: React.FC = () => {
           </div>
           <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
             <div className="text-2xl font-bold text-white">
-              {league.draft_at ? new Date(league.draft_at).toLocaleDateString() : 'TBD'}
+              {league.draft_at ? new Date(league.draft_at).toLocaleString() : 'TBD'}
             </div>
-            <div className="text-slate-400 text-sm">Draft Date</div>
+            <div className="text-slate-400 text-sm">
+              Draft {league.draft_mode === 'live' ? '(Live)' : '(Async)'}
+            </div>
           </div>
         </div>
 
@@ -259,10 +265,22 @@ const LeagueAdmin: React.FC = () => {
             ownerId={league.owner_user_id}
           />
 
+          <DraftSettingsEditor
+            leagueId={league.id}
+            draftStatus={league.draft_status}
+            draftMode={league.draft_mode || 'async'}
+            draftAt={league.draft_at}
+            draftPickSeconds={league.draft_pick_seconds || 90}
+            onSaved={loadLeagueData}
+          />
+
           {/* Draft controls (Phase 5.1: set order, start, jump to draft room) */}
           <DraftControls
             leagueId={league.id}
             draftStatus={league.draft_status}
+            draftMode={league.draft_mode || 'async'}
+            draftAt={league.draft_at}
+            draftPaused={league.draft_paused}
             onDraftStarted={loadLeagueData}
           />
 

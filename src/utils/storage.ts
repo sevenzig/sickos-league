@@ -35,21 +35,18 @@ export async function loadLeagueData(): Promise<LeagueData> {
     const migrationStatus = await checkMigrationStatus();
     
     if (!migrationStatus.isMigrated) {
-      console.log('Database not migrated, attempting to migrate data...');
-      try {
-        const migrationResult = await migrateHistoricalData();
-        if (migrationResult.success) {
-          console.log('Migration successful, loading data from database');
-        } else {
-          console.error('Migration failed:', migrationResult.errors);
-          throw new Error('Migration failed');
-        }
-      } catch (migrationError) {
-        console.error('Migration error:', migrationError);
-        throw new Error('Migration failed');
+      // Legacy archive path: only migrate when NFL teams already exist.
+      // Empty multi-league DBs hit "No teams found" — treat as empty, not fatal.
+      const migrationResult = await migrateHistoricalData();
+      if (migrationResult.success) {
+        console.log('Migration successful, loading data from database');
+      } else if (migrationResult.errors.some((e) => e.includes('No teams found'))) {
+        // Expected when the old friends-league archive was never seeded.
+      } else {
+        console.warn('Legacy migration skipped:', migrationResult.errors);
       }
     }
-    
+
     // Try to load from database
     const dbData = await loadFullLeagueData();
     if (dbData && dbData.teams.length > 0) {
@@ -57,12 +54,8 @@ export async function loadLeagueData(): Promise<LeagueData> {
       saveLeagueDataToLocal(dbData);
       return dbData;
     }
-    
-    // If database is still empty after migration attempt
-    console.log('Database is still empty after migration attempt');
-    throw new Error('Database is empty');
   } catch (error) {
-    console.warn('Database not available or empty, falling back to localStorage:', error);
+    console.warn('Legacy archive unavailable, falling back to localStorage:', error);
   }
 
   // Fallback to localStorage

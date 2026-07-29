@@ -128,7 +128,7 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
                             <td key={week} className="px-2 py-3 lg:py-2 xl:py-4 text-center">
                               {result && (
                                 <div
-                                  className={`w-7 h-7 lg:w-6 lg:h-6 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 ${
+                                  className={`w-7 h-7 lg:w-6 lg:h-6 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 ${
                                     result === 'W'
                                       ? 'bg-emerald-500 text-white hover:bg-emerald-400'
                                       : result === 'L'
@@ -136,6 +136,14 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
                                       : 'bg-yellow-500 text-black hover:bg-yellow-400'
                                   }`}
                                   onClick={() => openWLTModal(teamName, week)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      openWLTModal(teamName, week);
+                                    }
+                                  }}
+                                  role="button"
+                                  tabIndex={0}
                                   onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     setHoveredCell({ teamName, week, rect });

@@ -4,18 +4,31 @@ import { MultiLeagueApi, FantasyTeam } from '../../utils/multiLeagueApi';
 import { getLeagueUrl } from '../../utils/urlUtils';
 
 interface DraftControlsProps {
-  leagueId: string; // full league UUID
+  leagueId: string;
   draftStatus: 'pending' | 'in_progress' | 'complete';
+  draftMode: 'async' | 'live';
+  draftAt?: string | null;
+  draftPaused?: boolean;
   onDraftStarted: () => void;
 }
 
-// Phase 5.1: commissioner draft controls - set the pick order and start the
-// draft from the admin panel. Pick overrides live in the draft room itself.
-const DraftControls: React.FC<DraftControlsProps> = ({ leagueId, draftStatus, onDraftStarted }) => {
+const DraftControls: React.FC<DraftControlsProps> = ({
+  leagueId,
+  draftStatus,
+  draftMode,
+  draftAt,
+  draftPaused = false,
+  onDraftStarted,
+}) => {
   const [order, setOrder] = useState<FantasyTeam[]>([]);
   const [loading, setLoading] = useState(draftStatus === 'pending');
   const [starting, setStarting] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [pausing, setPausing] = useState(false);
+  const [fillingBots, setFillingBots] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [orderSaved, setOrderSaved] = useState(false);
+  const isDev = import.meta.env.DEV;
 
   useEffect(() => {
     if (draftStatus !== 'pending') return;
@@ -33,6 +46,7 @@ const DraftControls: React.FC<DraftControlsProps> = ({ leagueId, draftStatus, on
       [next[index], next[target]] = [next[target], next[index]];
       return next;
     });
+    setOrderSaved(false);
   };
 
   const shuffle = () => {
@@ -44,6 +58,20 @@ const DraftControls: React.FC<DraftControlsProps> = ({ leagueId, draftStatus, on
       }
       return next;
     });
+    setOrderSaved(false);
+  };
+
+  const saveOrder = async () => {
+    try {
+      setSavingOrder(true);
+      setError(null);
+      await MultiLeagueApi.setDraftOrder(leagueId, order.map(t => t.id));
+      setOrderSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save draft order');
+    } finally {
+      setSavingOrder(false);
+    }
   };
 
   const startDraft = async () => {
@@ -51,6 +79,7 @@ const DraftControls: React.FC<DraftControlsProps> = ({ leagueId, draftStatus, on
     try {
       setStarting(true);
       setError(null);
+      await MultiLeagueApi.setDraftOrder(leagueId, order.map(t => t.id));
       await MultiLeagueApi.startDraft(leagueId, order.map(t => t.id));
       onDraftStarted();
     } catch (err) {
@@ -60,14 +89,58 @@ const DraftControls: React.FC<DraftControlsProps> = ({ leagueId, draftStatus, on
     }
   };
 
+  const togglePause = async () => {
+    try {
+      setPausing(true);
+      setError(null);
+      if (draftPaused) {
+        await MultiLeagueApi.resumeDraft(leagueId);
+      } else {
+        await MultiLeagueApi.pauseDraft(leagueId);
+      }
+      onDraftStarted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update pause state');
+    } finally {
+      setPausing(false);
+    }
+  };
+
+  const fillBots = async () => {
+    try {
+      setFillingBots(true);
+      setError(null);
+      await MultiLeagueApi.fillDraftBots(leagueId);
+      const teams = await MultiLeagueApi.getLeagueFantasyTeams(leagueId);
+      setOrder(teams);
+      setOrderSaved(false);
+      onDraftStarted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fill bots');
+    } finally {
+      setFillingBots(false);
+    }
+  };
+
+  const pendingHint =
+    draftMode === 'live'
+      ? draftAt
+        ? `Live draft auto-starts at ${new Date(draftAt).toLocaleString()} using whichever order is saved at that moment — you can re-save it anytime before then.`
+        : 'Live draft needs a scheduled time in Draft Settings.'
+      : 'Set the round-1 pick order, then start the snake draft.';
+
   return (
     <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold text-white">Draft</h2>
           <p className="text-slate-400 text-sm mt-1">
-            {draftStatus === 'pending' && 'Set the round-1 pick order, then start the snake draft.'}
-            {draftStatus === 'in_progress' && 'The draft is in progress. You can make picks for absent managers in the draft room.'}
+            {draftStatus === 'pending' && pendingHint}
+            {draftStatus === 'in_progress' && (
+              draftMode === 'live'
+                ? 'Live draft in progress. Pause freezes the pick clock.'
+                : 'The draft is in progress. You can make picks for absent managers in the draft room.'
+            )}
             {draftStatus === 'complete' && 'The draft is complete - all 32 NFL teams are rostered.'}
           </p>
         </div>
@@ -86,9 +159,26 @@ const DraftControls: React.FC<DraftControlsProps> = ({ leagueId, draftStatus, on
       )}
 
       {draftStatus === 'in_progress' && (
-        <span className="inline-block px-3 py-1 bg-yellow-900/40 text-yellow-300 text-sm rounded-full">
-          In progress
-        </span>
+        <div className="flex items-center gap-3 mb-2">
+          <span className={`inline-block px-3 py-1 text-sm rounded-full ${
+            draftPaused
+              ? 'bg-orange-900/40 text-orange-300'
+              : 'bg-yellow-900/40 text-yellow-300'
+          }`}>
+            {draftPaused ? 'Paused' : 'In progress'}
+            {draftMode === 'live' ? ' · Live' : ' · Async'}
+          </span>
+          {draftMode === 'live' && (
+            <button
+              type="button"
+              onClick={togglePause}
+              disabled={pausing}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors"
+            >
+              {pausing ? '...' : draftPaused ? 'Resume Draft' : 'Pause Draft'}
+            </button>
+          )}
+        </div>
       )}
 
       {draftStatus === 'complete' && (
@@ -137,7 +227,7 @@ const DraftControls: React.FC<DraftControlsProps> = ({ leagueId, draftStatus, on
               ))}
             </ol>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={shuffle}
                 disabled={order.length === 0}
@@ -145,14 +235,39 @@ const DraftControls: React.FC<DraftControlsProps> = ({ leagueId, draftStatus, on
               >
                 Randomize Order
               </button>
-              <button
-                onClick={startDraft}
-                disabled={starting || order.length !== 8}
-                title={order.length !== 8 ? 'The draft needs exactly 8 fantasy teams' : ''}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md font-medium transition-colors"
-              >
-                {starting ? 'Starting...' : 'Start Draft'}
-              </button>
+
+              {draftMode === 'live' ? (
+                <button
+                  onClick={saveOrder}
+                  disabled={savingOrder || order.length !== 8}
+                  title={order.length !== 8 ? 'The draft needs exactly 8 fantasy teams' : ''}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md font-medium transition-colors"
+                >
+                  {savingOrder ? 'Saving...' : orderSaved ? 'Order Saved' : 'Save Draft Order'}
+                </button>
+              ) : (
+                <button
+                  onClick={startDraft}
+                  disabled={starting || order.length !== 8}
+                  title={order.length !== 8 ? 'The draft needs exactly 8 fantasy teams' : ''}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md font-medium transition-colors"
+                >
+                  {starting ? 'Starting...' : 'Start Draft'}
+                </button>
+              )}
+
+              {isDev && order.length < 8 && (
+                <button
+                  type="button"
+                  onClick={fillBots}
+                  disabled={fillingBots}
+                  title="Dev only: fill empty slots with unmanaged Bot teams"
+                  className="px-4 py-2 bg-amber-700 hover:bg-amber-600 disabled:bg-gray-600 text-white rounded-md font-medium transition-colors"
+                >
+                  {fillingBots ? 'Filling...' : 'Fill with bots'}
+                </button>
+              )}
+
               {order.length !== 8 && (
                 <span className="text-slate-500 text-sm">{order.length}/8 teams joined</span>
               )}

@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MultiLeagueApi, FantasyTeam, LeagueMatchup } from '../utils/multiLeagueApi';
 import { db } from '../utils/db';
 import { getWeeklyQBPerformancesFromDb } from '../services/database';
+import { getLeagueUrl, getMatchupUrl } from '../utils/urlUtils';
+import { matchupScoreKey, useMatchupScores } from '../hooks/useMatchupScores';
 import WeekNavigation from '../components/navigation/WeekNavigation';
 import LeagueHeader from '../components/league/LeagueHeader';
 import MatchupCard from '../components/matchup-cards/2-team/MatchupCard';
 import MatchupModal from '../components/matchup-modals/2-team/MatchupModal';
-import LeagueStandings from '../components/tables/LeagueStandings';
+import StandingsTable from '../components/league/StandingsTable';
 import SeasonWLTChart from '../components/tables/SeasonWLTChart';
 
 interface LineupRow {
@@ -18,9 +20,18 @@ interface LineupRow {
 }
 
 const LeagueView: React.FC = () => {
-  const { leagueId } = useParams<{ leagueId: string }>();
-  const [selectedWeek, setSelectedWeek] = useState(1);
-  const [hasManuallyNavigated, setHasManuallyNavigated] = useState(false);
+  const { leagueId, week: weekParam, team1: team1Param, team2: team2Param } = useParams<{
+    leagueId: string;
+    week?: string;
+    team1?: string;
+    team2?: string;
+  }>();
+  const navigate = useNavigate();
+  const matchupWeek = weekParam ? Number(weekParam) : null;
+  const isMatchupRoute = Boolean(matchupWeek && team1Param && team2Param);
+
+  const [selectedWeek, setSelectedWeek] = useState(matchupWeek ?? 1);
+  const [hasManuallyNavigated, setHasManuallyNavigated] = useState(isMatchupRoute);
 
   const [fantasyTeams, setFantasyTeams] = useState<FantasyTeam[]>([]);
   const [schedule, setSchedule] = useState<LeagueMatchup[]>([]);
@@ -42,6 +53,14 @@ const LeagueView: React.FC = () => {
     const completedWeeks = schedule.filter(m => m.is_complete).map(m => m.week);
     return completedWeeks.length > 0 ? Math.min(18, Math.max(...completedWeeks) + 1) : 1;
   }, [schedule]);
+
+  // Deep-link: keep selected week in sync with the matchup URL
+  useEffect(() => {
+    if (matchupWeek && matchupWeek >= 1 && matchupWeek <= 18) {
+      setSelectedWeek(matchupWeek);
+      setHasManuallyNavigated(true);
+    }
+  }, [matchupWeek]);
 
   // Update selected week when data loads (only on initial load, not on manual navigation)
   useEffect(() => {
@@ -141,41 +160,7 @@ const LeagueView: React.FC = () => {
       }));
   }, [schedule, selectedWeek]);
 
-  // Scores + per-QB breakdowns for the selected week.
-  // Lineups are only revealed once the week is locked (standard fantasy convention);
-  // persisted scores are used when the matchup is finalized, otherwise live sums.
-  const matchupScores = useMemo(() => {
-    const scores: Record<string, any> = {};
-    const perfByTeam: Record<string, any> = {};
-    weekStats.forEach(p => {
-      perfByTeam[p.team] = p;
-    });
-
-    schedule
-      .filter(m => m.week === selectedWeek)
-      .forEach(m => {
-        const key = `${m.fantasy_team1_name}-${m.fantasy_team2_name}-${m.week}`;
-        const locked = m.week_locked;
-
-        const team1Names = locked ? lineupNamesFor(m.fantasy_team1_id, m.week) : [];
-        const team2Names = locked ? lineupNamesFor(m.fantasy_team2_id, m.week) : [];
-
-        const team1Breakdown = team1Names.map(name => ({ qb: name, breakdown: perfByTeam[name] ?? null }));
-        const team2Breakdown = team2Names.map(name => ({ qb: name, breakdown: perfByTeam[name] ?? null }));
-
-        const liveSum = (breakdown: { breakdown: any }[]) =>
-          breakdown.reduce((sum, b) => sum + (b.breakdown?.finalScore ?? 0), 0);
-
-        scores[key] = {
-          team1Score: m.is_complete && m.team1_score != null ? Number(m.team1_score) : liveSum(team1Breakdown),
-          team2Score: m.is_complete && m.team2_score != null ? Number(m.team2_score) : liveSum(team2Breakdown),
-          team1Breakdown,
-          team2Breakdown,
-        };
-      });
-
-    return scores;
-  }, [schedule, selectedWeek, weekStats, lineupNamesFor]);
+  const matchupScores = useMatchupScores(schedule, selectedWeek, weekStats, lineupNamesFor);
 
   // Season records + W/L/T chart data from finalized matchups
   const { teamRecords, teamWeekResults, teamWeekMatchupDetails } = useMemo(() => {
@@ -229,32 +214,34 @@ const LeagueView: React.FC = () => {
 
   const weeks = useMemo(() => Array.from({ length: 18 }, (_, i) => i + 1), []);
 
-  // Modal state
-  const [selectedMatchup, setSelectedMatchup] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const openMatchupModal = useCallback((matchup: any, week: number) => {
-    const key = `${matchup.team1}-${matchup.team2}-${week}`;
+  // Modal data from URL params (works for click-through and cold deep-links)
+  const selectedMatchup = useMemo(() => {
+    if (!isMatchupRoute || !team1Param || !team2Param || !matchupWeek) return null;
+    const team1 = decodeURIComponent(team1Param);
+    const team2 = decodeURIComponent(team2Param);
+    const key = matchupScoreKey(team1, team2, matchupWeek);
     const matchupData = matchupScores[key];
+    if (!matchupData) return null;
+    return {
+      week: matchupWeek,
+      team1,
+      team2,
+      team1Score: matchupData.team1Score,
+      team2Score: matchupData.team2Score,
+      team1Breakdown: matchupData.team1Breakdown,
+      team2Breakdown: matchupData.team2Breakdown,
+    };
+  }, [isMatchupRoute, team1Param, team2Param, matchupWeek, matchupScores]);
 
-    if (matchupData) {
-      setSelectedMatchup({
-        week,
-        team1: matchup.team1,
-        team2: matchup.team2,
-        team1Score: matchupData.team1Score,
-        team2Score: matchupData.team2Score,
-        team1Breakdown: matchupData.team1Breakdown,
-        team2Breakdown: matchupData.team2Breakdown,
-      });
-      setIsModalOpen(true);
-    }
-  }, [matchupScores]);
+  const openMatchupModal = useCallback((matchup: { team1: string; team2: string }, week: number) => {
+    if (!leagueId) return;
+    navigate(getMatchupUrl(leagueId, week, matchup.team1, matchup.team2));
+  }, [leagueId, navigate]);
 
   const closeModal = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedMatchup(null);
-  }, []);
+    if (!leagueId) return;
+    navigate(getLeagueUrl(leagueId), { replace: true });
+  }, [leagueId, navigate]);
 
   // Clicking a W/L/T cell jumps to that week's matchups
   const openWLTModal = useCallback((_teamName: string, week: number) => {
@@ -325,7 +312,7 @@ const LeagueView: React.FC = () => {
         {weekMatchups.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
             {weekMatchups.map((matchup) => {
-              const key = `${matchup.team1}-${matchup.team2}-${matchup.week}`;
+              const key = matchupScoreKey(matchup.team1, matchup.team2, matchup.week);
               const matchupData = matchupScores[key];
 
               return (
@@ -355,7 +342,7 @@ const LeagueView: React.FC = () => {
       {isDataLoaded && (
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* League Standings - Left side (1/3 width) */}
-        <LeagueStandings leagueId={leagueId!} teams={teams} />
+        <StandingsTable leagueId={leagueId!} />
 
         {/* Season W/L/T Chart - Right side (2/3 width) */}
         <SeasonWLTChart
@@ -370,9 +357,9 @@ const LeagueView: React.FC = () => {
       </div>
       )}
 
-      {/* Matchup Modal */}
+      {/* Matchup Modal — driven by /week/:week/:team1/:team2 */}
       <MatchupModal
-        isOpen={isModalOpen}
+        isOpen={Boolean(selectedMatchup)}
         onClose={closeModal}
         matchupData={selectedMatchup}
       />

@@ -5,6 +5,11 @@
 // the schedule/invite gates.
 //
 // Run: node scripts/verify-phase2.mjs
+// Invite and bot-team seeding goes through psql (docker compose exec) because
+// league_invitations and fantasy_teams only have SELECT policies for the app
+// user — writes are restricted to SECURITY DEFINER RPCs or superuser paths.
+
+import { execSync } from 'node:child_process';
 
 const API = process.env.API_URL || 'http://localhost:3001/api';
 
@@ -40,9 +45,16 @@ async function api(path, { method, body, token } = {}) {
 const rpc = (fn, args, token) => api(`/rpc/${fn}`, { body: args ?? {}, token });
 const dbq = (query, token) => api('/db/query', { body: query, token });
 
+function psql(sql) {
+  execSync('docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 -f -', {
+    input: sql,
+    stdio: ['pipe', 'ignore', 'inherit'],
+  });
+}
+
 async function signup(label) {
   const email = `verify2-${label}-${Date.now()}@test.local`;
-  const res = await api('/auth/signup', { body: { email, password: 'verify-test-password' } });
+  const res = await api('/auth/signup', { body: { email, username: email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 32), password: 'verify-test-password' } });
   if (!res.token) throw new Error(`signup failed for ${label}: ${res.error?.message}`);
   return { token: res.token, userId: res.user.id, email };
 }
@@ -64,20 +76,12 @@ const { data: leagueId, error: leagueErr } = await rpc(
 );
 check('setup: create_league', !leagueErr && !!leagueId, leagueErr?.message);
 
-async function createInvite(code) {
-  return dbq(
-    {
-      table: 'league_invitations',
-      action: 'insert',
-      values: {
-        code,
-        league_id: leagueId,
-        expires_at: new Date(Date.now() + 86400000).toISOString(),
-        is_active: true,
-      },
-    },
-    owner.token
-  );
+// league_invitations has SELECT-only RLS for app_user; seed via psql.
+function createInvite(code) {
+  psql(`
+    INSERT INTO league_invitations (code, league_id, expires_at, is_active)
+    VALUES ('${code}', '${leagueId}', NOW() + INTERVAL '1 day', true);
+  `);
 }
 
 const randomCode = () =>
@@ -85,8 +89,8 @@ const randomCode = () =>
 
 const inviteCodeB = randomCode();
 {
-  const { error } = await createInvite(inviteCodeB);
-  check('setup: create invite for manager B', !error, error?.message);
+  createInvite(inviteCodeB);
+  check('setup: create invite for manager B', true);
 }
 {
   const { error } = await rpc(
@@ -100,18 +104,20 @@ const inviteCodeB = randomCode();
 // Second invite created pre-draft, redeemed post-start to test the gate
 const inviteCodeLate = randomCode();
 {
-  const { error } = await createInvite(inviteCodeLate);
-  check('setup: create second invite (for gate test)', !error, error?.message);
+  createInvite(inviteCodeLate);
+  check('setup: create second invite (for gate test)', true);
 }
 
-// Fill to 8 teams (6 more unmanaged teams owned by nobody)
+// fantasy_teams has SELECT-only RLS for app_user; seed bot teams via psql.
 {
-  const rows = Array.from({ length: 6 }, (_, i) => ({
-    league_id: leagueId,
-    team_name: `Team ${i + 3}`,
-  }));
-  const { error } = await dbq({ table: 'fantasy_teams', action: 'insert', values: rows }, owner.token);
-  check('setup: seed 6 additional fantasy teams', !error, error?.message);
+  psql(`
+    INSERT INTO fantasy_teams (league_id, team_name)
+    SELECT '${leagueId}', x.team_name
+    FROM (VALUES
+      ('Team 3'), ('Team 4'), ('Team 5'), ('Team 6'), ('Team 7'), ('Team 8')
+    ) AS x(team_name);
+  `);
+  check('setup: seed 6 additional fantasy teams via psql', true);
 }
 
 const { data: fantasyTeams } = await rpc('get_league_fantasy_teams', { p_league_id: leagueId }, owner.token);
@@ -258,15 +264,28 @@ const draftOrder = [
 }
 
 // --- Complete the draft: B picks for himself, owner covers everything else ---
+// get_draft_state runs draft_auto_pick_bots (000026), so unmanaged seats are
+// filled on poll. Pick the next untaken NFL team — do not assume a fixed index.
 
 {
   let pickErr = null;
-  let taken = 1; // nflTeams[0] used already
   for (;;) {
     const { data: state } = await rpc('get_draft_state', { p_league_id: leagueId }, owner.token);
     if (state.draft_status !== 'in_progress') break;
-    const nflId = nflTeams[taken++].uuid_id;
     const onClock = state.on_clock;
+    if (!onClock) break;
+    // Bot already handled inside get_draft_state; re-poll if still on a bot.
+    if (onClock.manager_user_id == null) continue;
+
+    const takenIds = new Set(
+      (state.picks ?? []).filter((p) => p.nfl_team_id).map((p) => p.nfl_team_id)
+    );
+    const nflId = nflTeams.find((t) => !takenIds.has(t.uuid_id))?.uuid_id;
+    if (!nflId) {
+      pickErr = { message: 'No undrafted NFL teams remaining' };
+      break;
+    }
+
     const asB = onClock.manager_user_id === managerB.userId;
     const { error } = asB
       ? await rpc('make_draft_pick', { p_league_id: leagueId, p_nfl_team_id: nflId }, managerB.token)

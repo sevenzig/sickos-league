@@ -17,8 +17,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  /** Sign in with username or email + password. */
+  signIn: (identifier: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, username: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -60,10 +61,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     restore();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (identifier: string, password: string) => {
     try {
       setLoading(true);
-      const { user: signedInUser, error } = await authSignIn(email, password);
+      const { user: signedInUser, error } = await authSignIn(identifier, password);
       if (error) {
         console.error('Sign in error:', error);
         return { error };
@@ -78,10 +79,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, username: string, password: string) => {
     try {
       setLoading(true);
-      const { user: newUser, error } = await authSignUp(email, password);
+      const { user: newUser, error } = await authSignUp(email, username, password);
       if (error) {
         console.error('Sign up error:', error);
         return { error };

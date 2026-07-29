@@ -36,10 +36,20 @@ const MatchupCard: React.FC<MatchupCardProps> = React.memo(({
     openMatchupModal(matchup, selectedWeek);
   }, [matchup, selectedWeek, openMatchupModal]);
 
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  }, [handleClick]);
+
   return (
     <div
-      className="bg-gradient-to-br from-[#1a2942] to-[#0f1d31] rounded-2xl border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden cursor-pointer hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:scale-[1.02] transition-all duration-200"
+      className="bg-gradient-to-br from-[#1a2942] to-[#0f1d31] rounded-2xl border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden cursor-pointer hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:scale-[1.02] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1d31]"
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
     >
       {/* SCORE STRIP */}
       <div className="flex bg-black/20">

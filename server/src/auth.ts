@@ -6,6 +6,8 @@ import { adminPool } from './db.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'local-dev-secret-change-me';
 const TOKEN_TTL = '30d';
 
+const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
+
 export interface AuthedRequest extends Request {
   userId?: string;
   userEmail?: string;
@@ -63,34 +65,52 @@ export const authRouter = Router();
 function publicUser(row: {
   id: string;
   email: string;
+  username: string | null;
   created_at: string;
   is_platform_admin: boolean;
 }) {
   return {
     id: row.id,
     email: row.email,
+    username: row.username ?? null,
     created_at: row.created_at,
     is_platform_admin: row.is_platform_admin === true,
   };
 }
 
 authRouter.post('/signup', async (req, res) => {
-  const { email, password } = req.body ?? {};
-  if (typeof email !== 'string' || !email.includes('@') || typeof password !== 'string' || password.length < 6) {
-    res.status(400).json({ error: { message: 'Valid email and a password of at least 6 characters are required' } });
+  const { email, username, password } = req.body ?? {};
+  if (typeof email !== 'string' || !email.includes('@')) {
+    res.status(400).json({ error: { message: 'A valid email is required' } });
+    return;
+  }
+  if (typeof username !== 'string' || !USERNAME_RE.test(username)) {
+    res.status(400).json({
+      error: { message: 'Username must be 3–32 characters: letters, numbers, or underscore' },
+    });
+    return;
+  }
+  if (typeof password !== 'string' || password.length < 6) {
+    res.status(400).json({ error: { message: 'Password must be at least 6 characters' } });
     return;
   }
   const hash = await bcrypt.hash(password, 10);
   try {
     const { rows } = await adminPool.query(
-      'INSERT INTO auth.users (email, encrypted_password) VALUES (LOWER($1), $2) RETURNING id, email, created_at, is_platform_admin',
-      [email, hash]
+      `INSERT INTO auth.users (email, username, encrypted_password)
+       VALUES (LOWER($1), LOWER($2), $3)
+       RETURNING id, email, username, created_at, is_platform_admin`,
+      [email, username, hash]
     );
     const user = publicUser(rows[0]);
     res.json({ token: issueToken(user.id, user.email, user.is_platform_admin), user });
   } catch (err) {
     if ((err as { code?: string }).code === '23505') {
-      res.status(409).json({ error: { message: 'An account with this email already exists' } });
+      const detail = String((err as { detail?: string }).detail ?? '');
+      const msg = detail.toLowerCase().includes('username')
+        ? 'That username is already taken'
+        : 'An account with this email already exists';
+      res.status(409).json({ error: { message: msg } });
       return;
     }
     throw err;
@@ -98,15 +118,28 @@ authRouter.post('/signup', async (req, res) => {
 });
 
 authRouter.post('/login', async (req, res) => {
-  const { email, password } = req.body ?? {};
+  const { email, username, password, identifier } = req.body ?? {};
+  // Accept username OR email (also a combined `identifier` field from the UI).
+  const raw =
+    (typeof identifier === 'string' && identifier.trim()) ||
+    (typeof email === 'string' && email.trim()) ||
+    (typeof username === 'string' && username.trim()) ||
+    '';
+  const loginId = raw.toLowerCase();
+  const byEmail = loginId.includes('@');
+
   const { rows } = await adminPool.query(
-    'SELECT id, email, encrypted_password, created_at, is_platform_admin FROM auth.users WHERE email = LOWER($1)',
-    [String(email ?? '')]
+    byEmail
+      ? `SELECT id, email, username, encrypted_password, created_at, is_platform_admin
+         FROM auth.users WHERE email = $1`
+      : `SELECT id, email, username, encrypted_password, created_at, is_platform_admin
+         FROM auth.users WHERE LOWER(username) = $1`,
+    [loginId]
   );
   const row = rows[0];
   const ok = row && (await bcrypt.compare(String(password ?? ''), row.encrypted_password));
   if (!ok) {
-    res.status(401).json({ error: { message: 'Invalid email or password' } });
+    res.status(401).json({ error: { message: 'Invalid username/email or password' } });
     return;
   }
   const user = publicUser(row);
@@ -122,7 +155,7 @@ authRouter.get('/me', async (req: AuthedRequest, res) => {
     return;
   }
   const { rows } = await adminPool.query(
-    'SELECT id, email, created_at, is_platform_admin FROM auth.users WHERE id = $1',
+    'SELECT id, email, username, created_at, is_platform_admin FROM auth.users WHERE id = $1',
     [req.userId]
   );
   if (!rows[0]) {

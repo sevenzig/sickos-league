@@ -58,12 +58,40 @@ export function isValidShortId(id: string): boolean {
   return isValidLeagueId(id);
 }
 
+/** True when the current location is under /dev/leagues (browser only). */
+function isDevLeaguePath(): boolean {
+  return typeof window !== 'undefined' && window.location.pathname.startsWith('/dev/leagues/');
+}
+
 /**
- * Generates league URLs using 8-character league IDs
+ * Generates league URLs using 8-character league IDs.
+ * Under /dev/leagues keeps the full UUID and the /dev prefix so sandbox nav stays isolated.
  */
 export function getLeagueUrl(leagueId: string, path: string = ''): string {
-  // If it's a legacy UUID, convert to 8-char ID for URL
-  const urlId = isValidUUID(leagueId) ? shortenLeagueId(leagueId) : leagueId;
-  const basePath = `/leagues/${urlId}`;
+  const onDev = isDevLeaguePath();
+  const urlId = onDev || !isValidUUID(leagueId) ? leagueId : shortenLeagueId(leagueId);
+  const basePath = `${onDev ? '/dev/leagues' : '/leagues'}/${urlId}`;
   return path ? `${basePath}/${path}` : basePath;
+}
+
+/** Explicit /dev/leagues URL (full UUID preferred). Use from sandbox launchers. */
+export function getDevLeagueUrl(leagueId: string, path: string = ''): string {
+  const basePath = `/dev/leagues/${leagueId}`;
+  return path ? `${basePath}/${path}` : basePath;
+}
+
+/**
+ * Matchup detail URL: /leagues/:id/week/:week/:team1/:team2
+ * Team names are URI-encoded so spaces/special chars survive the path.
+ */
+export function getMatchupUrl(
+  leagueId: string,
+  week: number,
+  team1: string,
+  team2: string
+): string {
+  return getLeagueUrl(
+    leagueId,
+    `week/${week}/${encodeURIComponent(team1)}/${encodeURIComponent(team2)}`
+  );
 }

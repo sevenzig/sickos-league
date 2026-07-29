@@ -36,6 +36,8 @@ const LeagueLineups: React.FC = () => {
   const [myLineupLocked, setMyLineupLocked] = useState(false);
   const [opponentLineup, setOpponentLineup] = useState<FantasyLineup | null>(null);
   const [opponentName, setOpponentName] = useState<string | null>(null);
+  // kickoffTimes: nfl_team_id -> ISO kickoff timestamp (when game started/starts)
+  const [kickoffTimes, setKickoffTimes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [locking, setLocking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -85,16 +87,21 @@ const LeagueLineups: React.FC = () => {
     load();
   }, [leagueId, user]);
 
-  // Per-week load: my saved lineup, lock state, opponent
+  // Per-week load: my saved lineup, lock state, opponent, kickoff times
   const loadWeek = useCallback(async (week: number) => {
     if (!league || !myTeam) return;
     setStatusMessage(null);
     try {
-      const [status, lineups] = await Promise.all([
+      const [status, lineups, kickoffs] = await Promise.all([
         MultiLeagueApi.getWeekStatus(league.id, week),
         MultiLeagueApi.getFantasyLineups(league.id, week),
+        MultiLeagueApi.getNflKickoffTimes(week).catch(() => []),
       ]);
       setWeekLocked(status?.is_locked ?? false);
+
+      const koMap: Record<string, string> = {};
+      kickoffs.forEach(k => { koMap[k.nfl_team_id] = k.game_time; });
+      setKickoffTimes(koMap);
 
       const mine = lineups.find(l => l.fantasy_team_id === myTeam.id) || null;
       setSelectedTeams(mine?.active_nfl_teams ?? []);
@@ -128,8 +135,32 @@ const LeagueLineups: React.FC = () => {
   const canEdit = !weekLocked && !myLineupLocked;
   const isComplete = selectedTeams.length === startersNeeded;
 
+  // Returns true if this NFL team's game has already kicked off.
+  const hasKickedOff = useCallback(
+    (nflTeamId: string) => {
+      const ko = kickoffTimes[nflTeamId];
+      return ko ? new Date(ko) <= new Date() : false;
+    },
+    [kickoffTimes]
+  );
+
+  // Formatted label: time until or elapsed since kickoff.
+  const kickoffLabel = useCallback(
+    (nflTeamId: string): string | null => {
+      const ko = kickoffTimes[nflTeamId];
+      if (!ko) return null;
+      const diff = new Date(ko).getTime() - Date.now();
+      if (diff <= 0) return 'Started';
+      const mins = Math.floor(diff / 60000);
+      const hrs = Math.floor(mins / 60);
+      return hrs > 0 ? `Locks in ${hrs}h ${mins % 60}m` : `Locks in ${mins}m`;
+    },
+    [kickoffTimes]
+  );
+
   const toggleTeam = (nflTeamId: string) => {
     if (!canEdit) return;
+    if (hasKickedOff(nflTeamId)) return;
     setSelectedTeams(prev => {
       if (prev.includes(nflTeamId)) {
         return prev.filter(id => id !== nflTeamId);
@@ -282,18 +313,24 @@ const LeagueLineups: React.FC = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             {roster.map(entry => {
               const isSelected = selectedTeams.includes(entry.nfl_team_id);
-              const canSelect = !isSelected && selectedTeams.length < startersNeeded;
+              const kicked = hasKickedOff(entry.nfl_team_id);
+              const label = kickoffLabel(entry.nfl_team_id);
+              const canSelect = !isSelected && selectedTeams.length < startersNeeded && !kicked;
+              const isDisabled = !canEdit || kicked || (!isSelected && !canSelect);
 
               return (
                 <button
                   key={entry.nfl_team_id}
                   onClick={() => toggleTeam(entry.nfl_team_id)}
-                  disabled={!canEdit || (!isSelected && !canSelect)}
+                  disabled={isDisabled}
+                  title={kicked ? 'Game has already kicked off — lineup locked for this team' : undefined}
                   className={`
                     relative aspect-square rounded-xl transition-all duration-200
                     flex flex-col items-center justify-center
                     p-2 sm:p-3 border
-                    ${isSelected
+                    ${kicked
+                      ? 'bg-orange-900/20 text-orange-400 border-orange-700/40 cursor-not-allowed opacity-70'
+                      : isSelected
                       ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30 shadow-lg shadow-emerald-500/10'
                       : canEdit && canSelect
                       ? 'bg-slate-800/50 text-slate-200 border-slate-600/40 hover:bg-slate-700/60 hover:border-slate-500/50 hover:shadow-lg'
@@ -309,11 +346,27 @@ const LeagueLineups: React.FC = () => {
                       {entry.nfl_team_name}
                     </span>
                   </div>
-                  {isSelected && (
+                  {label && (
+                    <div className={`mt-1 text-[10px] font-bold uppercase tracking-wide text-center leading-none ${
+                      kicked ? 'text-orange-400' : 'text-amber-400'
+                    }`}>
+                      {label}
+                    </div>
+                  )}
+                  {isSelected && !kicked && (
                     <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
                       <div className="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg">
                         <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                  {kicked && (
+                    <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+                      <div className="bg-orange-600/80 rounded-full p-0.5 sm:p-1 shadow-lg">
+                        <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                         </svg>
                       </div>
                     </div>

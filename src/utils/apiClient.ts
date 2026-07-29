@@ -9,6 +9,7 @@ const TOKEN_KEY = 'auth_token'
 export interface ApiUser {
   id: string
   email: string
+  username?: string | null
   created_at?: string
   is_platform_admin?: boolean
 }
@@ -69,19 +70,21 @@ export async function apiFetch(
 
 export async function authSignUp(
   email: string,
+  username: string,
   password: string
 ): Promise<{ user: ApiUser | null; error: ApiError | null }> {
-  const { json } = await apiFetch('/auth/signup', { body: { email, password } })
+  const { json } = await apiFetch('/auth/signup', { body: { email, username, password } })
   if (json.error) return { user: null, error: json.error }
   setToken(json.token)
   return { user: json.user, error: null }
 }
 
+/** Sign in with username or email + password. */
 export async function authSignIn(
-  email: string,
+  identifier: string,
   password: string
 ): Promise<{ user: ApiUser | null; error: ApiError | null }> {
-  const { json } = await apiFetch('/auth/login', { body: { email, password } })
+  const { json } = await apiFetch('/auth/login', { body: { identifier, password } })
   if (json.error) return { user: null, error: json.error }
   setToken(json.token)
   return { user: json.user, error: null }

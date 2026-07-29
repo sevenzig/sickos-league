@@ -14,16 +14,16 @@ const WelcomeHero: React.FC = () => {
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
           <Link
-            to="/rules"
+            to="/leagues/new"
             className="inline-flex items-center px-8 py-4 text-base font-medium text-white bg-blue-600 rounded-md"
           >
-            Learn the Rules
+            Create a League
           </Link>
           <Link
-            to="/archive"
+            to="/invite"
             className="inline-flex items-center px-8 py-4 text-base font-medium text-slate-400 border border-slate-600 rounded-md"
           >
-            View Archive
+            Join with Code
           </Link>
         </div>
       </div>

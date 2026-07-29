@@ -30,7 +30,7 @@ const LeagueStandingsPage: React.FC = () => {
         )}
 
         {fullLeagueId && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
             <StandingsTable leagueId={fullLeagueId} />
             <RecordTable leagueId={fullLeagueId} />
           </div>

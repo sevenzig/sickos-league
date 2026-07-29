@@ -47,6 +47,13 @@ export function getTeamLogo(teamName: string): string | null {
   return logoFile ? `/logos/${logoFile}` : null;
 }
 
+/** Short abbr from logo filename (e.g. Green Bay → GB). */
+export function getTeamAbbr(teamName: string): string {
+  const logoFile = TEAM_LOGO_MAP[teamName];
+  if (!logoFile) return teamName.slice(0, 3).toUpperCase();
+  return logoFile.replace(/\.png$/i, '').toUpperCase();
+}
+
 /**
  * Get the logo path for a team name with fallback
  * @param teamName - The name of the team

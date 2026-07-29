@@ -26,12 +26,13 @@ const TeamSlots: React.FC<TeamSlotsProps> = ({ leagueId, isOwner }) => {
   const loadTeamSlots = async () => {
     try {
       setLoading(true);
-      const data = await MultiLeagueApi.getTeamSlots(leagueId);
+      // Slot RPCs were never migrated into the live chain; use fantasy teams.
+      const data = await MultiLeagueApi.getLeagueFantasyTeams(leagueId);
 
       // Create 8 slots, filling in the ones that exist
       const allSlots: TeamSlot[] = [];
       for (let i = 1; i <= 8; i++) {
-        const existingSlot = data.find((slot: any) => slot.slot_number === i);
+        const existingSlot = data[i - 1];
         allSlots.push({
           id: existingSlot?.id,
           team_name: existingSlot?.team_name,

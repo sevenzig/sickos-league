@@ -3,6 +3,126 @@ import { Link } from 'react-router-dom';
 import { MultiLeagueApi, League } from '../utils/multiLeagueApi';
 import { getLeagueUrl } from '../utils/urlUtils';
 
+const LeagueCard: React.FC<{ league: League }> = ({ league }) => (
+  <Link
+    to={getLeagueUrl(league.id, league.my_pick ? 'draft' : undefined)}
+    className="block bg-slate-800 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors p-6"
+  >
+    <div className="flex items-start justify-between mb-4">
+      <h3 className="text-lg font-semibold text-white truncate">
+        {league.name}
+      </h3>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {league.my_pick && (
+          <span className="px-2 py-1 text-xs font-bold rounded-full bg-green-600 text-white animate-pulse">
+            Your pick!
+          </span>
+        )}
+        <span
+          className={`px-2 py-1 text-xs font-medium rounded-full ${
+            league.user_role === 'owner'
+              ? 'bg-blue-900/50 text-blue-300'
+              : 'bg-green-900/50 text-green-300'
+          }`}
+        >
+          {league.user_role === 'owner' ? 'Commissioner' : 'Manager'}
+        </span>
+      </div>
+    </div>
+
+    <div className="space-y-2 text-sm text-slate-400">
+      <div className="flex justify-between">
+        <span>Season:</span>
+        <span className="text-slate-300">{league.season}</span>
+      </div>
+      <div className="flex justify-between">
+        <span>Teams Filled:</span>
+        <span className="text-slate-300">
+          {league.fantasy_teams_count}/8
+        </span>
+      </div>
+      <div className="flex justify-between">
+        <span>Starters/Week:</span>
+        <span className="text-slate-300">
+          {league.teams_started_per_week}
+        </span>
+      </div>
+      <div className="flex justify-between">
+        <span>Members:</span>
+        <span className="text-slate-300">
+          {league.member_count}
+        </span>
+      </div>
+      {league.draft_at && (
+        <div className="flex justify-between">
+          <span>Draft:</span>
+          <span className="text-slate-300">
+            {new Date(league.draft_at).toLocaleDateString()}
+          </span>
+        </div>
+      )}
+      <div className="flex justify-between">
+        <span>Draft Status:</span>
+        <span className={
+          league.draft_status === 'complete'
+            ? 'text-green-400'
+            : league.draft_status === 'in_progress'
+              ? 'text-yellow-400'
+              : 'text-slate-300'
+        }>
+          {league.draft_status === 'in_progress'
+            ? 'In progress'
+            : league.draft_status === 'complete'
+              ? 'Complete'
+              : 'Not started'}
+        </span>
+      </div>
+    </div>
+
+    <div className="mt-4 pt-4 border-t border-slate-700">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-slate-500">
+          {league.fantasy_teams_count < 8
+            ? `${8 - league.fantasy_teams_count} spots remaining`
+            : league.draft_status === 'pending'
+              ? 'Draft next'
+              : league.draft_status === 'in_progress'
+                ? 'Draft in progress'
+                : 'Draft complete'}
+        </span>
+        <svg
+          className="h-4 w-4 text-slate-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </div>
+    </div>
+  </Link>
+);
+
+const LeagueSection: React.FC<{ title: string; leagues: League[] }> = ({ title, leagues }) => {
+  if (leagues.length === 0) return null;
+
+  return (
+    <section>
+      <h2 className="text-xl font-semibold text-white mb-4">{title}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {leagues.map((league) => (
+          <LeagueCard key={league.id} league={league} />
+        ))}
+      </div>
+    </section>
+  );
+};
+
 const MyLeagues: React.FC = () => {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +174,9 @@ const MyLeagues: React.FC = () => {
     );
   }
 
+  const commissioned = leagues.filter((l) => l.user_role === 'owner');
+  const participating = leagues.filter((l) => l.user_role !== 'owner');
+
   return (
     <div className="min-h-screen bg-slate-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -73,7 +196,6 @@ const MyLeagues: React.FC = () => {
           </Link>
         </div>
 
-        {/* Leagues Grid */}
         {leagues.length === 0 ? (
           <div className="text-center py-16">
             <svg
@@ -109,108 +231,9 @@ const MyLeagues: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {leagues.map((league) => (
-              <Link
-                key={league.id}
-                to={getLeagueUrl(league.id)}
-                className="block bg-slate-800 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors p-6"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-white truncate">
-                    {league.name}
-                  </h3>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {league.my_pick && (
-                      <span className="px-2 py-1 text-xs font-bold rounded-full bg-green-600 text-white animate-pulse">
-                        Your pick!
-                      </span>
-                    )}
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        league.user_role === 'owner'
-                          ? 'bg-blue-900/50 text-blue-300'
-                          : 'bg-green-900/50 text-green-300'
-                      }`}
-                    >
-                      {league.user_role}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="space-y-2 text-sm text-slate-400">
-                  <div className="flex justify-between">
-                    <span>Season:</span>
-                    <span className="text-slate-300">{league.season}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Teams Filled:</span>
-                    <span className="text-slate-300">
-                      {league.fantasy_teams_count}/8
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Starters/Week:</span>
-                    <span className="text-slate-300">
-                      {league.teams_started_per_week}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Members:</span>
-                    <span className="text-slate-300">
-                      {league.member_count}
-                    </span>
-                  </div>
-                  {league.draft_at && (
-                    <div className="flex justify-between">
-                      <span>Draft:</span>
-                      <span className="text-slate-300">
-                        {new Date(league.draft_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span>Draft Status:</span>
-                    <span className={
-                      league.draft_status === 'complete'
-                        ? 'text-green-400'
-                        : league.draft_status === 'in_progress'
-                          ? 'text-yellow-400'
-                          : 'text-slate-300'
-                    }>
-                      {league.draft_status === 'in_progress'
-                        ? 'In progress'
-                        : league.draft_status === 'complete'
-                          ? 'Complete'
-                          : 'Not started'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-slate-700">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">
-                      {league.fantasy_teams_count === 8
-                        ? 'Ready to play'
-                        : `${8 - league.fantasy_teams_count} spots remaining`}
-                    </span>
-                    <svg
-                      className="h-4 w-4 text-slate-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </Link>
-            ))}
+          <div className="space-y-10">
+            <LeagueSection title="Leagues You Commission" leagues={commissioned} />
+            <LeagueSection title="Leagues You're In" leagues={participating} />
           </div>
         )}
       </div>

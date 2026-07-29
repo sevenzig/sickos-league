@@ -35,17 +35,25 @@ const RecordTable: React.FC<RecordTableProps> = ({ leagueId }) => {
       const data = await MultiLeagueApi.getLeagueStandings(leagueId);
 
       // Transform standings data to record format
-      const recordData: TeamRecord[] = data.map((team: any) => ({
-        team_name: team.team_name,
-        manager_email: team.manager_email,
-        wins: team.wins || 0,
-        losses: team.losses || 0,
-        ties: team.ties || 0,
-        points_for: team.points_for || 0,
-        points_against: team.points_against || 0,
-        point_differential: (team.points_for || 0) - (team.points_against || 0),
-        games_played: (team.wins || 0) + (team.losses || 0) + (team.ties || 0)
-      }));
+      // pg NUMERIC arrives as string — coerce before math / toFixed
+      const recordData: TeamRecord[] = data.map((team: any) => {
+        const points_for = Number(team.points_for) || 0;
+        const points_against = Number(team.points_against) || 0;
+        const wins = Number(team.wins) || 0;
+        const losses = Number(team.losses) || 0;
+        const ties = Number(team.ties) || 0;
+        return {
+          team_name: team.team_name,
+          manager_email: team.manager_email,
+          wins,
+          losses,
+          ties,
+          points_for,
+          points_against,
+          point_differential: points_for - points_against,
+          games_played: wins + losses + ties,
+        };
+      });
 
       setRecords(recordData);
     } catch (err) {

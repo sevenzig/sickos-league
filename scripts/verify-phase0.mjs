@@ -40,14 +40,16 @@ async function api(path, { method, body, token, formData } = {}) {
 const rpc = (fn, args, token) => api(`/rpc/${fn}`, { body: args ?? {}, token });
 const dbq = (query, token) => api('/db/query', { body: query, token });
 
-const email = `verify-${Date.now()}@test.local`;
+const stamp = Date.now();
+const email = `verify-${stamp}@test.local`;
+const username = `verify_${stamp}`;
 const password = 'verify-test-password';
 
 // 1. Sign up + log in a test user
-const signup = await api('/auth/signup', { body: { email, password } });
+const signup = await api('/auth/signup', { body: { email, username, password } });
 check('auth: sign up test user', !!signup.token && signup.user?.email === email, signup.error?.message ?? email);
 
-const login = await api('/auth/login', { body: { email, password } });
+const login = await api('/auth/login', { body: { identifier: email, password } });
 check('auth: log in with same credentials', !!login.token, login.error?.message);
 const token = login.token;
 

@@ -135,10 +135,23 @@ async function queueLineupReminders(): Promise<void> {
   console.log(`[email] queued ${result[0]?.queued ?? 0} lineup reminder(s) for week ${week}`);
 }
 
+async function tickLiveDrafts(): Promise<void> {
+  const { rows } = await adminPool.query(`SELECT draft_tick_all() AS n`);
+  const n = Number(rows[0]?.n || 0);
+  if (n > 0) {
+    console.log(`[draft] tick advanced ${n} draft action(s)`);
+  }
+}
+
 export function startEmailWorkers(): void {
   setInterval(() => {
     processEmailOutbox().catch((err) => console.error('[email] poller error:', err));
   }, POLL_MS);
+
+  // Live draft autostart + pick timeouts (even if nobody is polling the room)
+  setInterval(() => {
+    tickLiveDrafts().catch((err) => console.error('[draft] tick error:', err));
+  }, 5000);
 
   // Thursdays 10:00 America/New_York — lineup reminders before weekend games
   cron.schedule(
@@ -150,6 +163,6 @@ export function startEmailWorkers(): void {
   );
 
   console.log(
-    `[email] workers started (poll every ${POLL_MS}ms; Resend ${resend ? 'enabled' : 'dry-run'})`
+    `[email] workers started (poll every ${POLL_MS}ms; Resend ${resend ? 'enabled' : 'dry-run'}; draft tick every 5s)`
   );
 }

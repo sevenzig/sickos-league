@@ -24,18 +24,86 @@ import LeagueStandingsPage from './pages/LeagueStandingsPage';
 import UserProfile from './pages/UserProfile';
 import EditProfile from './pages/EditProfile';
 import BQBLTest from './pages/BQBLTest';
+import FeatDraftSandbox from './pages/dev/FeatDraftSandbox';
+import DevOnly from './pages/dev/DevOnly';
 
 function App() {
   return (
     <AuthProvider>
       <LeagueProvider>
-        <Router>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <div className="min-h-screen bg-dark-bg text-white">
             <Routes>
               <Route path="/" element={<Welcome />} />
               <Route path="/welcome" element={<Welcome />} />
               <Route path="/rules" element={<Layout><Rules /></Layout>} />
               <Route path="/bqbl-test" element={<BQBLTest />} />
+              <Route path="/dev/feat_draft" element={<FeatDraftSandbox />} />
+
+              {/* Dev mirrors of league pages — full UUID in path, DEV builds only */}
+              <Route path="/dev/leagues/:leagueId" element={
+                <DevOnly>
+                  <Layout>
+                    <ProtectedRoute>
+                      <LeagueView />
+                    </ProtectedRoute>
+                  </Layout>
+                </DevOnly>
+              }>
+                <Route path="week/:week/:team1/:team2" element={null} />
+              </Route>
+              <Route path="/dev/leagues/:leagueId/draft" element={
+                <DevOnly>
+                  <ProtectedRoute>
+                    <LeagueDraft />
+                  </ProtectedRoute>
+                </DevOnly>
+              } />
+              <Route path="/dev/leagues/:leagueId/lineups" element={
+                <DevOnly>
+                  <Layout>
+                    <ProtectedRoute>
+                      <LeagueLineups />
+                    </ProtectedRoute>
+                  </Layout>
+                </DevOnly>
+              } />
+              <Route path="/dev/leagues/:leagueId/schedule" element={
+                <DevOnly>
+                  <Layout>
+                    <ProtectedRoute>
+                      <LeagueSchedule />
+                    </ProtectedRoute>
+                  </Layout>
+                </DevOnly>
+              } />
+              <Route path="/dev/leagues/:leagueId/standings" element={
+                <DevOnly>
+                  <Layout>
+                    <ProtectedRoute>
+                      <LeagueStandingsPage />
+                    </ProtectedRoute>
+                  </Layout>
+                </DevOnly>
+              } />
+              <Route path="/dev/leagues/:leagueId/admin" element={
+                <DevOnly>
+                  <Layout>
+                    <ProtectedRoute>
+                      <LeagueAdmin />
+                    </ProtectedRoute>
+                  </Layout>
+                </DevOnly>
+              } />
+              <Route path="/dev/leagues/:leagueId/*" element={
+                <DevOnly>
+                  <Layout>
+                    <ProtectedRoute>
+                      <LeagueView />
+                    </ProtectedRoute>
+                  </Layout>
+                </DevOnly>
+              } />
 
               {/* Legacy single-league archive (read-only; requires sign-in because /api/db requires auth) */}
               <Route path="/archive" element={
@@ -89,13 +157,13 @@ function App() {
                     <LeagueView />
                   </ProtectedRoute>
                 </Layout>
-              } />
+              }>
+                <Route path="week/:week/:team1/:team2" element={null} />
+              </Route>
               <Route path="/leagues/:leagueId/draft" element={
-                <Layout>
-                  <ProtectedRoute>
-                    <LeagueDraft />
-                  </ProtectedRoute>
-                </Layout>
+                <ProtectedRoute>
+                  <LeagueDraft />
+                </ProtectedRoute>
               } />
               <Route path="/leagues/:leagueId/admin" element={
                 <Layout>

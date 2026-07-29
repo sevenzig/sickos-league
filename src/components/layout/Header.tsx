@@ -10,6 +10,7 @@ const Header: React.FC = () => {
   const { user, signOut } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSignIn, setShowSignIn] = useState(false);
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [userRole, setUserRole] = useState<'owner' | 'manager' | null>(null);
 
@@ -99,7 +100,12 @@ const Header: React.FC = () => {
 
   return (
     <>
-      <SignInModal isOpen={showSignIn} onClose={() => setShowSignIn(false)} />
+      <SignInModal
+        isOpen={showSignIn}
+        onClose={() => setShowSignIn(false)}
+        initialMode={authMode}
+        redirectOnSuccess
+      />
 
       <header className="absolute top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-sm border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -136,13 +142,13 @@ const Header: React.FC = () => {
                 {!user ? (
                   <>
                     <button
-                      onClick={() => setShowSignIn(true)}
+                      onClick={() => { setAuthMode('signin'); setShowSignIn(true); }}
                       className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded-md transition-colors"
                     >
                       Login
                     </button>
                     <button
-                      onClick={() => setShowSignIn(true)}
+                      onClick={() => { setAuthMode('signup'); setShowSignIn(true); }}
                       className="px-3 py-2 text-sm text-white bg-blue-600 hover:bg-blue-500 rounded-md transition-colors"
                     >
                       Register
@@ -254,6 +260,7 @@ const Header: React.FC = () => {
                   <div className="px-4 py-2 grid grid-cols-2 gap-2">
                     <button
                       onClick={() => {
+                        setAuthMode('signin');
                         setShowSignIn(true);
                         setIsMenuOpen(false);
                       }}
@@ -263,6 +270,7 @@ const Header: React.FC = () => {
                     </button>
                     <button
                       onClick={() => {
+                        setAuthMode('signup');
                         setShowSignIn(true);
                         setIsMenuOpen(false);
                       }}
