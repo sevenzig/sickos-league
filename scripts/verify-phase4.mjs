@@ -7,7 +7,11 @@
 //   4.5  one site-wide stats upload + one finalize call updates TWO leagues
 //
 // Run: node scripts/verify-phase4.mjs
+// Fantasy-team + draft_status seeding goes through psql (docker compose exec)
+// because fantasy_teams / leagues are SELECT-only for app_user. game_stats
+// writes and finalize_week_scores require platform admin — promoted via psql.
 
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,6 +50,13 @@ async function api(pathname, { method, body, token } = {}) {
 const rpc = (fn, args, token) => api(`/rpc/${fn}`, { body: args ?? {}, token });
 const dbq = (query, token) => api('/db/query', { body: query, token });
 
+function psql(sql) {
+  execSync('docker compose exec -T db psql -U postgres -v ON_ERROR_STOP=1 -f -', {
+    input: sql,
+    stdio: ['pipe', 'ignore', 'inherit'],
+  });
+}
+
 // ---------------------------------------------------------------------------
 // 1. Extract THE mapping (teamNameMap in src/utils/csvParser.ts).
 //    It is a static literal, so pull the pairs from the source text — this
@@ -68,9 +79,14 @@ check('teamNameMap has 32 entries', mappedNames.length === 32, `got ${mappedName
 // 2. Auth
 // ---------------------------------------------------------------------------
 const email = `verify4-${Date.now()}@test.local`;
-const signup = await api('/auth/signup', { body: { email, password: 'verify-test-password' } });
-check('auth: sign up test user', !!signup.token, signup.error?.message ?? email);
+const signup = await api('/auth/signup', { body: { email, username: email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 32), password: 'verify-test-password' } });
+check('auth: sign up test user', !!signup.token && !!signup.user?.id, signup.error?.message ?? email);
 const token = signup.token;
+const userId = signup.user?.id;
+
+// game_stats writes + finalize_week_scores are platform-admin only (000019/000020).
+psql(`UPDATE auth.users SET is_platform_admin = true WHERE id = '${userId}';`);
+check('auth: promote verify user to platform admin via psql', true);
 
 // ---------------------------------------------------------------------------
 // 3. Round-trip (4.1): every mapped name matches exactly one teams row, and
@@ -115,25 +131,18 @@ async function makeLeague(label) {
   );
   if (error) throw new Error(error.message);
 
-  const rows = Array.from({ length: 7 }, (_, i) => ({
-    league_id: leagueId,
-    team_name: `${label} Team ${i + 2}`,
-  }));
-  const { error: seedErr } = await dbq({ table: 'fantasy_teams', action: 'insert', values: rows }, token);
-  if (seedErr) throw new Error(seedErr.message);
+  // fantasy_teams / leagues are SELECT-only for app_user — seed via psql.
+  // Skip the Phase 2 draft: mark complete so generate_league_schedule passes.
+  psql(`
+    INSERT INTO fantasy_teams (league_id, team_name)
+    SELECT '${leagueId}', x.team_name
+    FROM (VALUES
+      ('${label} Team 2'), ('${label} Team 3'), ('${label} Team 4'), ('${label} Team 5'),
+      ('${label} Team 6'), ('${label} Team 7'), ('${label} Team 8')
+    ) AS x(team_name);
 
-  // Skip the Phase 2 draft (32 picks) - this test seeds lineups directly, so
-  // mark the draft complete to pass generate_league_schedule's gate.
-  const { error: draftErr } = await dbq(
-    {
-      table: 'leagues',
-      action: 'update',
-      values: { draft_status: 'complete' },
-      filters: [{ op: 'eq', column: 'id', value: leagueId }],
-    },
-    token
-  );
-  if (draftErr) throw new Error(draftErr.message);
+    UPDATE leagues SET draft_status = 'complete' WHERE id = '${leagueId}';
+  `);
 
   const { error: schedErr } = await rpc('generate_league_schedule', { p_league_id: leagueId }, token);
   if (schedErr) throw new Error(schedErr.message);
