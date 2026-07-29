@@ -248,6 +248,13 @@ Not required for friends leagues; do before opening signup.
 - **6.4 Email infrastructure**: transactional email (invites, draft turns, weekly lineup reminders) via Edge Functions + a provider (Resend/Postmark).
 - **6.5 Onboarding**: public landing page, create-or-join flow, empty states.
 - **6.6 Ops**: error tracking (Sentry), DB backups schedule, rate limiting on public RPCs.
+  - **Weekly kickoffs (friend-launch):** Before Thursday lock for week N, load NFL
+    kickoff times so per-team lineup locks fire. Platform admin runs
+    `node scripts/seed-nfl-kickoffs.mjs --week N --file <schedule.json>`
+    (see `scripts/data/week-kickoffs.example.json`) or calls
+    `upsert_nfl_kickoff_times(p_week, p_games)`. Missing `game_time` leaves that
+    NFL team editable — do not skip TNF/early games.
+
 
 ---
 

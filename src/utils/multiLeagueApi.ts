@@ -583,6 +583,34 @@ export class MultiLeagueApi {
     return data || []
   }
 
+
+  // Kickoff times for every NFL team playing in a given week (Phase 4).
+  // Returns an empty array if game times haven't been seeded yet.
+  static async getNflKickoffTimes(
+    week: number
+  ): Promise<{ nfl_team_id: string; game_time: string }[]> {
+    const { data, error } = await db.rpc('get_nfl_kickoff_times', {
+      p_week: week,
+    })
+
+    if (error) throw error
+    return data || []
+  }
+
+  /** Platform-admin upsert of NFL kickoffs into matchups.game_time for a week. */
+  static async upsertNflKickoffTimes(
+    week: number,
+    games: { team1: string; team2: string; game_time: string }[]
+  ): Promise<number> {
+    const { data, error } = await db.rpc('upsert_nfl_kickoff_times', {
+      p_week: week,
+      p_games: JSON.stringify(games),
+    })
+
+    if (error) throw error
+    return data ?? 0
+  }
+
   static async getWeekStatus(
     leagueId: string,
     weekNumber: number

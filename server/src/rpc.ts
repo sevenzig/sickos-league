@@ -23,6 +23,8 @@ const RPC_ALLOWLIST = new Set([
   'get_fantasy_lineups_for_week',
   'get_team_roster',
   'get_league_rosters',
+  'get_nfl_kickoff_times',
+  'upsert_nfl_kickoff_times',
   'set_week_lock',
   'toggle_week_lock',
   'get_week_status',
