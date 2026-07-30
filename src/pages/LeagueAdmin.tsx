@@ -157,10 +157,12 @@ const LeagueAdmin: React.FC = () => {
     );
   }
 
-  // Server enforces: exactly 8 teams, completed draft, pre-season only
-  const canGenerateSchedule = league.fantasy_teams_count === 8 && league.draft_status === 'complete';
+  // Server enforces: exactly 8 teams, completed draft, pre-season only.
+  // Number(): pg bigints can arrive as strings ("8" === 8 is false).
+  const teamCount = Number(league.fantasy_teams_count);
+  const canGenerateSchedule = teamCount === 8 && league.draft_status === 'complete';
   const scheduleHint =
-    league.fantasy_teams_count !== 8
+    teamCount !== 8
       ? 'Schedule generation requires 8 fantasy teams'
       : league.draft_status !== 'complete'
         ? 'Schedule generation requires a completed draft'
@@ -190,24 +192,29 @@ const LeagueAdmin: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex space-x-3">
-              <Link
-                to={getLeagueUrl(league.id)}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md font-medium transition-colors"
-              >
-                View League
-              </Link>
-              <button
-                onClick={handleGenerateSchedule}
-                disabled={!canGenerateSchedule || generatingSchedule}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-md font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
-                title={scheduleHint}
-              >
-                {generatingSchedule && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                )}
-                {generatingSchedule ? 'Generating...' : 'Generate Schedule'}
-              </button>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex space-x-3">
+                <Link
+                  to={getLeagueUrl(league.id)}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md font-medium transition-colors"
+                >
+                  View League
+                </Link>
+                <button
+                  onClick={handleGenerateSchedule}
+                  disabled={!canGenerateSchedule || generatingSchedule}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-md font-medium transition-colors disabled:cursor-not-allowed flex items-center gap-2"
+                  title={scheduleHint}
+                >
+                  {generatingSchedule && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  )}
+                  {generatingSchedule ? 'Generating...' : 'Generate Schedule'}
+                </button>
+              </div>
+              {scheduleHint && (
+                <p className="text-xs text-amber-400">{scheduleHint}</p>
+              )}
             </div>
           </div>
         </div>

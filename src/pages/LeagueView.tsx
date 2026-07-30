@@ -139,6 +139,14 @@ const LeagueView: React.FC = () => {
 
   const teams = useMemo(() => fantasyTeams.map(t => t.team_name), [fantasyTeams]);
 
+  const teamIdByName = useMemo(() => {
+    const map: Record<string, string> = {};
+    fantasyTeams.forEach(t => {
+      map[t.team_name] = t.id;
+    });
+    return map;
+  }, [fantasyTeams]);
+
   // Lineup NFL team names for a fantasy team + week
   const lineupNamesFor = useCallback(
     (fantasyTeamId: string, week: number): string[] => {
@@ -298,7 +306,7 @@ const LeagueView: React.FC = () => {
 
       {/* Show loading state while data loads */}
       {!isDataLoaded && (
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-6 text-center">
+        <div className="panel p-6 text-center">
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             <p className="text-slate-400">Loading league data...</p>
@@ -310,7 +318,7 @@ const LeagueView: React.FC = () => {
       {isDataLoaded && (
         <div className="space-y-8">
         {weekMatchups.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             {weekMatchups.map((matchup) => {
               const key = matchupScoreKey(matchup.team1, matchup.team2, matchup.week);
               const matchupData = matchupScores[key];
@@ -329,7 +337,7 @@ const LeagueView: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-6 text-center text-slate-400">
+          <div className="panel p-6 text-center text-slate-400">
             {schedule.length === 0
               ? 'No schedule yet. Finish the draft, then the commissioner can generate the season schedule.'
               : `No matchups scheduled for Week ${selectedWeek}`}
@@ -353,6 +361,7 @@ const LeagueView: React.FC = () => {
           teamRecords={teamRecords}
           teamWeekMatchupDetails={teamWeekMatchupDetails}
           openWLTModal={openWLTModal}
+          teamIdByName={teamIdByName}
         />
       </div>
       )}

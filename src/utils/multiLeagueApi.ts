@@ -217,7 +217,7 @@ export class MultiLeagueApi {
       p_draft_pick_seconds: opts.draftPickSeconds ?? 90,
     });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data; // This returns the league ID (currently a UUID)
   }
 
@@ -225,8 +225,13 @@ export class MultiLeagueApi {
   static async getUserLeagues(): Promise<League[]> {
     const { data, error } = await db.rpc('get_user_leagues')
 
-    if (error) throw error
-    return data || []
+    if (error) throw new Error(error.message)
+    // pg returns COUNT(*)/bigint as strings; coerce so === 8 checks work
+    return (data || []).map((row: League) => ({
+      ...row,
+      member_count: Number(row.member_count),
+      fantasy_teams_count: Number(row.fantasy_teams_count),
+    }))
   }
 
   // Get league details
@@ -236,8 +241,15 @@ export class MultiLeagueApi {
       league_id: fullLeagueId,
     })
 
-    if (error) throw error
-    return data?.[0] || null
+    if (error) throw new Error(error.message)
+    const row = data?.[0] || null
+    if (!row) return null
+    // pg returns COUNT(*)/bigint as strings; coerce so === 8 checks work
+    return {
+      ...row,
+      member_count: Number(row.member_count),
+      fantasy_teams_count: Number(row.fantasy_teams_count),
+    }
   }
 
   // Get league fantasy teams
@@ -247,7 +259,7 @@ export class MultiLeagueApi {
       p_league_id: fullLeagueId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data || []
   }
 
@@ -263,7 +275,7 @@ export class MultiLeagueApi {
       p_manager_user_id: managerUserId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -292,7 +304,7 @@ export class MultiLeagueApi {
       .select('code')
       .single();
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data.code;
   }
 
@@ -313,7 +325,7 @@ export class MultiLeagueApi {
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     return (data || []).map((invite: any) => ({
       code: invite.code,
@@ -363,7 +375,7 @@ export class MultiLeagueApi {
       p_team_name: teamName
     });
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data; // Returns the league_id
   }
 
@@ -373,7 +385,7 @@ export class MultiLeagueApi {
       p_league_id: leagueId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -386,7 +398,7 @@ export class MultiLeagueApi {
       p_week: week,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data || []
   }
 
@@ -404,7 +416,7 @@ export class MultiLeagueApi {
       is_locked: isLocked,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -419,7 +431,7 @@ export class MultiLeagueApi {
       p_lock_state: lockState,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -431,7 +443,7 @@ export class MultiLeagueApi {
       p_season: season,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data ?? 0
   }
 
@@ -446,7 +458,7 @@ export class MultiLeagueApi {
       p_active_nfl_teams: activeNflTeams,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -458,7 +470,7 @@ export class MultiLeagueApi {
       p_draft_order: draftOrder,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -468,7 +480,7 @@ export class MultiLeagueApi {
       p_league_id: fullLeagueId,
       p_draft_order: draftOrder,
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data;
   }
 
@@ -478,7 +490,7 @@ export class MultiLeagueApi {
     const { data, error } = await db.rpc('fill_draft_bots', {
       p_league_id: fullLeagueId,
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data ?? 0;
   }
 
@@ -492,21 +504,21 @@ export class MultiLeagueApi {
     if (settings.draftAt !== undefined) args.p_draft_at = settings.draftAt;
     if (settings.draftPickSeconds !== undefined) args.p_draft_pick_seconds = settings.draftPickSeconds;
     const { data, error } = await db.rpc('update_league_draft_settings', args);
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data;
   }
 
   static async pauseDraft(leagueId: string): Promise<boolean> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('pause_draft', { p_league_id: fullLeagueId });
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data;
   }
 
   static async resumeDraft(leagueId: string): Promise<boolean> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('resume_draft', { p_league_id: fullLeagueId });
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     return data;
   }
 
@@ -517,7 +529,7 @@ export class MultiLeagueApi {
       p_nfl_team_id: nflTeamId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -528,7 +540,7 @@ export class MultiLeagueApi {
       p_nfl_team_id: nflTeamId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -538,7 +550,7 @@ export class MultiLeagueApi {
       p_league_id: fullLeagueId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -551,7 +563,7 @@ export class MultiLeagueApi {
       p_week: week,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -567,7 +579,7 @@ export class MultiLeagueApi {
       p_week: week,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -577,7 +589,7 @@ export class MultiLeagueApi {
       p_fantasy_team_id: fantasyTeamId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data || []
   }
 
@@ -587,7 +599,7 @@ export class MultiLeagueApi {
       p_league_id: fullLeagueId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data || []
   }
 
@@ -600,7 +612,7 @@ export class MultiLeagueApi {
       p_week: week,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data || []
   }
 
@@ -613,7 +625,7 @@ export class MultiLeagueApi {
       p_week: week,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data || []
   }
 
@@ -627,7 +639,7 @@ export class MultiLeagueApi {
       p_games: JSON.stringify(games),
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data ?? 0
   }
 
@@ -640,7 +652,7 @@ export class MultiLeagueApi {
       week_number: weekNumber,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data?.[0] || null
   }
 
@@ -653,7 +665,7 @@ export class MultiLeagueApi {
       .eq('league_id', fullLeagueId)
       .order('rank')
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data || []
   }
 
@@ -663,7 +675,7 @@ export class MultiLeagueApi {
       p_user_id: userId || undefined
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data?.[0] || null
   }
 
@@ -680,7 +692,7 @@ export class MultiLeagueApi {
       p_email_preferences: profileData.email_preferences
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -690,7 +702,7 @@ export class MultiLeagueApi {
       p_team_name: teamName
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -709,7 +721,7 @@ export class MultiLeagueApi {
       p_user_id: userId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -720,7 +732,7 @@ export class MultiLeagueApi {
       p_new_owner_user_id: newOwnerUserId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 
@@ -730,7 +742,7 @@ export class MultiLeagueApi {
       p_league_id: fullLeagueId,
     })
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data
   }
 

@@ -14,7 +14,7 @@ const WeekNavigation: React.FC<WeekNavigationProps> = ({
   onGoToCurrentWeek
 }) => {
   return (
-    <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] h-[74px] px-8 flex items-center">
+    <div className="panel min-h-[74px] px-8 flex items-center">
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-shrink">
           <h2 className="text-xl sm:text-2xl font-black text-slate-50 tracking-tight truncate">

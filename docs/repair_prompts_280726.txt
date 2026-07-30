@@ -1,0 +1,192 @@
+SICKOS-LEAGUE REPAIR PROMPTS - 2026-07-28
+========================================
+
+This file contains 5 detailed, self-contained repair prompts to fully implement and fix the core fantasy football systems of the Sickos League application. Each prompt addresses one major area, complete with technical requirements, key files, implementation steps, and concrete verification criteria.
+
+---
+
+PROMPT 1: MATCHUP SCHEDULE GENERATION & CIRCLE METHOD (PHASE 0.1)
+-----------------------------------------------------------------
+
+### Objective
+Rewrite the schedule generator `generate_league_schedule(p_league_id)` in PostgreSQL to correctly implement the round-robin "Circle Method" packing algorithm for exactly 8 fantasy teams. This guarantees that each week 1-18 contains exactly 4 concurrent matchups, and every team plays exactly one game per week.
+
+### Context & Key Files
+*   **Database Migration:** `db/migrations/20241031000003_schedule_generation.sql` (where the original, broken schedule generation is located) and `db/migrations/20241031000007_fix_schedule_generation.sql` (where the correct logic should be implemented/fixed).
+*   **Backend RPC Allow-List:** `server/src/rpc.ts` (exposes `generate_league_schedule`).
+*   **Verification Script:** `scripts/verify-phase0.mjs`.
+
+### Requirements & Rules
+1.  **Strict 8-Team Guard:** Raise an exception if the target league does not have exactly 8 fantasy teams.
+2.  **Clear Pre-existing Schedule:** Safely delete all rows in `league_matchups` for the given `p_league_id` before regenerating.
+3.  **Circle Method Packing:**
+    *   For 8 teams, there are 7 unique rounds in a single round-robin cycle.
+    *   Weeks 1-7 use rounds 1-7 of the Circle Method.
+    *   Weeks 8-14 repeat rounds 1-7 with home/away teams flipped (reversing who is `fantasy_team1_id` vs `fantasy_team2_id`).
+    *   Weeks 15-18 use the third meetings (weeks 15-18 run rounds 1-4 with the original orientation).
+4.  **Audit Logging:** Write a log to `audit_logs` capturing the league ID, action `'GENERATE'`, entity type `'schedule'`, and JSONB details like `'team_count': 8` and `'matchups_generated': 72`.
+5.  **Draft Gate:** In later phases, this function should raise an exception if `draft_status != 'complete'` (ensure this block is ready to receive draft status checks).
+
+### Step-by-Step Implementation
+1.  Verify the Postgres function `generate_league_schedule(p_league_id UUID)` signature and return type (`RETURNS BOOLEAN`).
+2.  Agggregate team IDs from `fantasy_teams` sorted by `team_name` into a local array variable.
+3.  Implement the loop from `week_num = 1..18`.
+4.  Calculate `round_idx = (week_num - 1) % 7`. Determine `flip = (week_num BETWEEN 8 AND 14)`.
+5.  Set up the circle iteration: Team 8 is fixed at position 0, while Teams 1-7 rotate. Compute the pairs equidistant around the circle and perform insertion into `league_matchups`.
+6.  Securely execute with `SECURITY DEFINER` so the app user role can trigger it.
+
+### Verification Criteria
+Run `node scripts/verify-phase0.mjs` and ensure it outputs `PASS` for all setup steps. The generated schedule must result in exactly 72 matchups across 18 weeks (4 matchups per week) with no team playing twice in the same week.
+
+---
+
+PROMPT 2: ROSTER OWNERSHIP & UNIQUENESS CONSTRAINTS (PHASE 1)
+-------------------------------------------------------------
+
+### Objective
+Enforce roster ownership so that fantasy teams uniquely own up to 4 NFL teams. This ensures that the rosters are maintained as distinct assets inside each league, preventing multiple fantasy teams from claiming the same NFL team and restricting lineup choices to rostered assets.
+
+### Context & Key Files
+*   **Database Migration:** `db/migrations/20241031000012_fantasy_team_rosters.sql` (implements the rosters table and API functions) and `db/migrations/20241031000013_lineup_roster_enforcement.sql`.
+*   **Backend Server:** `server/src/rpc.ts` and `server/src/db.ts`.
+*   **API Interface:** `src/utils/multiLeagueApi.ts` (implements `getTeamRoster` and `getLeagueRosters`).
+*   **Verification Script:** `scripts/verify-phase3.mjs`.
+
+### Requirements & Rules
+1.  **Schema Definition:**
+    *   Table: `fantasy_team_rosters` with primary key `id`, foreign keys to `leagues` (`league_id`) and `fantasy_teams` (`fantasy_team_id`), and NFL team reference `nfl_team_id` (pointing to `teams.uuid_id`).
+    *   Constraint: `UNIQUE (league_id, nfl_team_id)` to enforce that an NFL team belongs to at most one fantasy team roster per league.
+    *   Columns: `acquired_via` (`'draft'` or `'commissioner'`) and `draft_pick_number` (integer).
+2.  **Row-Level Security (RLS):**
+    *   Enable RLS on `fantasy_team_rosters`.
+    *   Define policy allowing all members of a league to read roster rows for that league.
+    *   Restrict write operations entirely to Security Definer functions (e.g., the draft pick system). No direct client inserts/updates.
+3.  **Lineup Validation Integration:**
+    *   Modify `set_fantasy_lineup(p_league_id, p_fantasy_team_id, p_nfl_team_ids, p_week)` to reject lineups containing NFL teams not present in the fantasy team's active `fantasy_team_rosters` subset.
+4.  **Database Access Functions:**
+    *   Implement `get_team_roster(p_fantasy_team_id UUID)` to return a structured table: `(nfl_team_id, nfl_team_name, acquired_via, draft_pick_number)`.
+    *   Implement `get_league_rosters(p_league_id UUID)` returning all roster rows in the league.
+
+### Step-by-Step Implementation
+1.  Run the migrations to create the table `fantasy_team_rosters` with its unique constraints and indices.
+2.  Configure RLS and grant read permission to league members using the helper function `is_league_member(league_id)`.
+3.  Add the `get_team_roster` and `get_league_rosters` functions to PostgreSQL and append them to the RPC allow-list in `server/src/rpc.ts`.
+4.  In the client-side `src/utils/multiLeagueApi.ts`, add clean bindings to query these RPC functions from the frontend.
+
+### Verification Criteria
+Run `node scripts/verify-phase3.mjs`. Verify that attempting to save a lineup with a non-rostered team fails with an unauthorized or validation error, while a lineup consisting only of owned, rostered NFL teams succeeds.
+
+---
+
+PROMPT 3: ASYNC SNAKE DRAFT STATE MACHINE (PHASE 2)
+---------------------------------------------------
+
+### Objective
+Implement the state machine for the turn-based async snake draft. Pre-populate all 32 pick slots in snake order when the draft starts, manage turn tracking, record picks, assign teams to rosters in a single database transaction, and protect draft status gates.
+
+### Context & Key Files
+*   **Database Migration:** `db/migrations/20241031000014_async_snake_draft.sql` and `db/migrations/20241031000026_bot_autopick.sql`.
+*   **Backend Server:** `server/src/rpc.ts` and `server/src/db.ts`.
+*   **Frontend Pages & Components:** `src/pages/LeagueDraft.tsx`, `src/components/league/DraftControls.tsx`, `src/components/league/DraftSetupFields.tsx`.
+*   **Verification Script:** `scripts/verify-phase2.mjs`.
+
+### Requirements & Rules
+1.  **Draft State Fields:** Add `draft_status` (`'pending' | 'in_progress' | 'complete'`) and `draft_current_pick` (integer, 1-32) columns to the `leagues` table.
+2.  **Draft Picks Table:** Create `draft_picks` with columns `league_id`, `pick_number`, `round`, `fantasy_team_id`, `nfl_team_id`, and `picked_at`.
+3.  **Start Draft RPC (`start_draft`):**
+    *   Only league owners can execute. Requires exactly 8 teams.
+    *   Given a custom `p_draft_order` array of fantasy team IDs, pre-populate 32 slots in snake order:
+        *   Rounds 1 & 3: forward order (`1 -> 8`).
+        *   Rounds 2 & 4: reverse order (`8 -> 1`).
+    *   Set `draft_status = 'in_progress'` and `draft_current_pick = 1`.
+4.  **Make Draft Pick RPC (`make_draft_pick`):**
+    *   Check that draft status is `'in_progress'`.
+    *   Ensure the caller owns/manages the fantasy team corresponding to `draft_current_pick`.
+    *   Verify the selected NFL team has not already been drafted in this league.
+    *   In a single transaction: fill the selected NFL team in `draft_picks`, write the row to `fantasy_team_rosters`, and increment `draft_current_pick`.
+    *   Upon pick 32 being completed, set `draft_status = 'complete'` and `draft_current_pick = NULL`.
+5.  **Commissioner Override (`make_draft_pick_for`):** Allow league owners to make a pick on behalf of any team.
+6.  **Gates:**
+    *   Redeeming invitations or joining a league must fail if `draft_status != 'pending'`.
+    *   Schedule generation must fail if `draft_status != 'complete'`.
+
+### Step-by-Step Implementation
+1.  Write and run SQL migrations to support the draft tables, columns, constraints, and RPC logic.
+2.  Implement `get_draft_state(p_league_id)` to return the full state including teams, current turn, board status, and remaining NFL teams.
+3.  Wire the RPCs inside `server/src/rpc.ts`.
+4.  On the frontend in `src/pages/LeagueDraft.tsx`, render the snake grid and pick board. Enable the selection list for the user currently on the clock. Include a badge or status banner showing "You're on the clock!" on the main dashboard.
+
+### Verification Criteria
+Run `node scripts/verify-phase2.mjs`. Verify that out-of-turn picks are rejected, duplicate team selections are blocked, commissioner overrides work as expected, and completing pick 32 marks the draft as complete.
+
+---
+
+PROMPT 4: LINEUP LOCKING & MISSED-LINEUP AUTOSTART (PHASE 1.2 & 3)
+------------------------------------------------------------------
+
+### Objective
+Enforce strict kickoff-time lineup locking on individual NFL teams and implement a deterministic missed-lineup autostart policy. This protects competition integrity by freezing lineup changes at kickoff and guarantees valid matchups even if a manager forgets to save.
+
+### Context & Key Files
+*   **Database Migration:** `db/migrations/20241031000013_lineup_roster_enforcement.sql` and `db/migrations/20241031000014_lineup_locks_and_finalize.sql`.
+*   **Backend Server:** `server/src/rpc.ts` and `server/src/auth.ts`.
+*   **Frontend Pages & Components:** `src/pages/LeagueView.tsx`, `src/components/league/WeeklyTeamSelector.tsx`, `src/pages/LeagueAdmin.tsx`.
+*   **Verification Script:** `scripts/verify-phase3.mjs`.
+
+### Requirements & Rules
+1.  **Lineup Validation Locks:**
+    *   Lineup submissions must be completely blocked if the league week is locked (`isWeekLocked` or via `set_week_lock`).
+    *   Submitting an individual NFL team in `set_fantasy_lineup` must fail if that team's game has already kicked off. Determine kickoff times by querying the `matchups` table (which stores game times).
+2.  **Roster Constraints:** Ensure `set_fantasy_lineup` verifies that the submitted teams belong to the submitter's roster.
+3.  **Opponent Lineup Visibility:**
+    *   Opponent lineups for the current week must remain hidden from non-owners of that roster until the week locks or kickoffs have passed.
+4.  **Deterministic Autostart Policy:**
+    *   When the commissioner finalizes the week lineups using `finalize_week_lineups`, any fantasy team that failed to submit a lineup must automatically receive a starting lineup.
+    *   The autostart logic must query that team's `fantasy_team_rosters` entries and select the 2 teams with the lowest `draft_pick_number` (i.e. their premium/early-round drafted assets) as starters.
+5.  **Commissioner Lineup Overrides:** Provide an admin/commissioner view showing the lock status of each team's lineup and allow them to trigger the finalization.
+
+### Step-by-Step Implementation
+1.  Implement the kickoff time validation checks within the Postgres function `set_fantasy_lineup`.
+2.  Create the `finalize_week_lineups(p_league_id UUID, p_week INTEGER)` RPC. Have it iterate through all 8 teams, auto-fill empty lineups using the lowest `draft_pick_number` rostered teams, and then lock the week.
+3.  Update the frontend `src/components/league/WeeklyTeamSelector.tsx` to handle locked states and render helpful "Lockout at kickoff" countdowns or labels.
+
+### Verification Criteria
+Run `node scripts/verify-phase3.mjs`. Confirm that edits after individual kickoffs fail, a second account cannot modify another team's lineup, opponent rosters are secure before kickoff, and finalization correctly auto-fills empty lineups.
+
+---
+
+PROMPT 5: SCORING ENGINE, MATCHUPS, & STANDINGS (PHASE 0.2 & 4)
+---------------------------------------------------------------
+
+### Objective
+Integrate the platform's CSV stats upload pipeline with multi-league scoring. Compute weekly matchups by summing stats for starters, persist completed matchup scores when weeks finalize, and compile Wins/Losses/Ties/Points For into dynamic league standings.
+
+### Context & Key Files
+*   **Database Migrations:** `db/migrations/20241031000008_league_standings.sql` and `db/migrations/20241031000017_week_scoring.sql` and `db\migrations\20241031000028_fix_standings_rls.sql`.
+*   **Backend Server:** `server/src/rpc.ts`, `server/src/index.ts`, and `src/utils/csvParser.ts` (team mapping).
+*   **Frontend Pages & Components:** `src/pages/LeagueView.tsx`, `src/components/league/StandingsTable.tsx`, `src/components/league/RecordTable.tsx`, `src/components/tables/SeasonWLTChart.tsx`.
+*   **Verification Script:** `scripts/verify-phase4.mjs`.
+
+### Requirements & Rules
+1.  **UUID ↔ Abbreviation Mapping:**
+    *   The `game_stats` table stores statistics keyed by the standard NFL `team_abbr` string (e.g. `'KC'`, `'GB'`).
+    *   The fantasy system uses UUID keys for teams (`teams.uuid_id`). Ensure there is a robust, error-free mapping utilizing the existing `teamNameMap` mapping inside `src/utils/csvParser.ts` (or the `teams` database lookup). Ensure every name in the map links to exactly one team row.
+2.  **Weekly Scoring RPC (`get_league_scores`):**
+    *   Calculate each matchup's scores dynamically by joining the fantasy team's starting lineup with the site-wide `game_stats` rows for that week and season.
+    *   Represent unsubmitted stats or empty lineups as `NULL` instead of `0` to indicate missing data.
+3.  **Persist Results (`finalize_week_scores`):**
+    *   Implement an idempotent `finalize_week_scores(p_league_id, p_week)` RPC.
+    *   This function calculates the score of both fantasy teams in a matchup, writes the scores directly to `league_matchups` (`team1_score`, `team2_score`), and updates the `winner` column.
+    *   Make this function run across all leagues seamlessly when stats are uploaded by the platform admin.
+4.  **Standings Calculation View (`v_league_standings`):**
+    *   Implement `v_league_standings` (or a `get_league_standings` RPC) to compile standings: Wins, Losses, Ties, Points For, and Points Against based on the recorded results in `league_matchups`.
+5.  **Remove Mock Stubs:** Eliminate all hardcoded stubs inside `src/pages/LeagueView.tsx`. Replace with real-time standings, weekly matchups, and wire up `SeasonWLTChart` and `RecordTable`.
+
+### Step-by-Step Implementation
+1.  Verify database integrity for abbreviations and run migrations for week scoring and standings views.
+2.  Implement `finalize_week_scores` to write values to `league_matchups` and lock them in.
+3.  Add the scoring and standings methods to the API rpc file and frontend clients.
+4.  In the frontend React pages, fetch real standings and scores. Wire up chart components with actual historical matchup outcomes.
+
+### Verification Criteria
+Run `node scripts/verify-phase4.mjs`. Assert that abbreviation-to-UUID mappings are perfect for all 32 teams, and verify that finalizing week scores generates mathematically correct, idempotent matchup outputs. Check that two separate leagues update their standings independently based on the same CSV upload.

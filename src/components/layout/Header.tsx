@@ -68,10 +68,10 @@ const Header: React.FC = () => {
   const getMainNavItems = () => {
     const isHomeRoute = location.pathname === '/' || location.pathname === '/welcome';
 
+    // /archive stays mounted in App.tsx (and linked from AdminDashboard); omit from header nav
     const baseItems = [
       { path: '/my-leagues', label: 'My Leagues', authRequired: true },
-      { path: '/rules', label: 'Rules', authRequired: false },
-      { path: '/archive', label: 'Archive', authRequired: true }
+      { path: '/rules', label: 'Rules', authRequired: false }
     ];
 
     // Only add "Create League" on home routes

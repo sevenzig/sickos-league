@@ -38,36 +38,31 @@ const LeagueHeader: React.FC<LeagueHeaderProps> = ({ leagueId, active }) => {
 
   return (
     <div className="mb-6">
-      <nav className="flex items-center space-x-2 text-sm text-slate-400 mb-3">
-        <Link to="/my-leagues" className="hover:text-slate-300">My Leagues</Link>
-        <span>→</span>
-        <span className="text-slate-300">{league?.name ?? '...'}</span>
-      </nav>
+      <p className="text-xs font-semibold uppercase tracking-widest text-blue-400 mb-2">
+        {league ? `Season ${league.season}` : ' '}
+      </p>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-white">{league?.name ?? '\u00A0'}</h1>
-          {league && <span className="text-slate-400 text-sm">Season {league.season}</span>}
-        </div>
+      <div className="flex items-end justify-between gap-5 flex-wrap mb-7">
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white text-balance">{league?.name ?? '\u00A0'}</h1>
         {league?.user_role === 'owner' && (
           <Link
             to={getLeagueUrl(leagueId, 'admin')}
-            className="self-start px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm font-medium transition-colors"
+            className="text-slate-400 hover:text-white underline decoration-slate-600 underline-offset-4 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 rounded-sm"
           >
-            Admin Panel
+            Admin Panel &#8594;
           </Link>
         )}
       </div>
 
-      <div className="flex gap-1 mt-4 border-b border-slate-700 overflow-x-auto">
+      <div className="inline-flex gap-0.5 bg-slate-700/35 p-1 rounded-full overflow-x-auto max-w-full">
         {tabs.map(tab => (
           <Link
             key={tab.key}
             to={getLeagueUrl(leagueId, tab.path)}
-            className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 -mb-px transition-colors ${
+            className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
               active === tab.key
-                ? 'border-blue-500 text-white'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'bg-blue-500 text-white'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             {tab.label}

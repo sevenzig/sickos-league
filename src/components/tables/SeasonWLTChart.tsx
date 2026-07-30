@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import TeamLogo from '../TeamLogo';
+import FantasyTeamRosterModal from '../league/FantasyTeamRosterModal';
 
 interface SeasonWLTChartProps {
   leagueId: string;
@@ -10,6 +11,8 @@ interface SeasonWLTChartProps {
   teamRecords: Record<string, string>;
   teamWeekMatchupDetails: Record<string, any>;
   openWLTModal: (teamName: string, week: number) => void;
+  /** Maps fantasy team name → fantasy_team_id for roster lookup */
+  teamIdByName?: Record<string, string>;
 }
 
 interface HoveredCell {
@@ -25,10 +28,12 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
   teamWeekResults,
   teamRecords,
   teamWeekMatchupDetails,
-  openWLTModal
+  openWLTModal,
+  teamIdByName = {},
 }) => {
   const [hoveredCell, setHoveredCell] = useState<HoveredCell | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rosterTeamName, setRosterTeamName] = useState<string | null>(null);
 
   // Simulate loading state based on data availability
   useEffect(() => {
@@ -85,7 +90,7 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
             </div>
           </div>
         </div>
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-hidden">
+        <div className="panel overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-max">
               <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
@@ -117,7 +122,18 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
                         teamIndex % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
                       }`}>
                         <td className="px-3 py-3 lg:px-2 lg:py-2 xl:px-4 xl:py-4 text-sm font-medium text-slate-200 sticky left-0 bg-slate-800/95 backdrop-blur-sm z-10">
-                          <TeamLogo teamName={teamName} size="sm" showName={true} className="lg:text-xs xl:text-sm" />
+                          {teamIdByName[teamName] ? (
+                            <button
+                              type="button"
+                              onClick={() => setRosterTeamName(teamName)}
+                              className="rounded-lg hover:bg-slate-700/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 transition-colors"
+                              aria-label={`View ${teamName} roster`}
+                            >
+                              <TeamLogo teamName={teamName} size="sm" showName={true} className="lg:text-xs xl:text-sm" />
+                            </button>
+                          ) : (
+                            <TeamLogo teamName={teamName} size="sm" showName={true} className="lg:text-xs xl:text-sm" />
+                          )}
                         </td>
                         {weeks.map((week, weekIndex) => {
                           const key = `${teamName}-${week}`;
@@ -125,30 +141,35 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
                           const matchupDetails = teamWeekMatchupDetails[key];
                           const isNearBottom = teamIndex >= teams.length - 3; // Last 3 rows show tooltip above
                           return (
-                            <td key={week} className="px-2 py-3 lg:py-2 xl:py-4 text-center">
+                            <td
+                              key={week}
+                              className={`px-2 py-3 lg:py-2 xl:py-4 text-center ${
+                                result ? 'group min-w-11 min-h-11 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800' : ''
+                              }`}
+                              onClick={result ? () => openWLTModal(teamName, week) : undefined}
+                              onKeyDown={result ? (e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  openWLTModal(teamName, week);
+                                }
+                              } : undefined}
+                              role={result ? 'button' : undefined}
+                              tabIndex={result ? 0 : undefined}
+                              onMouseEnter={result ? (e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setHoveredCell({ teamName, week, rect });
+                              } : undefined}
+                              onMouseLeave={result ? () => setHoveredCell(null) : undefined}
+                            >
                               {result && (
                                 <div
-                                  className={`w-7 h-7 lg:w-6 lg:h-6 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-xs font-bold mx-auto cursor-pointer hover:ring-2 hover:ring-blue-400 hover:scale-110 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 ${
+                                  className={`w-7 h-7 lg:w-6 lg:h-6 xl:w-7 xl:h-7 rounded-lg flex items-center justify-center text-xs font-bold mx-auto transition-all duration-200 group-hover:ring-2 group-hover:ring-blue-400 group-hover:scale-110 ${
                                     result === 'W'
-                                      ? 'bg-emerald-500 text-white hover:bg-emerald-400'
+                                      ? 'bg-emerald-500 text-white group-hover:bg-emerald-400'
                                       : result === 'L'
-                                      ? 'bg-rose-500 text-white hover:bg-rose-400'
-                                      : 'bg-yellow-500 text-black hover:bg-yellow-400'
+                                      ? 'bg-rose-500 text-white group-hover:bg-rose-400'
+                                      : 'bg-yellow-500 text-black group-hover:bg-yellow-400'
                                   }`}
-                                  onClick={() => openWLTModal(teamName, week)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                      e.preventDefault();
-                                      openWLTModal(teamName, week);
-                                    }
-                                  }}
-                                  role="button"
-                                  tabIndex={0}
-                                  onMouseEnter={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setHoveredCell({ teamName, week, rect });
-                                  }}
-                                  onMouseLeave={() => setHoveredCell(null)}
                                 >
                                   {result}
                                 </div>
@@ -192,7 +213,7 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
               left: `${position.left}px`,
             }}
           >
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] border border-slate-700/50 backdrop-blur-xl">
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-panel border border-slate-700/50 backdrop-blur-xl">
               <div className="flex items-center gap-6">
                 {/* Hovered team (always left side) */}
                 <div className="text-center">
@@ -245,6 +266,13 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
           document.body
         );
       })()}
+
+      <FantasyTeamRosterModal
+        isOpen={Boolean(rosterTeamName && teamIdByName[rosterTeamName])}
+        onClose={() => setRosterTeamName(null)}
+        fantasyTeamId={rosterTeamName ? teamIdByName[rosterTeamName] ?? null : null}
+        teamName={rosterTeamName ?? ''}
+      />
     </>
   );
 };

@@ -45,7 +45,7 @@ const MatchupCard: React.FC<MatchupCardProps> = React.memo(({
 
   return (
     <div
-      className="bg-gradient-to-br from-[#1a2942] to-[#0f1d31] rounded-2xl border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden cursor-pointer hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:scale-[1.02] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f1d31]"
+      className="panel overflow-hidden cursor-pointer hover:shadow-panel-hover hover:scale-[1.02] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="button"
@@ -97,7 +97,7 @@ const MatchupCard: React.FC<MatchupCardProps> = React.memo(({
         <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent"></div>
 
         {/* VS Badge */}
-        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#1a2942] text-[#64748b] px-4 py-1.5 rounded-lg text-xs font-bold z-10 border border-white/10">
+        <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-800 text-slate-400 px-4 py-1.5 rounded-lg text-xs font-bold z-10 border border-slate-700/50">
           VS
         </div>
 

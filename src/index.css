@@ -29,6 +29,11 @@
   @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-dark-bg;
 }
 
+/* Shared card surface: one gradient, radius, and elevation for every panel */
+.panel {
+  @apply bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-panel;
+}
+
 /* Dynamic tooltip positioning */
 .tooltip-container {
   position: absolute;

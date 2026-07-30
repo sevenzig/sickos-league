@@ -51,6 +51,7 @@ const LeagueDraft: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoPickNotice, setAutoPickNotice] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [heroTeam, setHeroTeam] = useState<string | null>(null);
 
   const pollRef = useRef<number | null>(null);
   const clockRef = useRef<number | null>(null);
@@ -272,6 +273,10 @@ const LeagueDraft: React.FC = () => {
     (isMyTurn || (isOwner && draftState?.draft_status === 'in_progress' && !onClockIsBot)) &&
     !draftState?.draft_paused;
 
+  const heroNflTeam = heroTeam ? nflTeamsByName.get(heroTeam) : undefined;
+  const heroTaken = heroNflTeam ? takenInfo.get(heroNflTeam.uuid_id) : undefined;
+  const heroSelectable = !!heroNflTeam && !heroTaken && canPick && !submitting;
+
   const pickDeadlineMs = draftState?.draft_pick_deadline
     ? new Date(draftState.draft_pick_deadline).getTime()
     : null;
@@ -312,15 +317,16 @@ const LeagueDraft: React.FC = () => {
     }
   };
 
-  const handleConfirmPick = async () => {
-    if (!leagueId || !selectedNflTeamId) return;
+  const handleConfirmPick = async (teamIdOverride?: string) => {
+    const teamId = teamIdOverride ?? selectedNflTeamId;
+    if (!leagueId || !teamId) return;
     try {
       setSubmitting(true);
       setError(null);
       if (isMyTurn) {
-        await MultiLeagueApi.makeDraftPick(leagueId, selectedNflTeamId);
+        await MultiLeagueApi.makeDraftPick(leagueId, teamId);
       } else {
-        await MultiLeagueApi.makeDraftPickFor(leagueId, selectedNflTeamId);
+        await MultiLeagueApi.makeDraftPickFor(leagueId, teamId);
       }
       setSelectedNflTeamId(null);
       await loadDraftState();
@@ -391,8 +397,79 @@ const LeagueDraft: React.FC = () => {
 
   return (
     <div className="h-[100dvh] bg-slate-900 flex flex-col overflow-hidden">
-      {/* Compact toolbar on mobile; a proper header bar on desktop */}
-      <div className="flex-shrink-0 flex items-center gap-1.5 lg:gap-3 px-2 py-1 lg:px-6 lg:py-3 border-b border-slate-800 lg:border-slate-700/50 lg:bg-slate-900/60 text-xs lg:text-sm">
+      {/* Jumbotron toolbar on mobile; the compact bar below takes over at lg */}
+      <div className="flex lg:hidden flex-shrink-0 flex-col gap-2.5 px-3.5 py-3 border-b-2 border-blue-500 bg-slate-950">
+        <div className="flex items-center gap-2">
+          <Link to={getLeagueUrl(leagueId!)} className="text-slate-500 hover:text-slate-300 flex-shrink-0">
+            ← League
+          </Link>
+          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-slate-500 flex-shrink-0">
+            {draftState.draft_status === 'in_progress' ? 'On the clock' : 'Draft'}
+          </span>
+          <span
+            className={`ml-auto min-w-0 truncate text-[15px] font-extrabold ${
+              isMyTurn
+                ? 'text-green-300'
+                : draftState.draft_paused
+                  ? 'text-orange-300'
+                  : draftState.draft_status === 'complete'
+                    ? 'text-green-400'
+                    : 'text-slate-200'
+            }`}
+          >
+            {statusLabel}
+          </span>
+          {isLive && (
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-rose-500 flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_0_3px_rgba(244,63,94,0.18)]" />
+              LIVE
+            </span>
+          )}
+        </div>
+        <div className="flex items-stretch gap-2">
+          {isLive &&
+            draftState.draft_status === 'in_progress' &&
+            !draftState.draft_paused &&
+            pickRemainingMs != null &&
+            !onClockIsBot && (
+              <span
+                className="font-mono tabular-nums rounded-lg px-3 py-1 text-2xl font-extrabold bg-rose-950/60 border border-rose-800 text-rose-400"
+                aria-live="polite"
+              >
+                {formatCountdown(pickRemainingMs)}
+              </span>
+            )}
+          {draftState.draft_status === 'in_progress' && (
+            <span className="font-mono text-[11px] text-slate-500 flex flex-col justify-center">
+              <b className="text-slate-200 text-[15px]">{draftState.draft_current_pick}</b>of 32
+            </span>
+          )}
+          <div className="flex-1" />
+          {isOwner && isLive && draftState.draft_status === 'in_progress' && (
+            <button
+              type="button"
+              onClick={handlePauseToggle}
+              disabled={submitting}
+              className="px-3.5 self-stretch bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg disabled:opacity-50"
+            >
+              {draftState.draft_paused ? 'Resume' : 'Pause'}
+            </button>
+          )}
+          {draftState.draft_status === 'pending' && !isLive && isOwner && (
+            <button
+              type="button"
+              onClick={handleStartDraft}
+              disabled={submitting}
+              className="px-3.5 self-stretch bg-green-700 hover:bg-green-600 text-white text-xs font-bold rounded-lg disabled:opacity-50"
+            >
+              Start
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Compact toolbar on desktop */}
+      <div className="hidden lg:flex flex-shrink-0 items-center gap-1.5 lg:gap-3 px-2 py-1 lg:px-6 lg:py-3 border-b border-slate-800 lg:border-slate-700/50 lg:bg-slate-900/60 text-xs lg:text-sm">
         <Link
           to={getLeagueUrl(leagueId!)}
           className="text-slate-500 hover:text-slate-300 px-1 flex-shrink-0"
@@ -475,8 +552,126 @@ const LeagueDraft: React.FC = () => {
           <p className="text-slate-500 text-xs">Waiting for the commissioner to start the draft.</p>
         </div>
       ) : (
-      <div className="flex-1 min-h-0 flex gap-0 overflow-hidden">
-        {/* 4×8 board — compact on mobile, larger showcase tiles on desktop */}
+      <>
+      {/* Mobile: hero tile driven by tapping a team in the grid below it */}
+      <div className="flex lg:hidden flex-1 min-h-0 flex-col overflow-hidden">
+        <div className="flex-shrink-0 relative flex flex-col items-center justify-center gap-3 pt-4 pb-3 px-5">
+          <div
+            aria-hidden="true"
+            className={`absolute top-0 w-48 h-48 rounded-full blur-md pointer-events-none transition-opacity ${
+              heroTaken ? 'opacity-30 bg-slate-600/30' : 'opacity-100 bg-blue-500/25'
+            }`}
+          />
+          {heroTeam ? (
+            <>
+              <div
+                className={`relative w-28 h-28 rounded-[24px] flex items-center justify-center overflow-hidden bg-gradient-to-br from-slate-800/90 to-slate-900/90 border-2 ${
+                  heroTaken ? 'border-slate-600' : 'border-blue-500 shadow-[0_0_0_6px_rgba(59,130,246,0.16)]'
+                }`}
+              >
+                {getTeamLogo(heroTeam) ? (
+                  <img
+                    src={getTeamLogo(heroTeam)!}
+                    alt=""
+                    className={`w-[72%] h-[72%] object-contain ${heroTaken ? 'grayscale opacity-60' : ''}`}
+                    draggable={false}
+                  />
+                ) : (
+                  <span className={`text-3xl font-black ${heroTaken ? 'text-slate-500' : 'text-white'}`}>
+                    {getTeamAbbr(heroTeam)}
+                  </span>
+                )}
+              </div>
+              <div className="relative text-center">
+                <p className="text-lg font-bold text-white">{heroTeam}</p>
+                {heroTaken && (
+                  <p className="text-sm text-slate-500 font-semibold mt-0.5">
+                    Taken · pick {heroTaken.pickNumber}
+                  </p>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="relative w-28 h-28 rounded-[24px] bg-slate-800/60 border-2 border-slate-700 flex items-center justify-center">
+              <p className="text-slate-500 text-xs font-semibold px-2 text-center">Tap a team</p>
+            </div>
+          )}
+        </div>
+
+        {heroNflTeam && !heroTaken && (
+          <div className="flex-shrink-0 px-4 pb-3">
+            <button
+              type="button"
+              disabled={!heroSelectable}
+              onClick={() => handleConfirmPick(heroNflTeam.uuid_id)}
+              className={`relative w-full rounded-2xl py-4 pl-14 pr-5 text-left text-base font-extrabold ${
+                heroSelectable
+                  ? 'bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-600 text-emerald-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_12px_28px_-10px_rgba(16,185,129,0.55)] active:translate-y-px active:scale-[0.99]'
+                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+              }`}
+            >
+              <span
+                className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-lg font-black leading-none ${
+                  heroSelectable ? 'bg-emerald-950/15 text-emerald-950' : 'bg-slate-700 text-slate-500'
+                }`}
+              >
+                +
+              </span>
+              {submitting ? 'Drafting…' : `Draft ${heroTeam}`}
+            </button>
+          </div>
+        )}
+
+        <div className="flex-1 min-h-0 flex flex-col border-t border-slate-800">
+          <p className="flex-shrink-0 font-mono text-[10px] uppercase tracking-[0.08em] text-slate-500 px-3.5 pt-2 pb-1.5">
+            Tap to pick
+          </p>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="grid grid-cols-4 place-items-center gap-2 px-3 pb-3">
+              {NFL_TEAMS.map((teamName) => {
+                const nflTeam = nflTeamsByName.get(teamName);
+                const taken = nflTeam ? takenInfo.get(nflTeam.uuid_id) : undefined;
+                const isActive = heroTeam === teamName;
+                const abbr = getTeamAbbr(teamName);
+                const label = taken ? `${teamName}, pick ${taken.pickNumber}, ${taken.fantasyTeam}` : teamName;
+                const logo = getTeamLogo(teamName);
+                return (
+                  <button
+                    key={teamName}
+                    type="button"
+                    onClick={() => setHeroTeam(teamName)}
+                    aria-label={label}
+                    aria-pressed={isActive}
+                    title={label}
+                    className={`size-14 rounded-lg flex items-center justify-center overflow-hidden border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                      taken
+                        ? 'bg-slate-950 border-slate-800 opacity-50'
+                        : isActive
+                          ? 'bg-slate-800 border-blue-400 ring-2 ring-blue-500/30'
+                          : 'bg-slate-800 border-slate-600 active:bg-slate-700'
+                    }`}
+                  >
+                    {logo ? (
+                      <img
+                        src={logo}
+                        alt=""
+                        className={`w-[65%] h-[65%] object-contain ${taken ? 'grayscale' : ''}`}
+                        draggable={false}
+                      />
+                    ) : (
+                      <span className={`text-xs font-bold ${taken ? 'text-slate-600' : 'text-slate-300'}`}>{abbr}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop: 4×8 board + on-clock/history sidebar */}
+      <div className="hidden lg:flex flex-1 min-h-0 gap-0 overflow-hidden">
+        {/* 4×8 board — larger showcase tiles on desktop */}
         <section className="flex-1 min-w-0 overflow-y-auto p-2 lg:p-8 lg:bg-slate-900/40" aria-label="Draft board">
           <p className="hidden lg:block text-xs uppercase tracking-wide text-slate-400 font-semibold mb-4 text-center">
             Available Teams
@@ -662,13 +857,14 @@ const LeagueDraft: React.FC = () => {
           </div>
         </aside>
       </div>
+      </>
       )}
 
       {canPick && selectedTeamName && (
         <div className="flex-shrink-0 px-2 pb-2 pt-1 lg:px-8 lg:pb-6 lg:pt-3 border-t border-slate-800 lg:border-slate-700/50">
           <button
             type="button"
-            onClick={handleConfirmPick}
+            onClick={() => handleConfirmPick()}
             disabled={submitting}
             className="w-full lg:max-w-md lg:mx-auto lg:flex py-2 lg:py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded lg:rounded-lg font-medium text-sm lg:text-base lg:shadow-lg lg:shadow-green-900/40"
           >

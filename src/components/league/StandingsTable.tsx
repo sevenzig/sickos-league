@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MultiLeagueApi, type LeagueMatchup } from '../../utils/multiLeagueApi';
 import FantasyTeamAvatar from './FantasyTeamAvatar';
+import FantasyTeamRosterModal from './FantasyTeamRosterModal';
 
 interface Standing {
   rank: number;
@@ -54,6 +55,7 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
   const [standings, setStandings] = useState<Standing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rosterTeam, setRosterTeam] = useState<Standing | null>(null);
 
   useEffect(() => {
     loadStandings();
@@ -83,8 +85,8 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
 
   if (loading) {
     return (
-      <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Standings</h3>
+      <div className="panel p-6">
+        <h3 className="text-xl font-black tracking-tight text-slate-50 mb-4">Standings</h3>
         <div className="animate-pulse space-y-2">
           {Array.from({ length: 8 }, (_, i) => (
             <div key={i} className="bg-slate-700 rounded h-12"></div>
@@ -96,8 +98,8 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
 
   if (error) {
     return (
-      <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Standings</h3>
+      <div className="panel p-6">
+        <h3 className="text-xl font-black tracking-tight text-slate-50 mb-4">Standings</h3>
         <div className="bg-red-900/20 border border-red-700 rounded-lg p-3">
           <p className="text-red-400 text-sm">{error}</p>
         </div>
@@ -107,11 +109,11 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
 
   if (standings.length === 0) {
     return (
-      <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Standings</h3>
+      <div className="panel p-6">
+        <h3 className="text-xl font-black tracking-tight text-slate-50 mb-4">Standings</h3>
         <div className="text-center py-6">
           <p className="text-slate-400">No standings data yet</p>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-slate-400 text-sm mt-1">
             Standings will appear after games are played
           </p>
         </div>
@@ -120,8 +122,8 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
   }
 
   return (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-      <h3 className="text-lg font-medium text-white mb-4">Standings</h3>
+    <div className="panel p-6">
+      <h3 className="text-xl font-black tracking-tight text-slate-50 mb-4">Standings</h3>
 
       <div className="overflow-x-auto">
         <table className="w-full table-fixed min-w-[32rem]">
@@ -161,7 +163,12 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
                   </span>
                 </td>
                 <td className="py-3 pr-2 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setRosterTeam(team)}
+                    className="flex items-center gap-2 min-w-0 w-full text-left rounded-lg hover:bg-slate-700/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 transition-colors"
+                    aria-label={`View ${team.team_name} roster`}
+                  >
                     <FantasyTeamAvatar teamName={team.team_name} logoUrl={team.logo_url} size="sm" />
                     <div className="min-w-0">
                       <div className="text-white font-medium text-sm truncate">
@@ -173,7 +180,7 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </button>
                 </td>
                 <td className="py-3 px-1 text-center">
                   <span className="text-slate-300 text-sm font-mono tabular-nums">
@@ -206,6 +213,14 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
           </tbody>
         </table>
       </div>
+
+      <FantasyTeamRosterModal
+        isOpen={Boolean(rosterTeam)}
+        onClose={() => setRosterTeam(null)}
+        fantasyTeamId={rosterTeam?.fantasy_team_id ?? null}
+        teamName={rosterTeam?.team_name ?? ''}
+        logoUrl={rosterTeam?.logo_url}
+      />
     </div>
   );
 };
