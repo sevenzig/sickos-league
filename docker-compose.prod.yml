@@ -1,6 +1,7 @@
-# Production stack: Postgres + API + Caddy (TLS + static SPA) + nightly backups.
+# Production stack: Postgres + API + Caddy (static SPA + /api proxy) + nightly backups.
+# Publishes 127.0.0.1:8084 only — host Caddy owns 80/443 (avoids gutexcellence :3000/:3001, brokenloop :8082/:8083).
 # Usage:
-#   export DOMAIN=bqbl.example.com JWT_SECRET=... RESEND_API_KEY=...
+#   export DOMAIN=badqb.space JWT_SECRET=... RESEND_API_KEY=...
 #   docker compose -f docker-compose.prod.yml up -d --build
 
 services:
@@ -54,11 +55,8 @@ services:
       args:
         VITE_API_URL: /api
         VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
-    environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN}
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:8084:80"
     volumes:
       - caddy_data:/data
       - caddy_config:/config

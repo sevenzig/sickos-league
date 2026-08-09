@@ -2,20 +2,31 @@
 
 ## Production deploy
 
+Stack listens on **127.0.0.1:8084** (host Caddy terminates TLS). Does not bind 80/443/3000/3001/8082/8083.
+
 ```bash
-export DOMAIN=your.domain.tld
+export DOMAIN=badqb.space
 export JWT_SECRET="$(openssl rand -hex 32)"
 export POSTGRES_PASSWORD="$(openssl rand -hex 16)"
 # optional:
 export RESEND_API_KEY=re_...
-export EMAIL_FROM="BQBL <noreply@your.domain.tld>"
+export EMAIL_FROM="BQBL <noreply@badqb.space>"
 export SENTRY_DSN=https://...@sentry.io/...
 export VITE_SENTRY_DSN=https://...@sentry.io/...
 
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Caddy obtains TLS certificates for `$DOMAIN` automatically (ports 80/443 must be reachable).
+Host `/etc/caddy/Caddyfile` (alongside your other sites):
+
+```caddy
+badqb.space, www.badqb.space {
+	encode gzip zstd
+	reverse_proxy 127.0.0.1:8084
+}
+```
+
+Then: `caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy`
 
 ## Backups
 

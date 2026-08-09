@@ -1,8 +1,5 @@
-{
-	email {$DOMAIN}
-}
-
-{$DOMAIN} {
+# HTTP-only; host Caddy terminates TLS and proxies here (see docs/ops.md).
+:80 {
 	encode gzip
 
 	handle /api/* {
