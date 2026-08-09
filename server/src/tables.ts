@@ -23,9 +23,9 @@ const TABLE_ALLOWLIST = new Set([
 ]);
 
 /**
- * Foreign-key embeds supported in select strings (the supabase-js
- * `related_table(cols)` syntax). Keyed per table by either the related table
- * name or an explicit FK-constraint hint.
+ * Foreign-key embeds supported in select strings (`related_table(cols)`
+ * syntax). Keyed per table by either the related table name or an explicit
+ * FK-constraint hint.
  */
 const EMBEDS: Record<string, Record<string, { table: string; local: string; foreign: string }>> = {
   lineups: {

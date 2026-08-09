@@ -39,8 +39,8 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
   if (!logoPath) {
     return (
       <div className={`flex items-center ${className}`}>
-        <div className={`${sizeClasses[size]} bg-gray-600 rounded flex items-center justify-center flex-shrink-0`}>
-          <span className={`${textSizeClasses[size]} text-gray-300 font-medium`}>
+        <div className={`${sizeClasses[size]} bg-slate-600 rounded flex items-center justify-center flex-shrink-0`}>
+          <span className={`${textSizeClasses[size]} text-slate-300 font-medium`}>
             {fallbackText || teamName.charAt(0)}
           </span>
         </div>
@@ -73,8 +73,8 @@ const TeamLogo: React.FC<TeamLogoProps> = ({
           const parent = target.parentElement;
           if (parent) {
             parent.innerHTML = `
-              <div class="${sizeClasses[size]} bg-gray-600 rounded flex items-center justify-center flex-shrink-0">
-                <span class="${textSizeClasses[size]} text-gray-300 font-medium">
+              <div class="${sizeClasses[size]} bg-slate-600 rounded flex items-center justify-center flex-shrink-0">
+                <span class="${textSizeClasses[size]} text-slate-300 font-medium">
                   ${fallbackText || teamName.charAt(0)}
                 </span>
               </div>

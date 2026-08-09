@@ -29,17 +29,17 @@ const ScoringBreakdown: React.FC<ScoringBreakdownProps> = ({
           const performance = qbBreakdown[qb];
           if (!performance) {
             return (
-              <div key={qb} className="bg-gray-700 rounded p-3">
-                <div className="font-medium text-gray-300 flex items-center">
+              <div key={qb} className="bg-slate-700 rounded p-3">
+                <div className="font-medium text-slate-300 flex items-center">
                   <TeamLogo teamName={qb} size="sm" showName={true} />
                 </div>
-                <div className="text-sm text-gray-400">No data available</div>
+                <div className="text-sm text-slate-400">No data available</div>
               </div>
             );
           }
           
           return (
-            <div key={qb} className="bg-gray-700 rounded p-3">
+            <div key={qb} className="bg-slate-700 rounded p-3">
               <div className="flex justify-between items-start mb-2">
                 <TeamLogo teamName={qb} size="sm" showName={true} />
                 <div className="text-lg font-bold text-yellow-400">
@@ -49,29 +49,29 @@ const ScoringBreakdown: React.FC<ScoringBreakdownProps> = ({
               
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <div className="text-gray-400">Pass Yards</div>
+                  <div className="text-slate-400">Pass Yards</div>
                   <div className="text-white">{performance.passYards}</div>
                 </div>
                 
                 <div>
-                  <div className="text-gray-400">Touchdowns</div>
+                  <div className="text-slate-400">Touchdowns</div>
                   <div className="text-white">{performance.touchdowns}</div>
                 </div>
                 
                 <div>
-                  <div className="text-gray-400">Completion %</div>
+                  <div className="text-slate-400">Completion %</div>
                   <div className="text-white">{performance.completionPercent.toFixed(1)}%</div>
                 </div>
                 
                 <div>
-                  <div className="text-gray-400">Turnovers</div>
+                  <div className="text-slate-400">Turnovers</div>
                   <div className="text-white">{performance.turnovers}</div>
                 </div>
               </div>
               
               {performance.events.length > 0 && (
                 <div className="mt-2">
-                  <div className="text-gray-400 text-sm mb-1">Events:</div>
+                  <div className="text-slate-400 text-sm mb-1">Events:</div>
                   <div className="flex flex-wrap gap-1">
                     {performance.events.map((event, index) => (
                       <span
@@ -89,7 +89,7 @@ const ScoringBreakdown: React.FC<ScoringBreakdownProps> = ({
         })}
       </div>
       
-      <div className="mt-4 pt-4 border-t border-gray-600">
+      <div className="mt-4 pt-4 border-t border-slate-600">
         <div className="flex justify-between items-center">
           <div className="text-lg font-semibold text-white">Total Score</div>
           <div className="text-2xl font-bold text-yellow-400">{totalScore} pts</div>

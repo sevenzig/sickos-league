@@ -74,6 +74,11 @@ export function getLeagueUrl(leagueId: string, path: string = ''): string {
   return path ? `${basePath}/${path}` : basePath;
 }
 
+/** Join page URL: /leagues/{short}/join (or /dev/leagues/{id}/join). */
+export function getLeagueJoinUrl(leagueId: string): string {
+  return getLeagueUrl(leagueId, 'join');
+}
+
 /** Explicit /dev/leagues URL (full UUID preferred). Use from sandbox launchers. */
 export function getDevLeagueUrl(leagueId: string, path: string = ''): string {
   const basePath = `/dev/leagues/${leagueId}`;

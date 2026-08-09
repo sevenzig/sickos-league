@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -23,6 +32,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
   useEffect(() => {
     if (isOpen) setMode(initialMode);
   }, [isOpen, initialMode]);
+
   const [identifier, setIdentifier] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -78,50 +88,30 @@ const SignInModal: React.FC<SignInModalProps> = ({
     setError(null);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      ></div>
-
-      {/* Modal */}
-      <div className="relative bg-slate-800 border border-slate-700 rounded-lg p-8 max-w-md w-full mx-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-medium text-white">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md w-full">
+        <DialogHeader>
+          <DialogTitle>
             {mode === 'signin' ? 'Sign In' : 'Create Account'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="bg-red-600/10 border border-red-600/20 rounded-lg p-3">
-              <p className="text-red-400 text-sm">{error}</p>
+              <p className="text-red-400 text-label">{error}</p>
             </div>
           )}
 
           {mode === 'signin' ? (
-            <div>
-              <label htmlFor="identifier" className="block text-sm font-medium text-slate-300 mb-2">
-                Username or email
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="identifier">Username or email</Label>
+              <Input
                 type="text"
                 id="identifier"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                className="w-full px-3 py-2 bg-white/5 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 placeholder="username or you@example.com"
                 autoComplete="username"
                 required
@@ -129,31 +119,25 @@ const SignInModal: React.FC<SignInModalProps> = ({
             </div>
           ) : (
             <>
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
-                  Email
-                </label>
-                <input
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Email</Label>
+                <Input
                   type="email"
                   id="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                   placeholder="you@example.com"
                   autoComplete="email"
                   required
                 />
               </div>
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
-                  Username
-                </label>
-                <input
+              <div className="space-y-1.5">
+                <Label htmlFor="username">Username</Label>
+                <Input
                   type="text"
                   id="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full px-3 py-2 bg-white/5 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                   placeholder="3–32 letters, numbers, or _"
                   autoComplete="username"
                   minLength={3}
@@ -166,16 +150,13 @@ const SignInModal: React.FC<SignInModalProps> = ({
             </>
           )}
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
-              Password
-            </label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Password</Label>
+            <Input
               type="password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
               placeholder={mode === 'signin' ? 'Enter your password' : 'At least 6 characters'}
               autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
               required
@@ -184,16 +165,13 @@ const SignInModal: React.FC<SignInModalProps> = ({
           </div>
 
           {mode === 'signup' && (
-            <div>
-              <label htmlFor="passwordConfirm" className="block text-sm font-medium text-slate-300 mb-2">
-                Confirm password
-              </label>
-              <input
+            <div className="space-y-1.5">
+              <Label htmlFor="passwordConfirm">Confirm password</Label>
+              <Input
                 type="password"
                 id="passwordConfirm"
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
-                className="w-full px-3 py-2 bg-white/5 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
                 placeholder="Re-enter your password"
                 autoComplete="new-password"
                 required
@@ -206,23 +184,19 @@ const SignInModal: React.FC<SignInModalProps> = ({
             <button
               type="button"
               onClick={toggleMode}
-              className="text-sm text-slate-400 hover:text-white"
+              className="text-label text-slate-400 hover:text-white transition-colors"
             >
               {mode === 'signin' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
             </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <Button type="submit" disabled={loading}>
               {loading
                 ? mode === 'signin' ? 'Signing in...' : 'Creating account...'
                 : mode === 'signin' ? 'Sign In' : 'Create Account'}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

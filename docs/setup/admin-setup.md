@@ -2,147 +2,101 @@
 
 ## Quick Setup (Recommended)
 
-### 1. Apply Security Policies
-```sql
--- Run this in Supabase SQL Editor
--- (Copy from db/secure-rls-policies.sql)
+### 1. Start the stack
+```bash
+docker compose up --build
 ```
 
-### 2. Create Admin User via Supabase Dashboard
-1. **Open Supabase Dashboard** → Your Project
-2. **Go to Authentication** → **Users**
-3. **Click "Add user"**
-4. **Fill in details**:
-   - Email: `admin@yourleague.com` (or your preferred email)
-   - Password: `securepassword123` (choose a strong password)
-   - Email Confirmed: ✅ **Check this box** (important!)
-5. **Click "Create user"**
+Migrations, RLS, and seed data apply automatically on API boot (`migrate()` in `server/src/db.ts`).
+
+### 2. Create a user and grant platform admin
+1. Sign up through the app (or `POST /api/auth/signup`).
+2. Grant platform admin via SQL (see also [`../ops.md`](../ops.md)):
+
+```bash
+docker compose exec db psql -U postgres postgres -c \
+  "UPDATE auth.users SET is_platform_admin = true WHERE email = 'admin@yourleague.com';"
+```
+
+3. Sign out and sign back in so the JWT picks up the flag.
 
 ### 3. Test Login
-1. **Visit your app** at `/admin`
-2. **Login** with the credentials you just created
-3. **Verify** you can access all admin functions
+1. Visit `/admin`
+2. Log in with the credentials you created
+3. Verify you can access admin functions (CSV import, finalize scores, etc.)
 
 ## Alternative Setup Methods
 
-### Method 1: Environment Variables for Default Admin
-Add to your `.env.local`:
-```env
-VITE_DEFAULT_ADMIN_EMAIL=admin@yourleague.com
-VITE_DEFAULT_ADMIN_PASSWORD=securepassword123
-```
-
-Then create a temporary signup component (remove after use).
-
-### Method 2: Temporary Signup Route
-1. **Temporarily add** a signup route to App.tsx
-2. **Create user** through your app interface
-3. **Remove** the signup route
-4. **Test** the authentication flow
+### Temporary signup for a fresh env
+1. Sign up via the app UI
+2. Grant `is_platform_admin` with the SQL above
+3. Re-login
 
 ## Security Best Practices
 
-### Email Configuration (Optional but Recommended)
-1. **Configure email templates** in Supabase Auth settings
-2. **Set up custom SMTP** or use Supabase's default
-3. **Enable email confirmation** for new users
+- Use a strong password for admin accounts
+- Keep `JWT_SECRET` and `POSTGRES_PASSWORD` out of source control (see production deploy in [`../ops.md`](../ops.md))
+- Prefer granting platform admin only to accounts you control
 
-### Password Policies
-1. **Set minimum password requirements** in Supabase Auth settings:
-   - Minimum 8 characters
-   - Require special characters
-   - Require numbers
+## Managing Multiple Admins
 
-### Additional Security (Advanced)
-1. **Enable MFA** (Multi-Factor Authentication)
-2. **Set up email change confirmation**
-3. **Configure session timeout**
-4. **Add IP allowlisting** for admin access
+Grant platform admin the same way for each email:
 
-## Managing Multiple Admins (Future)
-
-### Adding Role-Based Access
-If you later want multiple admin levels, update AuthContext:
-
-```typescript
-// In AuthContext.tsx
-const isAdmin = !!user && (
-  user.email === 'admin@yourleague.com' ||
-  user.user_metadata?.role === 'admin'
-);
+```sql
+UPDATE auth.users SET is_platform_admin = true WHERE email = 'other@example.com';
 ```
 
-### Setting User Roles
-In Supabase Dashboard → Authentication → Users:
-1. **Click on a user**
-2. **Edit Raw User Meta Data**
-3. **Add**: `{"role": "admin"}`
+Revoke with `SET is_platform_admin = false`.
 
 ## Backup Admin Access
 
-### Create Backup Admin Account
-Always create a backup admin account:
-1. **Use different email** (e.g., `backup-admin@yourleague.com`)
-2. **Store credentials securely**
-3. **Test login periodically**
+1. Create a second account with a different email
+2. Grant `is_platform_admin` the same way
+3. Store credentials securely and test login periodically
 
 ### Recovery Options
-1. **Supabase Dashboard** - Always accessible for user management
-2. **Reset Password** - Via email if configured
-3. **Direct Database** - Can modify auth.users table if needed
+1. **Direct database** — `docker compose exec db psql -U postgres postgres` and update `auth.users`
+2. **Password** — update `encrypted_password` only as a last resort (prefer signup + grant on a new account)
 
 ## Production Deployment Notes
 
 ### Environment Variables
-Ensure these are set in production:
+Ensure these are set in production (see [`.env.example`](../../.env.example) and [`../ops.md`](../ops.md)):
 ```env
-VITE_SUPABASE_URL=your_production_supabase_url
-VITE_SUPABASE_ANON_KEY=your_production_anon_key
+VITE_API_URL=/api
+JWT_SECRET=...
+POSTGRES_PASSWORD=...
 ```
-
-### Domain Configuration
-1. **Add your domain** to Supabase Auth settings
-2. **Configure redirect URLs** for auth callbacks
-3. **Set up custom email domain** (optional)
 
 ## Troubleshooting
 
 ### Can't Login
-1. **Check user exists** in Supabase Dashboard
-2. **Verify email is confirmed**
-3. **Check browser console** for errors
-4. **Test network connectivity** to Supabase
+1. Confirm the user exists: `SELECT id, email, is_platform_admin FROM auth.users;`
+2. Check browser console / network tab for `/api/auth/login` errors
+3. Confirm the API is healthy: `GET /api/health`
 
 ### Admin Routes Not Working
-1. **Verify AuthContext** is providing correct state
-2. **Check ProtectedRoute** wrapper
-3. **Confirm RLS policies** are applied correctly
+1. Confirm `is_platform_admin = true` and that you re-logged in after the grant
+2. Verify AuthContext / ProtectedRoute wrappers
+3. Confirm RLS policies are present (applied via migrations on API boot)
 
 ### Database Access Issues
-1. **Check RLS policies** are not too restrictive
-2. **Verify user authentication** state
-3. **Monitor Supabase logs** for policy violations
-
-### Password Reset (If Needed)
-1. **Via Supabase Dashboard** → Authentication → Users → Reset Password
-2. **Via Email** (if email is configured)
-3. **Direct database update** (emergency only)
+1. Check RLS policies are not too restrictive
+2. Verify the request carries a valid JWT
+3. Inspect API logs for policy / auth errors
 
 ## Testing Checklist
 
-- [ ] Admin user created in Supabase
-- [ ] Email marked as confirmed
-- [ ] Login works at `/admin`
+- [ ] User created via signup
+- [ ] `is_platform_admin` granted
+- [ ] Login works at `/admin` after re-login
 - [ ] All admin routes accessible
 - [ ] Logout works properly
-- [ ] RLS policies applied
 - [ ] Public routes still work
 - [ ] Navigation updates correctly
 
 ## Next Steps
 
-1. **Test the complete authentication flow**
-2. **Document admin procedures** for your league
-3. **Consider adding password reset functionality**
-4. **Set up monitoring** for failed login attempts
-5. **Plan for user management** as league grows
+1. Test the complete authentication flow ([authentication-testing.md](./authentication-testing.md))
+2. Document admin procedures for your league
+3. Follow weekly ops in [`../ops.md`](../ops.md)

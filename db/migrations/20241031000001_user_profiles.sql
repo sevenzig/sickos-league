@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
     user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     first_name TEXT,
     last_name TEXT,
-    profile_photo_url TEXT, -- Supabase Storage URL
+    profile_photo_url TEXT, -- URL to profile photo served by the API
     email_preferences JSONB DEFAULT '{"marketing": false, "league_updates": true, "matchup_reminders": true, "weekly_summaries": false}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -189,7 +189,7 @@ GRANT EXECUTE ON FUNCTION update_fantasy_team_name TO authenticated;
 
 -- Add helpful comments
 COMMENT ON TABLE user_profiles IS 'User profile information and preferences';
-COMMENT ON COLUMN user_profiles.profile_photo_url IS 'URL to profile photo in Supabase Storage';
+COMMENT ON COLUMN user_profiles.profile_photo_url IS 'URL to profile photo served by the API';
 COMMENT ON COLUMN user_profiles.email_preferences IS 'JSON object with email notification preferences';
 COMMENT ON FUNCTION get_user_profile_with_teams IS 'Get user profile with all fantasy team information';
 COMMENT ON FUNCTION update_user_profile IS 'Update user profile information';

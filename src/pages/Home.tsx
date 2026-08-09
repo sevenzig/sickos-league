@@ -12,6 +12,7 @@ import {
   getTeamWeekMatchupDetailsFromDb
 } from '../utils/dbStandingsCalculator';
 import { getDetailedScoringBreakdown } from '../utils/scoring';
+import { Panel, PageChrome, Button, Badge, LoadingBlock } from '../components/ui';
 
 // Memoized MatchupCard component to prevent unnecessary re-renders
 const MatchupCard = React.memo(({
@@ -49,7 +50,7 @@ const MatchupCard = React.memo(({
 
   return (
     <div
-      className="bg-gradient-to-br from-[#1a2942] to-[#0f1d31] rounded-2xl border border-white/5 shadow-[0_8px_32px_rgba(0,0,0,0.4)] overflow-hidden cursor-pointer hover:shadow-[0_12px_40px_rgba(0,0,0,0.5)] hover:scale-[1.02] transition-all duration-200"
+      className="bg-gradient-to-br from-[#1a2942] to-[#0f1d31] rounded-2xl border border-white/5 shadow-panel overflow-hidden cursor-pointer hover:shadow-panel-hover transition-all duration-200"
       onClick={handleClick}
     >
       {/* SCORE STRIP */}
@@ -135,10 +136,10 @@ const MatchupCard = React.memo(({
             ) : (
               [1, 2].map((_, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-600 rounded-lg border-2 border-dashed border-gray-500 flex items-center justify-center">
-                    <div className="text-gray-400 text-xs">?</div>
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-700 rounded-lg border-2 border-dashed border-slate-600 flex items-center justify-center">
+                    <div className="text-slate-400 text-xs">?</div>
                   </div>
-                  <div className="text-xs text-gray-400">--</div>
+                  <div className="text-xs text-slate-500">--</div>
                 </div>
               ))
             )}
@@ -178,10 +179,10 @@ const MatchupCard = React.memo(({
             ) : (
               [1, 2].map((_, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-600 rounded-lg border-2 border-dashed border-gray-500 flex items-center justify-center">
-                    <div className="text-gray-400 text-xs">?</div>
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-700 rounded-lg border-2 border-dashed border-slate-600 flex items-center justify-center">
+                    <div className="text-slate-400 text-xs">?</div>
                   </div>
-                  <div className="text-xs text-gray-400">--</div>
+                  <div className="text-xs text-slate-500">--</div>
                 </div>
               ))
             )}
@@ -557,57 +558,60 @@ const Home: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Week Navigation */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] h-[74px] px-8 flex items-center">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-shrink">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-50 tracking-tight truncate">Week {selectedWeek}</h2>
+      <PageChrome
+        title={
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <h2 className="text-title text-slate-50 truncate">Week {selectedWeek}</h2>
             {selectedWeek === leagueData.currentWeek ? (
-              <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-xs font-bold uppercase tracking-wider whitespace-nowrap">
+              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 whitespace-nowrap">
                 Current Week
-              </span>
+              </Badge>
             ) : (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   setSelectedWeek(leagueData.currentWeek);
-                  setHasManuallyNavigated(false); // Reset manual navigation flag
+                  setHasManuallyNavigated(false);
                 }}
-                className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 rounded-lg transition-all duration-200 text-xs font-bold uppercase tracking-wider whitespace-nowrap"
+                className="whitespace-nowrap"
               >
                 Go to Current Week
-              </button>
+              </Button>
             )}
           </div>
-          <div className="flex gap-2 sm:gap-3 flex-shrink-0">
-            <button
+        }
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => {
                 setSelectedWeek(Math.max(1, selectedWeek - 1));
                 setHasManuallyNavigated(true);
               }}
-              className="px-3 sm:px-4 py-2 bg-slate-800/90 hover:bg-slate-700/50 text-slate-200 rounded-lg transition-all duration-200 font-medium text-sm sm:text-base whitespace-nowrap"
             >
               Previous
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
               onClick={() => {
                 setSelectedWeek(Math.min(18, selectedWeek + 1));
                 setHasManuallyNavigated(true);
               }}
-              className="px-3 sm:px-4 py-2 bg-slate-800/90 hover:bg-slate-700/50 text-slate-200 rounded-lg transition-all duration-200 font-medium text-sm sm:text-base whitespace-nowrap"
             >
               Next
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Show loading state while data loads */}
       {!isDataLoaded && (
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            <p className="text-slate-400">Loading league data...</p>
-          </div>
-        </div>
+        <Panel>
+          <LoadingBlock message="Loading league data…" />
+        </Panel>
       )}
 
       {/* Matchups - Top row with 4 columns */}
@@ -633,19 +637,15 @@ const Home: React.FC = () => {
             })}
           </div>
         ) : loading ? (
-          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center">
-            <div className="flex flex-col items-center gap-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-              <p className="text-slate-400">Loading matchup data...</p>
-            </div>
-          </div>
+          <Panel>
+            <LoadingBlock message="Loading matchup data…" />
+          </Panel>
         ) : (
-          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center text-slate-400">
+          <Panel className="p-8 text-center text-slate-400">
             {weekMatchups.length === 0
               ? `No matchups scheduled for Week ${selectedWeek}`
-              : "No lineups set yet for this week"
-            }
-          </div>
+              : 'No lineups set yet for this week'}
+          </Panel>
         )}
         </div>
       )}
@@ -655,8 +655,8 @@ const Home: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 xl:gap-8">
         {/* League Standings - Left side (1/3 width) */}
         <div className="space-y-6">
-          <h3 className="text-xl font-black text-slate-50 tracking-tight">League Standings</h3>
-          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-hidden">
+          <h3 className="text-heading font-black text-slate-50 tracking-tight">League Standings</h3>
+          <Panel padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
@@ -683,13 +683,13 @@ const Home: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Panel>
         </div>
 
         {/* Season W/L/T Chart - Right side (2/3 width) */}
         <div className="xl:col-span-2 space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-black text-slate-50 tracking-tight">Season W/L/T Chart</h3>
+            <h3 className="text-heading font-black text-slate-50 tracking-tight">Season W/L/T Chart</h3>
             {/* Legend */}
             <div className="flex gap-6 text-sm">
               <div className="flex items-center gap-2">
@@ -706,7 +706,7 @@ const Home: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-hidden">
+          <Panel padding="none" className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full min-w-max">
                 <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
@@ -774,7 +774,7 @@ const Home: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Panel>
         </div>
       </div>
       )}
@@ -805,7 +805,7 @@ const Home: React.FC = () => {
               left: `${position.left}px`,
             }}
           >
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] border border-slate-700/50 backdrop-blur-xl">
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-caption rounded-panel p-4 shadow-panel border border-slate-700/50 backdrop-blur-sm">
               <div className="flex items-center gap-6">
                 {/* Hovered team (always left side) */}
                 <div className="text-center">

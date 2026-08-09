@@ -10,7 +10,7 @@ export const adminPool = new pg.Pool({
 });
 
 // App pool: request handling. app_user is a plain role (member of
-// `authenticated`), so RLS policies apply exactly as they did under Supabase.
+// `authenticated`), so RLS policies apply per-request via auth.uid().
 export const appPool = new pg.Pool({
   connectionString: process.env.APP_DATABASE_URL,
 });

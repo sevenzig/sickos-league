@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MultiLeagueApi, FantasyTeam } from '../../utils/multiLeagueApi';
 import { getLeagueUrl } from '../../utils/urlUtils';
+import { Panel, Button, Badge, Alert } from '@/components/ui';
 
 interface DraftControlsProps {
   leagueId: string;
@@ -127,70 +128,57 @@ const DraftControls: React.FC<DraftControlsProps> = ({
       ? draftAt
         ? `Live draft auto-starts at ${new Date(draftAt).toLocaleString()} using whichever order is saved at that moment — you can re-save it anytime before then.`
         : 'Live draft needs a scheduled time in Draft Settings.'
-      : 'Set the round-1 pick order, then start the snake draft.';
+      : 'Set the round-1 pick order, then start the draft.';
 
   return (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+    <Panel>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-semibold text-white">Draft</h2>
-          <p className="text-slate-400 text-sm mt-1">
+          <h2 className="text-heading text-slate-50">Draft</h2>
+          <p className="text-label text-slate-400 mt-1">
             {draftStatus === 'pending' && pendingHint}
             {draftStatus === 'in_progress' && (
               draftMode === 'live'
                 ? 'Live draft in progress. Pause freezes the pick clock.'
                 : 'The draft is in progress. You can make picks for absent managers in the draft room.'
             )}
-            {draftStatus === 'complete' && 'The draft is complete - all 32 NFL teams are rostered.'}
+            {draftStatus === 'complete' && 'The draft is complete — all 32 NFL teams are rostered.'}
           </p>
         </div>
-        <Link
-          to={getLeagueUrl(leagueId, 'draft')}
-          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md font-medium transition-colors flex-shrink-0"
-        >
-          Draft Room
-        </Link>
+        <Button asChild variant="secondary" size="sm">
+          <Link to={getLeagueUrl(leagueId, 'draft')}>Draft Room</Link>
+        </Button>
       </div>
 
-      {error && (
-        <div className="bg-red-900/20 border border-red-700 rounded-lg p-3 mb-4">
-          <p className="text-red-400 text-sm">{error}</p>
-        </div>
-      )}
+      {error && <Alert variant="error" className="mb-4">{error}</Alert>}
 
       {draftStatus === 'in_progress' && (
         <div className="flex items-center gap-3 mb-2">
-          <span className={`inline-block px-3 py-1 text-sm rounded-full ${
-            draftPaused
-              ? 'bg-orange-900/40 text-orange-300'
-              : 'bg-yellow-900/40 text-yellow-300'
-          }`}>
+          <Badge variant={draftPaused ? 'warning' : 'default'}>
             {draftPaused ? 'Paused' : 'In progress'}
             {draftMode === 'live' ? ' · Live' : ' · Async'}
-          </span>
+          </Badge>
           {draftMode === 'live' && (
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={togglePause}
               disabled={pausing}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-gray-600 text-white rounded-md text-sm font-medium transition-colors"
             >
               {pausing ? '...' : draftPaused ? 'Resume Draft' : 'Pause Draft'}
-            </button>
+            </Button>
           )}
         </div>
       )}
 
       {draftStatus === 'complete' && (
-        <span className="inline-block px-3 py-1 bg-green-900/40 text-green-300 text-sm rounded-full">
-          Complete
-        </span>
+        <Badge variant="success">Complete</Badge>
       )}
 
       {draftStatus === 'pending' && (
         loading ? (
           <div className="flex justify-center py-6">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
           </div>
         ) : (
           <>
@@ -198,13 +186,13 @@ const DraftControls: React.FC<DraftControlsProps> = ({
               {order.map((team, index) => (
                 <li
                   key={team.id}
-                  className="flex items-center gap-3 bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2"
+                  className="flex items-center gap-3 bg-slate-900/50 border border-slate-700/50 rounded-md px-3 py-2"
                 >
-                  <span className="w-6 text-center text-slate-400 font-mono text-sm">{index + 1}</span>
+                  <span className="w-6 text-center text-slate-400 font-mono text-caption">{index + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-white text-sm font-medium">{team.team_name}</span>
+                    <span className="text-label font-medium text-white">{team.team_name}</span>
                     {team.manager_email && (
-                      <span className="text-slate-500 text-xs ml-2">{team.manager_email.split('@')[0]}</span>
+                      <span className="text-caption text-slate-500 ml-2">{team.manager_email.split('@')[0]}</span>
                     )}
                   </div>
                   <button
@@ -212,70 +200,60 @@ const DraftControls: React.FC<DraftControlsProps> = ({
                     disabled={index === 0}
                     className="px-2 py-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
                     aria-label="Move up"
-                  >
-                    ↑
-                  </button>
+                  >↑</button>
                   <button
                     onClick={() => move(index, 1)}
                     disabled={index === order.length - 1}
                     className="px-2 py-1 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
                     aria-label="Move down"
-                  >
-                    ↓
-                  </button>
+                  >↓</button>
                 </li>
               ))}
             </ol>
 
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                onClick={shuffle}
-                disabled={order.length === 0}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md font-medium transition-colors"
-              >
+              <Button variant="secondary" onClick={shuffle} disabled={order.length === 0}>
                 Randomize Order
-              </button>
+              </Button>
 
               {draftMode === 'live' ? (
-                <button
+                <Button
                   onClick={saveOrder}
                   disabled={savingOrder || order.length !== 8}
                   title={order.length !== 8 ? 'The draft needs exactly 8 fantasy teams' : ''}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md font-medium transition-colors"
                 >
-                  {savingOrder ? 'Saving...' : orderSaved ? 'Order Saved' : 'Save Draft Order'}
-                </button>
+                  {savingOrder ? 'Saving...' : orderSaved ? 'Order Saved ✓' : 'Save Draft Order'}
+                </Button>
               ) : (
-                <button
+                <Button
                   onClick={startDraft}
                   disabled={starting || order.length !== 8}
                   title={order.length !== 8 ? 'The draft needs exactly 8 fantasy teams' : ''}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md font-medium transition-colors"
                 >
                   {starting ? 'Starting...' : 'Start Draft'}
-                </button>
+                </Button>
               )}
 
               {isDev && order.length < 8 && (
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={fillBots}
                   disabled={fillingBots}
                   title="Dev only: fill empty slots with unmanaged Bot teams"
-                  className="px-4 py-2 bg-amber-700 hover:bg-amber-600 disabled:bg-gray-600 text-white rounded-md font-medium transition-colors"
                 >
                   {fillingBots ? 'Filling...' : 'Fill with bots'}
-                </button>
+                </Button>
               )}
 
               {order.length !== 8 && (
-                <span className="text-slate-500 text-sm">{order.length}/8 teams joined</span>
+                <span className="text-label text-slate-500">{order.length}/8 teams joined</span>
               )}
             </div>
           </>
         )
       )}
-    </div>
+    </Panel>
   );
 };
 

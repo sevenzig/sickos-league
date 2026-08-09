@@ -15,6 +15,7 @@ import Welcome from './pages/Welcome';
 import MyLeagues from './pages/MyLeagues';
 import CreateLeague from './pages/CreateLeague';
 import InviteRedeem from './pages/InviteRedeem';
+import JoinLeague from './pages/JoinLeague';
 import LeagueView from './pages/LeagueView';
 import LeagueAdmin from './pages/LeagueAdmin';
 import LeagueLineups from './pages/LeagueLineups';
@@ -25,6 +26,7 @@ import UserProfile from './pages/UserProfile';
 import EditProfile from './pages/EditProfile';
 import BQBLTest from './pages/BQBLTest';
 import FeatDraftSandbox from './pages/dev/FeatDraftSandbox';
+import DraftLayoutOptions from './pages/dev/DraftLayoutOptions';
 import DevOnly from './pages/dev/DevOnly';
 
 function App() {
@@ -39,6 +41,7 @@ function App() {
               <Route path="/rules" element={<Layout><Rules /></Layout>} />
               <Route path="/bqbl-test" element={<BQBLTest />} />
               <Route path="/dev/feat_draft" element={<FeatDraftSandbox />} />
+              <Route path="/dev/draft-layouts" element={<DraftLayoutOptions />} />
 
               {/* Dev mirrors of league pages — full UUID in path, DEV builds only */}
               <Route path="/dev/leagues/:leagueId" element={
@@ -92,6 +95,13 @@ function App() {
                     <ProtectedRoute>
                       <LeagueAdmin />
                     </ProtectedRoute>
+                  </Layout>
+                </DevOnly>
+              } />
+              <Route path="/dev/leagues/:leagueId/join" element={
+                <DevOnly>
+                  <Layout>
+                    <JoinLeague />
                   </Layout>
                 </DevOnly>
               } />
@@ -170,6 +180,11 @@ function App() {
                   <ProtectedRoute>
                     <LeagueAdmin />
                   </ProtectedRoute>
+                </Layout>
+              } />
+              <Route path="/leagues/:leagueId/join" element={
+                <Layout>
+                  <JoinLeague />
                 </Layout>
               } />
               <Route path="/leagues/:leagueId/schedule" element={

@@ -6,6 +6,7 @@ import WeekNavigation from '../components/navigation/WeekNavigation';
 import TeamLogo from '../components/TeamLogo';
 import TeamIdentityEditor from '../components/league/TeamIdentityEditor';
 import LeagueHeader from '../components/league/LeagueHeader';
+import { Panel, Button } from '@/components/ui';
 
 interface LeagueInfo {
   id: string;
@@ -258,7 +259,7 @@ const LeagueLineups: React.FC = () => {
       )}
 
       {/* My lineup card */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] p-6 sm:p-8">
+      <Panel className="p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <TeamIdentityEditor
@@ -286,20 +287,22 @@ const LeagueLineups: React.FC = () => {
             )}
             {canEdit && (
               <>
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={saveLineup}
                   disabled={!isComplete || saving}
-                  className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-all duration-200"
                 >
                   {saving ? 'Saving...' : 'Save'}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={lockLineup}
                   disabled={!isComplete || locking}
-                  className="px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-all duration-200"
                 >
                   {locking ? 'Locking...' : 'Lock Lineup'}
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -347,7 +350,7 @@ const LeagueLineups: React.FC = () => {
                     </span>
                   </div>
                   {label && (
-                    <div className={`mt-1 text-[10px] font-bold uppercase tracking-wide text-center leading-none ${
+                    <div className={`mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none ${
                       kicked ? 'text-orange-400' : 'text-amber-400'
                     }`}>
                       {label}
@@ -376,11 +379,11 @@ const LeagueLineups: React.FC = () => {
             })}
           </div>
         )}
-      </div>
+      </Panel>
 
       {/* Opponent card */}
       {opponentName && (
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-6">
+        <Panel className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-slate-50">
               Week {selectedWeek} Opponent: <span className="text-blue-400">{opponentName}</span>
@@ -407,7 +410,7 @@ const LeagueLineups: React.FC = () => {
                 : "Opponent's lineup is hidden until the week locks."}
             </p>
           )}
-        </div>
+        </Panel>
       )}
     </div>
   );

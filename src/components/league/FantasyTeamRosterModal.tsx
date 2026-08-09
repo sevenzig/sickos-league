@@ -88,7 +88,7 @@ const FantasyTeamRosterModal: React.FC<FantasyTeamRosterModalProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="fantasy-roster-title"
-        className="relative w-full max-w-md bg-gradient-to-b from-slate-800/95 to-slate-900/95 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-slate-700/50"
+        className="relative w-full max-w-md bg-gradient-to-b from-slate-800/95 to-slate-900/95 rounded-2xl shadow-panel border border-slate-700/50"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 p-4 border-b border-slate-700/50">
@@ -142,7 +142,7 @@ const FantasyTeamRosterModal: React.FC<FantasyTeamRosterModalProps> = ({
                     {entry.nfl_team_name}
                   </span>
                   {entry.draft_pick_number != null && (
-                    <span className="text-[11px] text-slate-500 tabular-nums">
+                    <span className="text-caption text-slate-500 tabular-nums">
                       Pick {entry.draft_pick_number}
                     </span>
                   )}

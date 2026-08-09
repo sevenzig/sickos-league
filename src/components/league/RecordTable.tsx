@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MultiLeagueApi } from '../../utils/multiLeagueApi';
+import { Panel } from '@/components/ui';
 
 interface TeamRecord {
   team_name: string;
@@ -105,45 +106,45 @@ const RecordTable: React.FC<RecordTableProps> = ({ leagueId }) => {
 
   if (loading) {
     return (
-      <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Team Records</h3>
+      <Panel>
+        <h3 className="text-heading text-slate-50 mb-4">Team Records</h3>
         <div className="animate-pulse space-y-2">
           {Array.from({ length: 8 }, (_, i) => (
             <div key={i} className="bg-slate-700 rounded h-10"></div>
           ))}
         </div>
-      </div>
+      </Panel>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Team Records</h3>
+      <Panel>
+        <h3 className="text-heading text-slate-50 mb-4">Team Records</h3>
         <div className="bg-red-900/20 border border-red-700 rounded-lg p-3">
           <p className="text-red-400 text-sm">{error}</p>
         </div>
-      </div>
+      </Panel>
     );
   }
 
   if (records.length === 0) {
     return (
-      <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-        <h3 className="text-lg font-medium text-white mb-4">Team Records</h3>
+      <Panel>
+        <h3 className="text-heading text-slate-50 mb-4">Team Records</h3>
         <div className="text-center py-6">
           <p className="text-slate-400">No records data yet</p>
           <p className="text-slate-500 text-sm mt-1">
             Records will appear after games are played
           </p>
         </div>
-      </div>
+      </Panel>
     );
   }
 
   return (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-      <h3 className="text-lg font-medium text-white mb-4">Team Records</h3>
+    <Panel>
+      <h3 className="text-heading text-slate-50 mb-4">Team Records</h3>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -173,7 +174,7 @@ const RecordTable: React.FC<RecordTableProps> = ({ leagueId }) => {
             </tr>
           </thead>
           <tbody>
-            {sortedRecords.map((team, index) => (
+            {sortedRecords.map((team) => (
               <tr key={team.team_name} className="border-b border-slate-700/50 last:border-b-0 hover:bg-slate-700/30">
                 <td className="py-2">
                   <div>
@@ -230,11 +231,11 @@ const RecordTable: React.FC<RecordTableProps> = ({ leagueId }) => {
       </div>
 
       <div className="mt-4 pt-4 border-t border-slate-700">
-        <div className="text-xs text-slate-500">
+        <div className="text-caption text-slate-500">
           <span className="font-medium">Legend:</span> W = Wins, L = Losses, T = Ties, PF = Points For, PA = Points Against, +/- = Point Differential
         </div>
       </div>
-    </div>
+    </Panel>
   );
 };
 

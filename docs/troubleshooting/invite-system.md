@@ -23,12 +23,16 @@ The invite system was broken due to missing database infrastructure. This has be
 ### 1. Apply Database Migration
 ```bash
 # Start Docker Desktop, then:
-npx supabase db reset
-# This applies all migrations including the new invite system
+docker compose up --build
+# API migrate() applies all migrations including the invite system
+# Full wipe: docker compose down -v && docker compose up --build
 ```
 
 ### 2. Verify Migration Applied
-Check in Supabase Dashboard > SQL Editor:
+```bash
+docker compose exec db psql -U postgres postgres
+```
+
 ```sql
 -- Check if table exists
 SELECT EXISTS (
@@ -115,7 +119,7 @@ SELECT EXISTS (
 
 #### "Function does not exist" Error
 **Cause**: Migration not applied
-**Solution**: Run `npx supabase db reset`
+**Solution**: `docker compose down -v && docker compose up --build` to re-apply migrations
 
 #### "Invalid or expired invite code"
 **Causes**:

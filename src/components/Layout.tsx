@@ -3,30 +3,22 @@ import { useLeagueData } from '../context/LeagueContext';
 import Header from './layout/Header';
 
 /*
-  STANDARDIZED SPACING SYSTEM:
+  STANDARDIZED SPACING SYSTEM (layout layer — fixed):
 
   Header Clearance:
-  - pt-24 (6rem) = Header height (4rem) + breathing room (2rem)
+  - pt-24 = Header height + breathing room
 
-  Component Spacing:
-  - space-y-6 (1.5rem) = Standard vertical spacing between sections
-  - space-y-8 (2rem) = Larger spacing for major sections
-  - space-y-4 (1rem) = Tight spacing for related items
+  Section / stack:
+  - space-y-4 = related items
+  - space-y-6 = standard sections
+  - space-y-8 = major section breaks
 
-  Container Padding:
-  - px-4 sm:px-6 lg:px-8 = Responsive horizontal padding
-  - py-6 (1.5rem) = Standard vertical padding
-  - py-8 (2rem) = Larger vertical padding for major containers
+  Container:
+  - px-4 sm:px-6 lg:px-8
+  - Panel padding via <Panel size/padding> (density recipes for component internals)
 
-  Card/Component Internal:
-  - p-4 (1rem) = Compact internal padding
-  - p-6 (1.5rem) = Standard internal padding
-  - p-8 (2rem) = Spacious internal padding
-
-  Gaps:
-  - gap-4 (1rem) = Standard grid/flex gap
-  - gap-6 (1.5rem) = Larger grid/flex gap
-  - gap-8 (2rem) = Major section gaps
+  Component density (derived): see src/lib/density.ts
+  Prefer <Panel>, <Button>, <PageChrome> from src/components/ui
 */
 
 interface LayoutProps {
@@ -45,7 +37,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-300">Initializing...</p>
+          <p className="text-slate-300">Initializing...</p>
         </div>
       </div>
     );
@@ -57,7 +49,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="min-h-screen bg-dark-bg text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-300">Loading league data...</p>
+          <p className="text-slate-300">Loading league data...</p>
         </div>
       </div>
     );

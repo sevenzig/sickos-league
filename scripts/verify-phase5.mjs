@@ -137,8 +137,8 @@ check('setup: member B joined', true);
 // B rejoins for the rest of the tests
 await inviteAndJoin(leagueId, owner.token, memberB, 'Team B');
 
-// Fill to 8 teams (6 unmanaged) and complete the draft directly (Phase 2
-// covers real drafting; here the gate itself is under test).
+// Fill to 8 teams (6 unmanaged). Mark draft complete so remove_member gate
+// can be tested; schedule generation no longer requires draft complete.
 {
   psql(`
     INSERT INTO fantasy_teams (league_id, team_name)
@@ -163,7 +163,7 @@ await inviteAndJoin(leagueId, owner.token, memberB, 'Team B');
 
 {
   const { data, error } = await rpc('generate_league_schedule', { p_league_id: leagueId }, owner.token);
-  check('generate_league_schedule succeeds after draft', !error && data === true, error?.message);
+  check('generate_league_schedule succeeds with 8 teams', !error && data === true, error?.message);
 }
 {
   // Pre-season regenerate is allowed (nothing locked, no scores)

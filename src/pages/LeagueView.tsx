@@ -11,6 +11,7 @@ import MatchupCard from '../components/matchup-cards/2-team/MatchupCard';
 import MatchupModal from '../components/matchup-modals/2-team/MatchupModal';
 import StandingsTable from '../components/league/StandingsTable';
 import SeasonWLTChart from '../components/tables/SeasonWLTChart';
+import { Panel } from '@/components/ui';
 
 interface LineupRow {
   fantasy_team_id: string;
@@ -306,12 +307,12 @@ const LeagueView: React.FC = () => {
 
       {/* Show loading state while data loads */}
       {!isDataLoaded && (
-        <div className="panel p-6 text-center">
+        <Panel className="text-center" size="md">
           <div className="flex flex-col items-center gap-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             <p className="text-slate-400">Loading league data...</p>
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* Matchups - Top row with 4 columns */}
@@ -337,11 +338,11 @@ const LeagueView: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="panel p-6 text-center text-slate-400">
-            {schedule.length === 0
-              ? 'No schedule yet. Finish the draft, then the commissioner can generate the season schedule.'
-              : `No matchups scheduled for Week ${selectedWeek}`}
-          </div>
+          <Panel className="text-center text-slate-400" size="md">
+                {schedule.length === 0
+                  ? 'No schedule yet. The commissioner can generate it from League Admin once all 8 teams have joined, or it will be created when the draft starts.'
+                  : `No matchups scheduled for Week ${selectedWeek}`}
+              </Panel>
         )}
         </div>
       )}

@@ -33,6 +33,20 @@ services:
       db:
         condition: service_healthy
 
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      API_PROXY_TARGET: http://api:3001
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
   backup:
     image: postgres:16-alpine
     profiles: ["backup"]

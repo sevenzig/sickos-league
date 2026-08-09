@@ -1,6 +1,6 @@
-// HTTP client for the self-hosted API (replaces @supabase/supabase-js).
-// Exposes a `db` object implementing the subset of the supabase-js query
-// builder this codebase uses, so existing call sites keep working unchanged.
+// HTTP client for the self-hosted API.
+// Exposes a `db` object with a fluent query builder
+// (from().select/insert/update/upsert/delete) used by call sites.
 
 export const API_URL: string = import.meta.env.VITE_API_URL || '/api'
 
@@ -106,8 +106,8 @@ export function authSignOut(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Query builder (supabase-js subset: from().select/insert/update/upsert/delete
-// with eq/in/order/limit/single/maybeSingle and { count, head })
+// Query builder: from().select/insert/update/upsert/delete
+// with eq/in/order/limit/single/maybeSingle and { count, head }
 // ---------------------------------------------------------------------------
 
 interface QueryState {

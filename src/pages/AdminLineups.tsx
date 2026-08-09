@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
+import { Panel, Button, Badge } from '../components/ui';
 
 const AdminLineups: React.FC = () => {
   const { leagueData, setLineup, lockWeek, lockTeamLineup, isWeekLocked, isTeamLineupLocked } = useLeagueData();
@@ -206,7 +207,7 @@ const AdminLineups: React.FC = () => {
       </div>
 
       {/* Week Selection and Finalize Section */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] py-6 px-8">
+      <Panel padding="none" className="py-6 px-8">
         {/* Mobile Layout */}
         <div className="sm:hidden">
           {/* Top row: Title and Info button */}
@@ -321,7 +322,7 @@ const AdminLineups: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
+      </Panel>
 
       {/* Team Lineups - Responsive Grid Layout */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 xl:gap-6">
@@ -332,12 +333,12 @@ const AdminLineups: React.FC = () => {
           const canEdit = canEditWeek && !isLocked;
 
           return (
-            <div key={team.name} className={`bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] flex flex-col hover:bg-slate-700/20 transition-all duration-200 ${
-              isLocked ? 'border-emerald-500/50 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.2)]' : ''
+            <Panel key={team.name} padding="none" className={`flex flex-col hover:shadow-panel-hover transition-all duration-200 ${
+              isLocked ? 'border-emerald-500/50' : ''
             }`}>
               {/* Team Header */}
               <div className="flex items-center justify-between p-3 lg:p-2.5 xl:p-4 border-b border-slate-700/30">
-                <TeamLogo teamName={team.name} size="sm" showName={true} className="text-xs lg:text-[11px] xl:text-sm" />
+                <TeamLogo teamName={team.name} size="sm" showName={true} className="text-xs lg:text-caption xl:text-sm" />
                 <div className="flex items-center gap-2">
                   {isLocked ? (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
@@ -416,7 +417,7 @@ const AdminLineups: React.FC = () => {
                   );
                 })}
               </div>
-            </div>
+            </Panel>
           );
         })}
       </div>

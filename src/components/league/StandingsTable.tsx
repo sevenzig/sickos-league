@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { MultiLeagueApi, type LeagueMatchup } from '../../utils/multiLeagueApi';
 import FantasyTeamAvatar from './FantasyTeamAvatar';
 import FantasyTeamRosterModal from './FantasyTeamRosterModal';
+import { Panel } from '@/components/ui/panel';
+import { Badge } from '@/components/ui/badge';
 
 interface Standing {
   rank: number;
@@ -85,45 +87,45 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
 
   if (loading) {
     return (
-      <div className="panel p-6">
-        <h3 className="text-xl font-black tracking-tight text-slate-50 mb-4">Standings</h3>
+      <Panel padding="default">
+        <h3 className="text-heading text-slate-50 mb-4">Standings</h3>
         <div className="animate-pulse space-y-2">
           {Array.from({ length: 8 }, (_, i) => (
-            <div key={i} className="bg-slate-700 rounded h-12"></div>
+            <div key={i} className="bg-slate-700 rounded-md h-12" />
           ))}
         </div>
-      </div>
+      </Panel>
     );
   }
 
   if (error) {
     return (
-      <div className="panel p-6">
-        <h3 className="text-xl font-black tracking-tight text-slate-50 mb-4">Standings</h3>
-        <div className="bg-red-900/20 border border-red-700 rounded-lg p-3">
-          <p className="text-red-400 text-sm">{error}</p>
+      <Panel padding="default">
+        <h3 className="text-heading text-slate-50 mb-4">Standings</h3>
+        <div className="bg-red-900/20 border border-red-700 rounded-md p-3">
+          <p className="text-red-400 text-label">{error}</p>
         </div>
-      </div>
+      </Panel>
     );
   }
 
   if (standings.length === 0) {
     return (
-      <div className="panel p-6">
-        <h3 className="text-xl font-black tracking-tight text-slate-50 mb-4">Standings</h3>
+      <Panel padding="default">
+        <h3 className="text-heading text-slate-50 mb-4">Standings</h3>
         <div className="text-center py-6">
-          <p className="text-slate-400">No standings data yet</p>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-400 text-body">No standings data yet</p>
+          <p className="text-slate-400 text-label mt-1">
             Standings will appear after games are played
           </p>
         </div>
-      </div>
+      </Panel>
     );
   }
 
   return (
-    <div className="panel p-6">
-      <h3 className="text-xl font-black tracking-tight text-slate-50 mb-4">Standings</h3>
+    <Panel padding="default">
+      <h3 className="text-heading text-slate-50 mb-4">Standings</h3>
 
       <div className="overflow-x-auto">
         <table className="w-full table-fixed min-w-[32rem]">
@@ -137,12 +139,12 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
           </colgroup>
           <thead>
             <tr className="border-b border-slate-600">
-              <th className="text-left py-2 pr-2 text-slate-400 text-xs font-medium uppercase tracking-wide">#</th>
-              <th className="text-left py-2 pr-2 text-slate-400 text-xs font-medium uppercase tracking-wide">Team</th>
-              <th className="text-center py-2 px-1 text-slate-400 text-xs font-medium uppercase tracking-wide">W-L-T</th>
-              <th className="text-right py-2 px-1 text-slate-400 text-xs font-medium uppercase tracking-wide">PF</th>
-              <th className="text-right py-2 px-1 text-slate-400 text-xs font-medium uppercase tracking-wide">%</th>
-              <th className="text-right py-2 pl-1 text-slate-400 text-xs font-medium uppercase tracking-wide">Streak</th>
+              <th className="text-left py-2 pr-2 text-slate-400 text-caption uppercase tracking-wide">#</th>
+              <th className="text-left py-2 pr-2 text-slate-400 text-caption uppercase tracking-wide">Team</th>
+              <th className="text-center py-2 px-1 text-slate-400 text-caption uppercase tracking-wide">W-L-T</th>
+              <th className="text-right py-2 px-1 text-slate-400 text-caption uppercase tracking-wide">PF</th>
+              <th className="text-right py-2 px-1 text-slate-400 text-caption uppercase tracking-wide">%</th>
+              <th className="text-right py-2 pl-1 text-slate-400 text-caption uppercase tracking-wide">Streak</th>
             </tr>
           </thead>
           <tbody>
@@ -152,30 +154,29 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
                 className="border-b border-slate-700/50 last:border-b-0"
               >
                 <td className="py-3 pr-2">
-                  <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                    team.rank === 1
-                      ? 'bg-yellow-600 text-yellow-100'
-                      : team.rank <= 4
-                      ? 'bg-green-600 text-green-100'
-                      : 'bg-slate-600 text-slate-300'
-                  }`}>
+                  <Badge
+                    variant={
+                      team.rank === 1 ? 'warning' : team.rank <= 4 ? 'success' : 'default'
+                    }
+                    className="justify-center w-6 h-6 p-0 font-bold"
+                  >
                     {team.rank}
-                  </span>
+                  </Badge>
                 </td>
                 <td className="py-3 pr-2 min-w-0">
                   <button
                     type="button"
                     onClick={() => setRosterTeam(team)}
-                    className="flex items-center gap-2 min-w-0 w-full text-left rounded-lg hover:bg-slate-700/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-800 transition-colors"
+                    className="flex items-center gap-2 min-w-0 w-full text-left rounded-md hover:bg-slate-700/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-colors"
                     aria-label={`View ${team.team_name} roster`}
                   >
                     <FantasyTeamAvatar teamName={team.team_name} logoUrl={team.logo_url} size="sm" />
                     <div className="min-w-0">
-                      <div className="text-white font-medium text-sm truncate">
+                      <div className="text-white font-medium text-label truncate">
                         {team.team_name}
                       </div>
                       {team.manager_email && (
-                        <div className="text-slate-400 text-xs truncate">
+                        <div className="text-slate-400 text-caption truncate">
                           {team.manager_email.split('@')[0]}
                         </div>
                       )}
@@ -183,22 +184,22 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
                   </button>
                 </td>
                 <td className="py-3 px-1 text-center">
-                  <span className="text-slate-300 text-sm font-mono tabular-nums">
+                  <span className="text-slate-300 text-label font-mono tabular-nums">
                     {team.wins}-{team.losses}-{team.ties}
                   </span>
                 </td>
                 <td className="py-3 px-1 text-right">
-                  <span className="text-slate-300 text-sm font-mono tabular-nums">
+                  <span className="text-slate-300 text-label font-mono tabular-nums">
                     {Number(team.points_for || 0).toFixed(0)}
                   </span>
                 </td>
                 <td className="py-3 px-1 text-right">
-                  <span className="text-slate-300 text-sm font-mono tabular-nums">
+                  <span className="text-slate-300 text-label font-mono tabular-nums">
                     {(Number(team.win_percentage || 0) * 100).toFixed(0)}
                   </span>
                 </td>
                 <td className="py-3 pl-1 text-right">
-                  <span className={`text-sm font-mono tabular-nums ${
+                  <span className={`text-label font-mono tabular-nums ${
                     team.streak.startsWith('W')
                       ? 'text-green-400'
                       : team.streak.startsWith('L')
@@ -221,7 +222,7 @@ const StandingsTable: React.FC<StandingsTableProps> = ({ leagueId }) => {
         teamName={rosterTeam?.team_name ?? ''}
         logoUrl={rosterTeam?.logo_url}
       />
-    </div>
+    </Panel>
   );
 };
 

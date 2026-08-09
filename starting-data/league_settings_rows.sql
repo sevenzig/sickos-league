@@ -1,1 +1,0 @@
-INSERT INTO "public"."league_settings" ("id", "current_week", "locked_weeks", "season", "created_at") VALUES ('1', '9', '"{]}', '2025', '2025-10-24 19:09:57.549824+00');

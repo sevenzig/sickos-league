@@ -1,5 +1,5 @@
 -- Bad QB League Database Schema
--- Run this SQL in your Supabase SQL editor
+-- Reference / legacy dump; live schema is applied via db/migrations/ on API boot
 
 -- Teams table
 CREATE TABLE IF NOT EXISTS teams (

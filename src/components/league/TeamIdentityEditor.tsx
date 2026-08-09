@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { MultiLeagueApi, FantasyTeam } from '../../utils/multiLeagueApi';
 import FantasyTeamAvatar from './FantasyTeamAvatar';
+import { Input, Button } from '@/components/ui';
 
 interface TeamIdentityEditorProps {
   team: FantasyTeam;
@@ -70,7 +71,7 @@ const TeamIdentityEditor: React.FC<TeamIdentityEditorProps> = ({ team, onUpdated
           title="Change team logo"
         >
           <FantasyTeamAvatar teamName={team.team_name} logoUrl={team.logo_url} size="lg" />
-          <span className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-bold text-white uppercase">
+          <span className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-caption font-bold text-white uppercase">
             {uploading ? '...' : 'Edit'}
           </span>
         </button>
@@ -84,7 +85,7 @@ const TeamIdentityEditor: React.FC<TeamIdentityEditorProps> = ({ team, onUpdated
 
         {editing ? (
           <div className="flex items-center gap-2">
-            <input
+            <Input
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
@@ -94,25 +95,18 @@ const TeamIdentityEditor: React.FC<TeamIdentityEditorProps> = ({ team, onUpdated
               }}
               maxLength={40}
               autoFocus
-              className="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded-md text-white text-lg font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-9 text-heading font-bold"
             />
-            <button
-              onClick={saveName}
-              disabled={saving}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md text-sm font-medium"
-            >
+            <Button size="sm" onClick={saveName} disabled={saving}>
               {saving ? 'Saving...' : 'Save'}
-            </button>
-            <button
-              onClick={() => { setEditing(false); setName(team.team_name); }}
-              className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-md text-sm"
-            >
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => { setEditing(false); setName(team.team_name); }}>
               Cancel
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-slate-50 tracking-tight">{team.team_name}</h2>
+            <h2 className="text-heading font-bold text-slate-50 tracking-tight">{team.team_name}</h2>
             <button
               onClick={() => { setEditing(true); setName(team.team_name); }}
               className="text-slate-400 hover:text-white transition-colors"

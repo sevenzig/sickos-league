@@ -1,13 +1,26 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 // https://vitejs.dev/config/
+// Docker sets API_PROXY_TARGET to the api container's compose hostname; host dev falls back to localhost.
+const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:3001'
+
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   server: {
+    host: true,
     proxy: {
-      '/api': 'http://localhost:3001',
-      '/photos': 'http://localhost:3001',
+      '/api': apiProxyTarget,
+      '/photos': apiProxyTarget,
     },
   },
   plugins: [

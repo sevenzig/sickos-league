@@ -13,6 +13,20 @@ dist-ssr
 *.local
 graphify-out/
 
+# Local session / agent artifacts (keep on disk, do not track)
+codebase-map.md
+context-handoff.md
+debug-findings.md
+repair-brief.md
+repair-spec.md
+review-pass.md
+.claude-flow/
+
+# Local data dumps / fixtures (not required for app build)
+starting-data/
+backups/
+weekly-scoring-data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

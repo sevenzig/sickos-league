@@ -1,30 +1,23 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 const WelcomeHero: React.FC = () => {
   return (
-    <section className="text-center py-24 px-8">
+    <section className="text-center py-24 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl md:text-6xl font-light tracking-wide text-white mb-8 leading-tight">
-          Bad QB League
-        </h1>
-        <p className="text-lg md:text-xl leading-relaxed text-slate-400 mb-12 max-w-2xl mx-auto font-light">
-          The fantasy football league where the worst quarterbacks win.
-          Join leagues, manage lineups, and compete for the title of worst QB manager.
+        <h1 className="text-display md:text-5xl font-bold text-white mb-8">Bad QB League</h1>
+        <p className="text-heading md:text-xl leading-relaxed text-slate-400 mb-12 max-w-2xl mx-auto font-normal">
+          The fantasy football league where the worst quarterbacks win. Join leagues, manage
+          lineups, and compete for the title of worst QB manager.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-          <Link
-            to="/leagues/new"
-            className="inline-flex items-center px-8 py-4 text-base font-medium text-white bg-blue-600 rounded-md"
-          >
-            Create a League
-          </Link>
-          <Link
-            to="/invite"
-            className="inline-flex items-center px-8 py-4 text-base font-medium text-slate-400 border border-slate-600 rounded-md"
-          >
-            Join with Code
-          </Link>
+          <Button asChild size="lg">
+            <Link to="/leagues/new">Create a League</Link>
+          </Button>
+          <Button asChild variant="secondary" size="lg">
+            <Link to="/invite">Join with Code</Link>
+          </Button>
         </div>
       </div>
     </section>

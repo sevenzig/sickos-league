@@ -21,18 +21,22 @@ The following migrations need to be applied to fix the current issues:
 ### 1. Apply All Migrations
 ```bash
 # Ensure Docker Desktop is running
-npx supabase db reset
+docker compose up --build
 ```
 
-This will apply all migrations in order and set up:
+The API runs `migrate()` on boot (bootstrap → `db/migrations/` → seed) and sets up:
 - User profiles with photo upload
 - Working schedule generation
 - Complete invite system
 - Unified team management
 
+For a full wipe and re-apply: `docker compose down -v && docker compose up --build`
+
 ### 2. Verify Migration Success
 
-**Check in Supabase Dashboard > SQL Editor:**
+```bash
+docker compose exec db psql -U postgres postgres
+```
 
 ```sql
 -- Verify all tables exist

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MultiLeagueApi } from '../../utils/multiLeagueApi';
 import { getLeagueUrl } from '../../utils/urlUtils';
+import { Panel, Input, Button } from '@/components/ui';
 
 interface JoinWithCodeProps {
   initialCode?: string;
@@ -67,7 +68,6 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
 
     try {
       const leagueId = await MultiLeagueApi.redeemInviteCode(inviteCode, teamName.trim());
-      // Redirect to the league dashboard using proper league URL
       navigate(getLeagueUrl(leagueId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join league');
@@ -79,13 +79,13 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
     return (
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-light text-white mb-4">Join League</h2>
-          <div className="bg-blue-600/10 border border-blue-600/20 rounded-lg p-4 mb-6">
-            <h3 className="text-lg font-medium text-white mb-2">{invitation.league_name}</h3>
-            <p className="text-slate-400 text-sm">
+          <h2 className="text-title text-slate-50 mb-4">Join League</h2>
+          <Panel className="mb-6 text-left">
+            <h3 className="text-heading text-slate-50 mb-1">{invitation.league_name}</h3>
+            <p className="text-label text-slate-400">
               You're about to join this Bad QB League. Choose a name for your fantasy team.
             </p>
-          </div>
+          </Panel>
         </div>
 
         <form onSubmit={handleJoinLeague} className="space-y-6">
@@ -95,40 +95,35 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
             </div>
           )}
 
-          <div>
-            <label htmlFor="teamName" className="block text-sm font-medium text-slate-300 mb-2">
+          <div className="space-y-1.5">
+            <label htmlFor="teamName" className="text-label font-medium text-slate-300">
               Team Name
             </label>
-            <input
+            <Input
               type="text"
               id="teamName"
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
               placeholder="Enter your team name"
-              className="w-full px-3 py-2 bg-white/5 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent"
               maxLength={50}
               required
             />
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-caption text-slate-400">
               Choose a unique name for your fantasy team (up to 50 characters)
             </p>
           </div>
 
           <div className="flex items-center justify-between pt-4">
-            <button
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => setStep('code')}
-              className="px-4 py-2 text-slate-400 hover:text-white"
             >
               Back
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-8 py-3 bg-blue-600 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            </Button>
+            <Button type="submit" disabled={loading}>
               {loading ? 'Joining...' : 'Join League'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -138,8 +133,8 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
   return (
     <div className="max-w-md mx-auto">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-light text-white mb-4">Join a League</h2>
-        <p className="text-slate-400 leading-relaxed">
+        <h2 className="text-title text-slate-50 mb-3">Join a League</h2>
+        <p className="text-body text-slate-400">
           Enter the invite code shared by your league commissioner to join an existing league.
         </p>
       </div>
@@ -151,33 +146,32 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
           </div>
         )}
 
-        <div>
-          <label htmlFor="inviteCode" className="block text-sm font-medium text-slate-300 mb-2">
+        <div className="space-y-1.5">
+          <label htmlFor="inviteCode" className="text-label font-medium text-slate-300">
             Invite Code
           </label>
-          <input
+          <Input
             type="text"
             id="inviteCode"
             value={inviteCode}
             onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
             placeholder="Enter 8-character code (e.g., ABC123XY)"
-            className="w-full px-3 py-2 bg-white/5 border border-slate-600 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono text-center text-lg tracking-wider"
             maxLength={8}
-            style={{ textTransform: 'uppercase' }}
+            className="font-mono text-center text-lg tracking-wider uppercase"
             required
           />
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-caption text-slate-400">
             Ask your league commissioner for the invite code
           </p>
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={loading || !inviteCode.trim()}
-          className="w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full"
         >
           {loading ? 'Validating...' : 'Continue'}
-        </button>
+        </Button>
       </form>
     </div>
   );

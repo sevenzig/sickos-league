@@ -2,13 +2,16 @@ import React from 'react';
 import DatetimeLocalPicker from './DatetimeLocalPicker';
 
 export type DraftMode = 'async' | 'live';
+export type DraftFormat = 'snake' | 'linear';
 export type PickSeconds = 30 | 60 | 90;
 
 interface DraftSetupFieldsProps {
   draftMode: DraftMode;
+  draftFormat: DraftFormat;
   draftAtLocal: string; // datetime-local value
   draftPickSeconds: PickSeconds;
   onDraftModeChange: (mode: DraftMode) => void;
+  onDraftFormatChange: (format: DraftFormat) => void;
   onDraftAtChange: (value: string) => void;
   onPickSecondsChange: (secs: PickSeconds) => void;
   disabled?: boolean;
@@ -36,9 +39,11 @@ export function fromDatetimeLocalValue(local: string): string | null {
 
 const DraftSetupFields: React.FC<DraftSetupFieldsProps> = ({
   draftMode,
+  draftFormat,
   draftAtLocal,
   draftPickSeconds,
   onDraftModeChange,
+  onDraftFormatChange,
   onDraftAtChange,
   onPickSecondsChange,
   disabled = false,
@@ -51,7 +56,43 @@ const DraftSetupFields: React.FC<DraftSetupFieldsProps> = ({
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-3">Draft type</label>
+        <label className="block text-sm font-medium text-slate-300 mb-3">Pick order</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onDraftFormatChange('snake')}
+            className={`text-left p-4 rounded-lg border transition-colors ${
+              draftFormat === 'snake'
+                ? 'border-blue-500 bg-blue-900/20'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            } disabled:opacity-50`}
+          >
+            <div className="text-white font-medium mb-1">Snake</div>
+            <p className="text-slate-400 text-sm">
+              Odd rounds go 1→8; even rounds reverse 8→1.
+            </p>
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onDraftFormatChange('linear')}
+            className={`text-left p-4 rounded-lg border transition-colors ${
+              draftFormat === 'linear'
+                ? 'border-blue-500 bg-blue-900/20'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            } disabled:opacity-50`}
+          >
+            <div className="text-white font-medium mb-1">Linear</div>
+            <p className="text-slate-400 text-sm">
+              Same order every round — 1st pick gets 1, 9, 17, 25.
+            </p>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-slate-300 mb-3">Draft timing</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             type="button"

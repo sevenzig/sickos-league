@@ -1,5 +1,5 @@
 -- Secure RLS Policies for Bad QB League
--- Run this SQL in your Supabase SQL editor to replace the current permissive policies
+-- Reference / legacy dump; live policies live in db/migrations/
 
 -- First, drop all existing policies
 DROP POLICY IF EXISTS "Allow public read access" ON teams;

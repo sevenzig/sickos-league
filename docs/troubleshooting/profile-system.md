@@ -14,12 +14,17 @@ The `get_user_profile_with_teams` function expects the `email` column to be `TEX
 ### Option 1: Run Migration (Recommended)
 ```bash
 # Start Docker Desktop first, then:
-npx supabase db reset
-# This will apply all migrations including the fix
+docker compose up --build
+# API migrate() applies all migrations including the fix
+# Full wipe: docker compose down -v && docker compose up --build
 ```
 
-### Option 2: Manual SQL Fix (If Docker unavailable)
-Run this SQL directly in Supabase Dashboard > SQL Editor:
+### Option 2: Manual SQL Fix
+```bash
+docker compose exec db psql -U postgres postgres
+```
+
+Then run:
 
 ```sql
 -- Drop and recreate the function with correct return types
@@ -90,6 +95,6 @@ This type of error is prevented in the future by:
 3. Using database introspection tools to verify column types
 
 ## Related Files
-- Database: `supabase/migrations/20241031000002_fix_profile_function.sql`
+- Database: `db/migrations/20241031000002_fix_profile_function.sql`
 - Frontend: `src/utils/multiLeagueApi.ts` (UserProfile interface updated)
 - Components: `src/pages/UserProfile.tsx`, `src/pages/EditProfile.tsx`

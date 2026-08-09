@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import TeamLogo from '../TeamLogo';
 import FantasyTeamRosterModal from '../league/FantasyTeamRosterModal';
+import { Panel } from '@/components/ui';
 
 interface SeasonWLTChartProps {
   leagueId: string;
@@ -73,7 +74,7 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
     <>
       <div className="xl:col-span-2 space-y-6">
         <div className="flex justify-between items-center">
-          <h3 className="text-xl font-black text-slate-50 tracking-tight">Season W/L/T Chart</h3>
+          <h3 className="text-heading font-bold text-slate-50 tracking-tight">Season W/L/T Chart</h3>
           {/* Legend */}
           <div className="flex gap-6 text-sm">
             <div className="flex items-center gap-2">
@@ -90,7 +91,7 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
             </div>
           </div>
         </div>
-        <div className="panel overflow-hidden">
+        <Panel padding="none" className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full min-w-max">
               <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
@@ -191,7 +192,7 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
               </tbody>
             </table>
           </div>
-        </div>
+        </Panel>
       </div>
 
       {/* Portal Tooltip */}
@@ -213,7 +214,7 @@ const SeasonWLTChart: React.FC<SeasonWLTChartProps> = ({
               left: `${position.left}px`,
             }}
           >
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-panel border border-slate-700/50 backdrop-blur-xl">
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-caption rounded-panel p-4 shadow-panel border border-slate-700/50 backdrop-blur-sm">
               <div className="flex items-center gap-6">
                 {/* Hovered team (always left side) */}
                 <div className="text-center">

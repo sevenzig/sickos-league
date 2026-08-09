@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLeagueData } from '../context/LeagueContext';
 import TeamLogo from '../components/TeamLogo';
+import { Panel } from '@/components/ui';
 
 const SetLineups: React.FC = () => {
   const { leagueData, setLineup, lockWeek, lockTeamLineup, isWeekLocked, isTeamLineupLocked } = useLeagueData();
@@ -172,12 +173,12 @@ const SetLineups: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-8 px-4">
       {/* Week Selection and Finalize Section */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] py-6 px-8">
+      <Panel padding="none" className="py-6 px-8">
         {/* Mobile Layout */}
         <div className="sm:hidden">
           {/* Top row: Title and Info button */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-black text-slate-50 tracking-tight">Finalize Lineups</h2>
+            <h2 className="text-xl font-bold text-slate-50 tracking-tight">Finalize Lineups</h2>
             <button
               onClick={() => setShowMobileInfo(!showMobileInfo)}
               className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/20 rounded-lg transition-all duration-200"
@@ -251,7 +252,7 @@ const SetLineups: React.FC = () => {
         {/* Desktop Layout */}
         <div className="hidden sm:flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <h2 className="text-xl font-black text-slate-50 tracking-tight">Finalize Lineups</h2>
+            <h2 className="text-xl font-bold text-slate-50 tracking-tight">Finalize Lineups</h2>
             <div className="flex items-center gap-2 text-sm text-slate-300">
               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
               <span>{Object.values(lineups).filter(qbs => qbs.length === 2).length} of {leagueData.teams.length} teams complete</span>
@@ -305,7 +306,7 @@ const SetLineups: React.FC = () => {
             )}
           </div>
         </div>
-      </div>
+      </Panel>
 
       {/* Team Lineups - Responsive Grid Layout */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 xl:gap-6">
@@ -316,12 +317,16 @@ const SetLineups: React.FC = () => {
           const canEdit = canEditWeek && !isLocked;
           
           return (
-            <div key={team.name} className={`bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] flex flex-col hover:bg-slate-700/20 transition-all duration-200 ${
-              isLocked ? 'border-emerald-500/50 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.2)]' : ''
-            }`}>
+            <Panel
+              key={team.name}
+              padding="none"
+              className={`flex flex-col hover:shadow-panel-hover hover:border-slate-600 transition-all duration-200 ${
+                isLocked ? 'border-emerald-500/50' : ''
+              }`}
+            >
               {/* Team Header */}
               <div className="flex items-center justify-between p-3 lg:p-2.5 xl:p-4 border-b border-slate-700/30">
-                <TeamLogo teamName={team.name} size="sm" showName={true} className="text-xs lg:text-[11px] xl:text-sm" />
+                  <TeamLogo teamName={team.name} size="sm" showName={true} className="text-xs lg:text-caption xl:text-sm" />
                 <div className="flex items-center gap-2">
                   {isLocked ? (
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
@@ -400,7 +405,7 @@ const SetLineups: React.FC = () => {
                   );
                 })}
               </div>
-            </div>
+            </Panel>
           );
         })}
       </div>

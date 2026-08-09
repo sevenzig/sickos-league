@@ -1,5 +1,5 @@
 -- Local development seed data
--- Applied automatically by `supabase db reset` / `supabase start`.
+-- Applied automatically by API migrate() on every boot.
 
 -- The 32 NFL teams (names must match NFL_TEAMS in src/types.ts).
 -- clean_infrastructure assigns each a uuid_id via the column default.

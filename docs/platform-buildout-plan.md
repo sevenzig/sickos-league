@@ -23,7 +23,7 @@
 
 | Area | Evidence |
 |---|---|
-| Auth + profiles | Supabase auth, `user_profiles`, photo upload (`src/pages/EditProfile.tsx`, `UserProfile.tsx`) |
+| Auth + profiles | Self-hosted JWT auth (`/api/auth`), `user_profiles`, photo upload (`src/pages/EditProfile.tsx`, `UserProfile.tsx`) |
 | League creation | `create_league` RPC + `src/pages/CreateLeague.tsx`; owner fantasy team auto-created (`20241031000006_auto_create_owner_team.sql`) |
 | Invites | `league_invitations` table, `redeem_invite_code` RPC, `InviteManager`/`JoinWithCode`/`InviteRedeem` |
 | Membership | `league_members` with roles; users can belong to multiple leagues (`get_user_leagues`) |
@@ -38,7 +38,7 @@
 |---|---|
 | Schedule generator packs 1 matchup/week instead of 4 | `generate_league_schedule` in `20241031000003_schedule_generation.sql` (lines 53–66: `week_num` increments per matchup) |
 | No roster ownership — `fantasy_teams` has no link to NFL teams; `set_fantasy_lineup` accepts any of the 32 | `20241029000200_clean_infrastructure.sql`; `20241029000202_clean_functions.sql` |
-| No draft — only a `draft_at` timestamp and marketing copy; `set_draft_time` RPC exists only in `supabase/migrations/backup/` | `leagues.draft_at`, `TeamSlots.tsx:155` |
+| No draft — only a `draft_at` timestamp and marketing copy; `set_draft_time` RPC exists only in archived migrations | `leagues.draft_at`, `TeamSlots.tsx:155` |
 | Lineups/schedule/standings routes are "Coming Soon" | `App.tsx` lines ~104–129 |
 | `LeagueView` scores hardcoded to 0 with placeholder team names; `isWeekLocked` always false | `src/pages/LeagueView.tsx` lines 35–36, 107–128 |
 | `v_league_standings` view queried by UI but never created in active migrations | `LeagueHome.tsx` |
@@ -61,7 +61,7 @@
 1. **Postgres is the referee.** All game rules (roster uniqueness, pick validity, turn order, lineup membership, locks) are enforced in RPCs/constraints, not just the UI. This is what makes public launch safe later — the client is untrusted.
 2. **One `game_stats` upload, many leagues.** Never add `league_id` to `game_stats`. Scoring is a pure function: `(lineup NFL teams, week) → sum of final_score`.
 3. **Reuse the legacy engine.** `scoring.ts`, the `AdminLineups` roster-grid UX, and `calculateTeamRecords` are proven. Port, don't rewrite.
-4. **Async-first draft.** A draft is just a table of picks and a turn pointer. Realtime is a progressive enhancement (Supabase Realtime subscription on the picks table), not a requirement.
+4. **Async-first draft.** A draft is just a table of picks and a turn pointer. Realtime is a progressive enhancement (faster poll / push on the picks table), not a requirement.
 5. **Additive migrations only**, matching the existing rollout doc convention (`docs/full-implementation.md`).
 
 ---
@@ -164,12 +164,12 @@ CREATE TABLE draft_picks (
 
 **2.4 Draft UI: `/leagues/:id/draft`**
 - Draft board: 32-team grid (reuse `TeamLogo` + the `NFL_TEAMS` constant from `src/types.ts`), taken teams greyed with the drafting team's name; pick history sidebar; "You're on the clock" banner when it's the caller's turn.
-- Poll `get_draft_state` on load/focus; optionally subscribe to `draft_picks` via Supabase Realtime for instant updates when multiple managers are online (enhancement, not requirement).
+- Poll `get_draft_state` on load/focus; optionally tighten the poll interval (or add a push channel later) for instant updates when multiple managers are online (enhancement, not requirement).
 - **Verify:** two browser sessions (two accounts) complete a full 32-pick draft in dev.
 
 **2.5 Notifications (async draft depends on this)**
 - Minimal viable: in-app — `MyLeagues` and the league dashboard show a prominent "Your pick!" badge (derived from draft state, no new tables).
-- Email: Supabase Edge Function triggered on pick advance (or a DB webhook) → "You're on the clock in {league}". Can land after 2.4; in-app badge ships first.
+- Email: API hook on pick advance (see `server/src/email.ts`) → "You're on the clock in {league}". Can land after 2.4; in-app badge ships first.
 - **Verify:** after a pick, the next manager's `MyLeagues` shows the badge without a manual refresh loop deeper than page load.
 
 **2.6 Gates**

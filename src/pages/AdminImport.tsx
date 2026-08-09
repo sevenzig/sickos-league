@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { importWeeklyCSV, getImportHistory, ImportResult } from '../services/csvImporter';
+import {
+  PageChrome,
+  Panel,
+  Button,
+  Alert,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  EmptyState,
+} from '../components/ui';
 
 interface ImportHistoryItem {
   week: number;
@@ -17,35 +30,23 @@ export default function AdminImport() {
   const [showHistory, setShowHistory] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
-  // Auto-load history on component mount and set next week
   useEffect(() => {
-    const initializeWeekSelection = async () => {
+    const init = async () => {
       if (hasLoadedHistory) return;
-
       try {
         const history = await getImportHistory();
         setImportHistory(history);
         setHasLoadedHistory(true);
-
-        // Find the highest week that has been imported
         if (history.length > 0) {
-          const maxWeek = Math.max(...history.map(item => item.week));
-          const nextWeek = Math.min(18, maxWeek + 1); // Don't go beyond week 18
-
-          console.log(`📊 Found imports up to Week ${maxWeek}, setting default to Week ${nextWeek}`);
-          setSelectedWeek(nextWeek);
-          setShowHistory(true); // Auto-show history since we have data
-        } else {
-          console.log('📊 No import history found, defaulting to Week 1');
-          setSelectedWeek(1);
+          const maxWeek = Math.max(...history.map((item) => item.week));
+          setSelectedWeek(Math.min(18, maxWeek + 1));
+          setShowHistory(true);
         }
-      } catch (error) {
-        console.error('Failed to load import history for week selection:', error);
-        // Keep default week 1 if we can't load history
+      } catch {
+        // keep default
       }
     };
-
-    initializeWeekSelection();
+    init();
   }, [hasLoadedHistory]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,48 +59,34 @@ export default function AdminImport() {
   };
 
   const handleImport = async () => {
-    if (!selectedFile) {
-      alert('Please select a CSV file');
-      return;
-    }
-
+    if (!selectedFile) return;
     setIsImporting(true);
     setImportResult(null);
-
     try {
       const csvData = await selectedFile.text();
       const result = await importWeeklyCSV(csvData, selectedWeek);
       setImportResult(result);
-      
       if (result.success) {
-        // Refresh import history
         const history = await getImportHistory();
         setImportHistory(history);
         setSelectedFile(null);
-        // Reset file input
         const fileInput = document.getElementById('csv-file') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
-
-        // Auto-increment to next week after successful import
-        const nextWeek = Math.min(18, selectedWeek + 1);
-        if (nextWeek <= 18) {
-          setSelectedWeek(nextWeek);
-          console.log(`📈 Import successful, auto-incremented to Week ${nextWeek}`);
-        }
+        setSelectedWeek(Math.min(18, selectedWeek + 1));
       }
     } catch (error) {
-      console.error('Import failed:', error);
       setImportResult({
         success: false,
         recordsImported: 0,
-        errors: [`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
-        week: selectedWeek
+        errors: [
+          `Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        ],
+        week: selectedWeek,
       });
     } finally {
       setIsImporting(false);
     }
   };
-
 
   const loadHistory = async () => {
     try {
@@ -107,42 +94,45 @@ export default function AdminImport() {
       setImportHistory(history);
       setShowHistory(true);
       setHasLoadedHistory(true);
-    } catch (error) {
-      console.error('Failed to load import history:', error);
+    } catch {
       alert('Failed to load import history');
     }
   };
 
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] px-8 py-6">
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-50 tracking-tight">Admin - CSV Import</h1>
-        <p className="text-slate-400 mt-2">Import weekly scoring data and manage historical imports</p>
-      </div>
+      <PageChrome title="CSV Import" />
 
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-6 md:p-8">
-        <h2 className="text-xl font-black text-slate-50 tracking-tight mb-6">Import Weekly Data</h2>
-
-        <div className="space-y-6">
+      <Panel>
+        <h2 className="text-heading text-slate-50 mb-5">Import Weekly Data</h2>
+        <div className="space-y-5">
           <div>
-            <label htmlFor="week-select" className="block text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">
+            <label
+              htmlFor="week-select"
+              className="block text-caption font-bold text-slate-400 uppercase tracking-wider mb-2"
+            >
               Week
             </label>
             <select
               id="week-select"
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
-              className="w-full px-4 py-3 bg-slate-800/60 border border-slate-600/50 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200"
+              className="flex h-11 w-full rounded-md border border-slate-700 bg-slate-900/80 px-3 py-2 text-label text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
-                <option key={week} value={week} className="bg-slate-800">Week {week}</option>
+              {Array.from({ length: 18 }, (_, i) => i + 1).map((week) => (
+                <option key={week} value={week} className="bg-slate-800">
+                  Week {week}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label htmlFor="csv-file" className="block text-sm font-bold text-slate-300 mb-3 uppercase tracking-wider">
+            <label
+              htmlFor="csv-file"
+              className="block text-caption font-bold text-slate-400 uppercase tracking-wider mb-2"
+            >
               CSV File
             </label>
             <input
@@ -150,127 +140,128 @@ export default function AdminImport() {
               type="file"
               accept=".csv"
               onChange={handleFileChange}
-              className="w-full px-4 py-3 bg-slate-800/60 border border-slate-600/50 rounded-lg text-slate-100 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-blue-500/20 file:text-blue-400 file:font-medium hover:file:bg-blue-500/30 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              className="w-full px-4 py-2.5 bg-slate-800/60 border border-slate-700 rounded-md text-slate-100 text-body file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-slate-700 file:text-slate-200 file:text-caption file:font-medium hover:file:bg-slate-600 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             {selectedFile && (
-              <p className="mt-2 text-sm text-emerald-400 font-medium">
-                ✓ Selected: {selectedFile.name}
+              <p className="mt-1.5 text-caption text-emerald-400">
+                ✓ {selectedFile.name}
               </p>
             )}
           </div>
 
-          <button
+          <Button
             onClick={handleImport}
             disabled={!selectedFile || isImporting}
-            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-3 px-6 rounded-lg font-bold transition-all duration-200 disabled:from-slate-600 disabled:to-slate-700 disabled:cursor-not-allowed disabled:opacity-50 shadow-lg hover:shadow-xl"
+            className="w-full"
           >
             {isImporting ? (
               <span className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                Importing...
+                <svg
+                  className="animate-spin h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8H4z"
+                  />
+                </svg>
+                Importing…
               </span>
             ) : (
               'Import CSV'
             )}
-          </button>
+          </Button>
         </div>
 
         {importResult && (
-          <div className={`mt-6 p-4 rounded-lg border ${
-            importResult.success
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-              : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-          }`}>
-            <h3 className="font-bold text-lg mb-2">
-              {importResult.success ? '✅ Import Successful' : '❌ Import Failed'}
-            </h3>
-            <p className="text-slate-200">Records imported: <span className="font-bold">{importResult.recordsImported}</span></p>
+          <Alert
+            variant={importResult.success ? 'success' : 'error'}
+            className="mt-5"
+          >
+            <p className="font-bold mb-1">
+              {importResult.success ? 'Import Successful' : 'Import Failed'}
+            </p>
+            <p className="text-caption">
+              Records imported: <strong>{importResult.recordsImported}</strong>
+            </p>
             {importResult.matchupsFinalized !== undefined && (
-              <p className="text-blue-400 font-medium mt-1">
-                📊 League matchups finalized: {importResult.matchupsFinalized}
+              <p className="text-caption mt-1">
+                League matchups finalized: {importResult.matchupsFinalized}
               </p>
             )}
             {importResult.finalizeError && (
-              <p className="text-yellow-400 font-medium mt-1">
-                ⚠️ Matchup finalization failed: {importResult.finalizeError}
+              <p className="text-caption text-yellow-400 mt-1">
+                Matchup finalization failed: {importResult.finalizeError}
               </p>
             )}
             {importResult.errors.length > 0 && (
-              <div className="mt-3">
-                <p className="font-bold text-slate-200">Errors:</p>
-                <ul className="list-disc list-inside mt-1 space-y-1 text-sm">
-                  {importResult.errors.map((error, index) => (
-                    <li key={index} className="text-rose-300">{error}</li>
-                  ))}
-                </ul>
-              </div>
+              <ul className="list-disc list-inside mt-2 space-y-0.5 text-caption">
+                {importResult.errors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
             )}
-          </div>
+          </Alert>
         )}
-      </div>
+      </Panel>
 
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-6 md:p-8">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-          <h2 className="text-xl font-black text-slate-50 tracking-tight">Import History</h2>
-          <button
-            onClick={loadHistory}
-            className="px-4 py-2 bg-slate-800/90 hover:bg-slate-700/50 text-slate-200 rounded-lg transition-all duration-200 font-medium border border-slate-600/50 hover:border-slate-500/50"
-          >
-            {showHistory ? 'Refresh History' : 'Load History'}
-          </button>
+      <Panel>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-heading text-slate-50">Import History</h2>
+          <Button variant="secondary" size="sm" onClick={loadHistory}>
+            {showHistory ? 'Refresh' : 'Load History'}
+          </Button>
         </div>
 
         {showHistory && (
-          <div className="bg-slate-800/40 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
-                  <tr>
-                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Week
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Season
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Records
-                    </th>
-                    <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Imported At
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700/30">
-                  {importHistory.map((item, index) => (
-                    <tr key={index} className={`hover:bg-slate-700/20 transition-colors duration-150 ${
-                      index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'
-                    }`}>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-slate-200 tabular-nums">
+          importHistory.length === 0 ? (
+            <EmptyState
+              title="No import history"
+              description="Import some data to see history here"
+            />
+          ) : (
+            <div className="rounded-lg overflow-hidden border border-slate-700/50">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Week</TableHead>
+                    <TableHead>Season</TableHead>
+                    <TableHead>Records</TableHead>
+                    <TableHead>Imported At</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importHistory.map((item, i) => (
+                    <TableRow
+                      key={i}
+                      className={i % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}
+                    >
+                      <TableCell className="font-bold text-slate-200 tabular-nums">
                         Week {item.week}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-300 tabular-nums">
-                        {item.season}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm font-bold text-emerald-400 tabular-nums">
+                      </TableCell>
+                      <TableCell className="tabular-nums">{item.season}</TableCell>
+                      <TableCell className="font-bold text-emerald-400 tabular-nums">
                         {item.recordsCount}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-300">
-                        {new Date(item.importedAt).toLocaleString()}
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>{new Date(item.importedAt).toLocaleString()}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
-            {importHistory.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-slate-400 text-lg">No import history found</p>
-                <p className="text-slate-500 text-sm mt-1">Import some data to see history here</p>
-              </div>
-            )}
-          </div>
+          )
         )}
-      </div>
+      </Panel>
     </div>
   );
 }

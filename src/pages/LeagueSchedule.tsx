@@ -8,6 +8,7 @@ import LeagueHeader from '../components/league/LeagueHeader';
 import WeekNavigation from '../components/navigation/WeekNavigation';
 import MatchupCard from '../components/matchup-cards/2-team/MatchupCard';
 import MatchupModal from '../components/matchup-modals/2-team/MatchupModal';
+import { Panel } from '@/components/ui';
 
 interface LineupRow {
   fantasy_team_id: string;
@@ -168,7 +169,7 @@ const LeagueSchedule: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-slate-400">Loading schedule...</p>
@@ -178,52 +179,50 @@ const LeagueSchedule: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <LeagueHeader leagueId={leagueId!} active="schedule" />
+    <div className="space-y-6">
+      <LeagueHeader leagueId={leagueId!} active="schedule" />
 
-        {error && (
-          <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 mb-6">
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
-
-        <div className="space-y-6">
-          <WeekNavigation
-            selectedWeek={selectedWeek}
-            currentWeek={currentWeek}
-            onWeekChange={handleWeekChange}
-            onGoToCurrentWeek={handleGoToCurrentWeek}
-          />
-
-          {isDataLoaded && (
-            weekMatchups.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {weekMatchups.map((matchup) => {
-                  const key = matchupScoreKey(matchup.team1, matchup.team2, matchup.week);
-                  const matchupData = matchupScores[key];
-                  return (
-                    <MatchupCard
-                      key={key}
-                      matchup={matchup}
-                      matchupData={matchupData}
-                      selectedWeek={selectedWeek}
-                      leagueData={{ teams, matchups: weekMatchups, lineups, currentWeek }}
-                      isWeekLocked={isWeekLocked}
-                      openMatchupModal={openMatchupModal}
-                    />
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6 text-center text-slate-400">
-                {schedule.length === 0
-                  ? 'No schedule yet. Finish the draft, then the commissioner can generate the season schedule.'
-                  : `No matchups scheduled for Week ${selectedWeek}`}
-              </div>
-            )
-          )}
+      {error && (
+        <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
+          <p className="text-red-400">{error}</p>
         </div>
+      )}
+
+      <div className="space-y-6">
+        <WeekNavigation
+          selectedWeek={selectedWeek}
+          currentWeek={currentWeek}
+          onWeekChange={handleWeekChange}
+          onGoToCurrentWeek={handleGoToCurrentWeek}
+        />
+
+        {isDataLoaded && (
+          weekMatchups.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {weekMatchups.map((matchup) => {
+                const key = matchupScoreKey(matchup.team1, matchup.team2, matchup.week);
+                const matchupData = matchupScores[key];
+                return (
+                  <MatchupCard
+                    key={key}
+                    matchup={matchup}
+                    matchupData={matchupData}
+                    selectedWeek={selectedWeek}
+                    leagueData={{ teams, matchups: weekMatchups, lineups, currentWeek }}
+                    isWeekLocked={isWeekLocked}
+                    openMatchupModal={openMatchupModal}
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <Panel className="text-center text-slate-400">
+              {schedule.length === 0
+                ? 'No schedule yet. The commissioner can generate it from League Admin once all 8 teams have joined, or it will be created when the draft starts.'
+                : `No matchups scheduled for Week ${selectedWeek}`}
+            </Panel>
+          )
+        )}
       </div>
 
       <MatchupModal

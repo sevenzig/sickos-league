@@ -176,7 +176,7 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
     >
       {/* Modal */}
       <div 
-        className="relative w-full max-w-[1400px] max-h-[90vh] md:max-h-[90vh] h-full md:h-auto bg-gradient-to-b from-slate-800/90 to-slate-900/90 md:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] md:border border-slate-700/50 flex flex-col"
+        className="relative w-full max-w-[1400px] max-h-[90vh] md:max-h-[90vh] h-full md:h-auto bg-gradient-to-b from-slate-800/90 to-slate-900/90 md:rounded-panel shadow-panel md:border border-slate-700/50 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         

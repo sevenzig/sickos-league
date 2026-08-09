@@ -144,10 +144,15 @@ check('setup: exactly 32 NFL teams available', nflTeams.length === 32, `got ${nf
   check('start_draft rejected for non-owner', !!error, error?.message);
 }
 
-// Schedule generation blocked before the draft
+// Schedule generation allowed once 8 teams exist (before draft)
 {
-  const { error } = await rpc('generate_league_schedule', { p_league_id: leagueId }, owner.token);
-  check('generate_league_schedule rejected before draft completes', !!error, error?.message);
+  const { data, error } = await rpc('generate_league_schedule', { p_league_id: leagueId }, owner.token);
+  check('generate_league_schedule succeeds with 8 teams while pending', !error && data === true, error?.message);
+}
+
+// Clear matchups so start_draft auto-generation can be asserted
+{
+  psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}';`);
 }
 
 // Bad explicit order rejected (duplicate team)
@@ -169,6 +174,20 @@ const draftOrder = [
   check('start_draft succeeds with explicit order', !error && data === true, error?.message);
 }
 
+// start_draft auto-generates schedule when none exists
+{
+  const { data: matchups, error } = await dbq(
+    {
+      table: 'league_matchups',
+      action: 'select',
+      select: 'id',
+      filters: [{ op: 'eq', column: 'league_id', value: leagueId }],
+    },
+    owner.token
+  );
+  check('start_draft auto-generates 72 matchups', !error && matchups?.length === 72, `got ${matchups?.length}`);
+}
+
 // Starting twice fails
 {
   const { error } = await rpc('start_draft', { p_league_id: leagueId }, owner.token);
@@ -184,6 +203,8 @@ const draftOrder = [
   const perTeam = new Map();
   for (const p of picks) perTeam.set(p.fantasy_team_id, (perTeam.get(p.fantasy_team_id) ?? 0) + 1);
   check('each team has exactly 4 picks', perTeam.size === 8 && [...perTeam.values()].every((v) => v === 4));
+
+  check('draft_format defaults to snake', state.draft_format === 'snake', `got ${state.draft_format}`);
 
   let snakeOk = true;
   for (const p of picks) {
@@ -329,11 +350,11 @@ const draftOrder = [
   check('picks rejected after draft completion', !!error, error?.message);
 }
 
-// --- 2.6 Schedule gate lifts after completion --------------------------------
+// --- 2.6 Schedule regenerate still allowed after draft (pre-season) ----------
 
 {
   const { data, error } = await rpc('generate_league_schedule', { p_league_id: leagueId }, owner.token);
-  check('generate_league_schedule succeeds after draft completes', !error && data === true, error?.message);
+  check('generate_league_schedule regenerate succeeds after draft', !error && data === true, error?.message);
 }
 
 // --- Phase 1 integration: lineups restricted to drafted rosters --------------
@@ -356,6 +377,68 @@ const draftOrder = [
     managerB.token
   );
   check('lineup with non-rostered team rejected', !!badErr, badErr?.message);
+}
+
+// --- Linear draft format: same round-1 order every round --------------------
+
+{
+  const { data: linearLeagueId, error: linearCreateErr } = await rpc(
+    'create_league',
+    {
+      league_name: `Linear Draft Verify ${Date.now()}`,
+      season: 2025,
+      teams_started_per_week: 2,
+      owner_team_name: 'Linear Owner',
+      p_draft_format: 'linear',
+    },
+    owner.token
+  );
+  check('linear: create_league with draft_format=linear', !linearCreateErr && !!linearLeagueId, linearCreateErr?.message);
+
+  if (linearLeagueId) {
+    const { data: details } = await rpc('get_league_details', { league_id: linearLeagueId }, owner.token);
+    check('linear: get_league_details exposes draft_format', details?.[0]?.draft_format === 'linear', `got ${details?.[0]?.draft_format}`);
+
+    psql(`
+      INSERT INTO fantasy_teams (league_id, team_name)
+      SELECT '${linearLeagueId}', x.team_name
+      FROM (VALUES
+        ('L2'), ('L3'), ('L4'), ('L5'), ('L6'), ('L7'), ('L8')
+      ) AS x(team_name);
+    `);
+
+    const { data: linearTeams } = await rpc(
+      'get_league_fantasy_teams',
+      { p_league_id: linearLeagueId },
+      owner.token
+    );
+    const linearOwnerTeam = linearTeams.find((t) => t.manager_user_id === owner.userId);
+    const linearOrder = [
+      linearOwnerTeam.id,
+      ...linearTeams.filter((t) => t.id !== linearOwnerTeam.id).map((t) => t.id),
+    ];
+
+    const { data: started, error: startErr } = await rpc(
+      'start_draft',
+      { p_league_id: linearLeagueId, p_draft_order: linearOrder },
+      owner.token
+    );
+    check('linear: start_draft succeeds', !startErr && started === true, startErr?.message);
+
+    const { data: linearState } = await rpc(
+      'get_draft_state',
+      { p_league_id: linearLeagueId },
+      owner.token
+    );
+    check('linear: draft_format in get_draft_state', linearState?.draft_format === 'linear', `got ${linearState?.draft_format}`);
+
+    let linearOk = true;
+    for (const p of linearState?.picks ?? []) {
+      const idxInRound = (p.pick_number - 1) % 8;
+      if (p.fantasy_team_id !== linearOrder[idxInRound]) linearOk = false;
+    }
+    check('linear: picks repeat round-1 order every round (1,9,17,25 for first)', linearOk);
+  }
 }
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);

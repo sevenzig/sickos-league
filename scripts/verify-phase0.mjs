@@ -85,37 +85,16 @@ check('create_league', !leagueErr && !!leagueId, leagueErr?.message ?? leagueId)
   check('seed 7 additional fantasy teams', !error, error?.message);
 }
 
-// 4b. Complete a draft (Phase 2 gate: schedule generation requires it).
-// The 7 seeded teams are unmanaged, so the owner picks for everyone.
-{
-  const { error: startErr } = await rpc('start_draft', { p_league_id: leagueId }, token);
-  check('start_draft with 8 teams', !startErr, startErr?.message);
-
-  const { data: nflTeams } = await dbq(
-    {
-      table: 'teams',
-      action: 'select',
-      select: 'uuid_id, name',
-      filters: [{ op: 'eq', column: 'is_nfl', value: true }],
-    },
-    token
-  );
-  let pickErr = null;
-  for (let i = 0; i < 32 && !pickErr; i++) {
-    const { error } = await rpc(
-      'make_draft_pick_for',
-      { p_league_id: leagueId, p_nfl_team_id: nflTeams[i].uuid_id },
-      token
-    );
-    pickErr = error;
-  }
-  check('32 commissioner picks complete the draft', !pickErr, pickErr?.message);
-}
-
-// 5. Generate schedule and assert invariants
+// 4b. Schedule can be generated once 8 teams exist (before draft).
 {
   const { error } = await rpc('generate_league_schedule', { p_league_id: leagueId }, token);
-  check('generate_league_schedule succeeds with 8 teams', !error, error?.message);
+  check('generate_league_schedule succeeds with 8 teams while pending', !error, error?.message);
+}
+
+// 5. Assert schedule invariants (regenerate is fine pre-season)
+{
+  const { error } = await rpc('generate_league_schedule', { p_league_id: leagueId }, token);
+  check('generate_league_schedule regenerate succeeds pre-season', !error, error?.message);
 
   const { data: matchups, error: mErr } = await dbq(
     {

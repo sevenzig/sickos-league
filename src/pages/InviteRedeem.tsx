@@ -8,7 +8,7 @@ const InviteRedeem: React.FC = () => {
 
   return (
     <AuthCheck message="Sign in to join this league with your invite code.">
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-24 px-8">
+      <div className="py-12">
         <JoinWithCode initialCode={code || ''} />
       </div>
     </AuthCheck>

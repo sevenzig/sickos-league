@@ -4,6 +4,7 @@ import { calculateScore, getDetailedScoringBreakdown, SCORING_EVENTS, QBStats } 
 import TeamLogo from '../components/TeamLogo';
 import { clearAndReloadData } from '../utils/storage';
 import { getWeeklyQBPerformancesFromDb, clearQBPerformancesCache } from '../services/database';
+import { PageChrome, Panel, Select, Button } from '@/components/ui';
 
 const EnterScores: React.FC = () => {
   const { leagueData, updateLeagueData } = useLeagueData();
@@ -208,10 +209,10 @@ const EnterScores: React.FC = () => {
 
   // Points display components (mirroring matchup modal)
   const PointsDisplay = ({ points }: { points: number }) => {
-    if (points === 0) return <span className="text-slate-500 text-[10px] font-medium">—</span>;
+    if (points === 0) return <span className="text-slate-500 text-caption font-medium">—</span>;
     const isPositive = points > 0;
     return (
-      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${
+      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-caption font-bold ${
         isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'
       }`}>
         {isPositive && (
@@ -239,66 +240,56 @@ const EnterScores: React.FC = () => {
   return (
     <div className="space-y-8 relative">
       {/* Week Selection */}
-      <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] h-[74px] px-8 flex items-center">
-        <div className="flex items-center justify-between w-full">
-          <h2 className="text-2xl font-black text-slate-50 tracking-tight">Week {selectedWeek} Scoring Data</h2>
-          <div className="flex items-center gap-4">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Week</label>
-            <select
+      <PageChrome
+        title={`Week ${selectedWeek} Scoring Data`}
+        actions={
+          <div className="flex items-center gap-3">
+            <label className="text-caption font-bold text-slate-400 uppercase tracking-wider">Week</label>
+            <Select
               value={selectedWeek}
               onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                className="bg-slate-800/90 text-slate-200 border border-slate-700/50 rounded-lg px-4 py-2 text-sm hover:bg-slate-700/50 transition-colors focus-ring"
+              className="w-32"
             >
               {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
                 <option key={week} value={week}>Week {week}</option>
               ))}
-            </select>
+            </Select>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setSelectedWeek((w) => Math.max(1, w - 1))}
                 disabled={selectedWeek <= 1}
-                aria-label="Previous week"
-                className={`px-2 py-2 rounded-lg border text-xs font-medium transition-colors ${
-                  selectedWeek <= 1
-                    ? 'border-slate-700/50 text-slate-500 cursor-not-allowed'
-                    : 'border-slate-700/50 text-slate-300 hover:bg-slate-700/50'
-                }`}
               >
-                <span className="tabular-nums">Previous</span>
-              </button>
-              <button
-                type="button"
+                Previous
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setSelectedWeek((w) => Math.min(18, w + 1))}
                 disabled={selectedWeek >= 18}
-                aria-label="Next week"
-                className={`px-2 py-2 rounded-lg border text-xs font-medium transition-colors ${
-                  selectedWeek >= 18
-                    ? 'border-slate-700/50 text-slate-500 cursor-not-allowed'
-                    : 'border-slate-700/50 text-slate-300 hover:bg-slate-700/50'
-                }`}
               >
-                <span className="tabular-nums">Next</span>
-              </button>
+                Next
+              </Button>
             </div>
             {loading && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/30 text-sm font-medium">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg border border-blue-500/30 text-label font-medium">
                 <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                Loading data...
-              </div>
+                Loading...
+              </span>
             )}
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Tooltip */}
       {showTooltip && hoveredCell && (
         <div
           ref={tooltipRef}
-          className="fixed z-50 bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-xs rounded-2xl p-4 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] border border-slate-700/50 max-w-xs pointer-events-none backdrop-blur-xl"
+          className="fixed z-50 bg-gradient-to-br from-slate-900 to-slate-800 text-slate-50 text-caption rounded-panel p-4 shadow-panel border border-slate-700/50 max-w-xs pointer-events-none backdrop-blur-sm"
           style={{
             left: tooltipPosition.x,
             top: tooltipPosition.y,
@@ -322,7 +313,7 @@ const EnterScores: React.FC = () => {
 
       {/* Scoring Data Table */}
       {scoringData.length > 0 && (
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] overflow-x-auto">
+        <Panel padding="none" className="overflow-x-auto">
           <div className="overflow-x-auto">
             <table className="w-full table-fixed">
               <thead className="bg-gradient-to-r from-slate-800 to-slate-800/80">
@@ -407,23 +398,20 @@ const EnterScores: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
+        </Panel>
       )}
 
       {scoringData.length === 0 && !loading && (
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] p-8 text-center text-slate-400">
+        <Panel className="text-center text-slate-400">
           No scoring data available for Week {selectedWeek}
-        </div>
+        </Panel>
       )}
 
       {/* Refresh Data Button */}
       <div className="flex justify-end gap-3">
-        <button
-          onClick={handleRefreshData}
-          className="px-6 py-3 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg hover:bg-blue-500/30 transition-all duration-200 font-medium"
-        >
+        <Button variant="secondary" onClick={handleRefreshData}>
           Refresh Data
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Draft layout options — compare</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --panel: #121a2b;
+    --border: #243044;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --radius: 16px;
+    --font: "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background: #060a12;
+    color: var(--text);
+  }
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    padding: 20px 20px 8px;
+  }
+  .intro {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 20px 20px;
+    max-width: 720px;
+    line-height: 1.45;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 24px;
+    padding: 0 20px 40px;
+  }
+  .card {
+    background: #0a101c;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .card > header {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .card > header h2 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .card > header span {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+  }
+  .phone {
+    height: 720px;
+    max-width: 390px;
+    margin: 16px auto;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,.45);
+  }
+
+  .topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .who { font-size: 14px; font-weight: 600; flex: 1; min-width: 0; }
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    background: var(--green);
+    color: #052e16;
+    padding: 3px 7px;
+    border-radius: 6px;
+  }
+  .timer {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: var(--amber);
+    font-size: 14px;
+  }
+  .hero {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 16px 8px;
+    gap: 8px;
+  }
+  .logo {
+    width: 112px;
+    height: 112px;
+    border-radius: 22px;
+    background: #1a2438;
+    border: 3px solid var(--green);
+    box-shadow: 0 0 0 6px rgba(34,197,94,.18);
+    display: grid;
+    place-items: center;
+    font-size: 36px;
+    font-weight: 800;
+  }
+  .logo.dim { border-color: #475569; box-shadow: none; opacity: .7; }
+  .name { font-size: 18px; font-weight: 700; text-align: center; }
+  .meta { font-size: 12px; color: var(--muted); }
+  .cta {
+    width: calc(100% - 32px);
+    margin: 8px 16px 12px;
+    height: 48px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--green);
+    color: #052e16;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .cta:disabled {
+    background: #334155;
+    color: #94a3b8;
+    cursor: not-allowed;
+  }
+  .board {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 8px 10px 12px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    gap: 6px;
+  }
+  .tile {
+    min-height: 0;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #152033;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #cbd5e1;
+    position: relative;
+    cursor: pointer;
+  }
+  .tile.taken { opacity: .4; filter: grayscale(1); }
+  .tile.sel {
+    border-color: var(--green);
+    box-shadow: inset 0 0 0 1px var(--green);
+    background: #163528;
+  }
+  .tile .n {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    font-size: 9px;
+    color: #64748b;
+  }
+  .foot {
+    flex: 0 0 auto;
+    margin: 0 12px 12px;
+    padding: 12px 14px;
+    background: #152033;
+    border-radius: 12px;
+    font-size: 13px;
+    color: #e2e8f0;
+  }
+
+  .o2 .board {
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(4, 1fr);
+  }
+  .o2 .tile { font-size: 9px; border-radius: 6px; }
+
+  .o3 .split {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+  }
+  .o3 .hero { padding-top: 10px; }
+  .o3 .logo { width: 88px; height: 88px; font-size: 28px; border-radius: 18px; }
+  .o3 .drawer {
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    padding: 8px 10px 10px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .o3 .drawer h3 {
+    margin: 0 0 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .o3 .board { height: 100%; padding: 0; flex: 1; }
+
+  .o4 .phone { position: relative; }
+  .o4 .hero-row {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+  .o4 .logo {
+    width: 72px;
+    height: 72px;
+    font-size: 22px;
+    border-radius: 14px;
+    flex-shrink: 0;
+  }
+  .o4 .hero-copy { flex: 1; min-width: 0; }
+  .o4 .name { text-align: left; font-size: 16px; }
+  .o4 .cta { margin: 0 14px 10px; }
+  .o4 .board { padding-bottom: 56px; }
+  .o4 .dock {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    height: 44px;
+    border-radius: 12px;
+    background: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+
+  .o5 .topbar { border: 0; }
+  .o5 .stage {
+    flex: 0 0 auto;
+    margin: 0 12px;
+    padding: 14px;
+    border-radius: var(--radius);
+    background: linear-gradient(180deg, #152033, #0f172a);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .o5 .board-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 10px 12px;
+  }
+  .o5 .board-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin: 0 0 6px 4px;
+    font-weight: 600;
+  }
+  .o5 .board { padding: 0; flex: 1; }
+</style>
+</head>
+<body>
+  <h1>Draft layout options</h1>
+  <p class="intro">
+    Shared goals from your reference: big selected-team icon, obvious
+    <strong>Draft this team</strong> CTA, and all 32 teams visible in the
+    remaining viewport (no carousel). Click tiles to change the selection.
+  </p>
+
+  <div class="grid">
+
+    <section class="card">
+      <header>
+        <h2>1. Stack — hero / CTA / 4×8 board</h2>
+        <span>Closest to your mock + grid instead of dots</span>
+      </header>
+      <div class="phone" data-opt="1">
+        <div class="topbar">
+          <div class="who">jscott's pick</div>
+          <span class="badge">YOU</span>
+          <div class="timer">0:47</div>
+        </div>
+        <div class="hero">
+          <div class="logo" data-logo>SF</div>
+          <div class="name" data-name>San Francisco</div>
+          <div class="meta" data-meta>Available</div>
+        </div>
+        <button class="cta" type="button">Draft this team</button>
+        <div class="board" data-board></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>
+        <h2>2. Wide board — hero / CTA / 8×4</h2>
+        <span>Same stack; denser landscape grid</span>
+      </header>
+      <div class="phone o2" data-opt="2">
+        <div class="topbar">
+          <div class="who">jscott's pick</div>
+          <span class="badge">YOU</span>
+          <div class="timer">0:47</div>
+        </div>
+        <div class="hero">
+          <div class="logo" data-logo>SF</div>
+          <div class="name" data-name>San Francisco</div>
+          <div class="meta" data-meta>Available</div>
+        </div>
+        <button class="cta" type="button">Draft this team</button>
+        <div class="board" data-board></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>
+        <h2>3. Compact hero — board owns the fold</h2>
+        <span>Smaller icon so tiles stay larger</span>
+      </header>
+      <div class="phone o3" data-opt="3">
+        <div class="topbar">
+          <div class="who">jscott's pick</div>
+          <span class="badge">YOU</span>
+          <div class="timer">0:47</div>
+        </div>
+        <div class="split">
+          <div>
+            <div class="hero">
+              <div class="logo" data-logo>SF</div>
+              <div class="name" data-name>San Francisco</div>
+              <div class="meta" data-meta>Available</div>
+            </div>
+            <button class="cta" type="button">Draft this team</button>
+          </div>
+          <div class="drawer">
+            <h3>All teams</h3>
+            <div class="board" data-board></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card o4">
+      <header>
+        <h2>4. Horizontal select bar + dock</h2>
+        <span>Logo + name inline; history dock like your mock</span>
+      </header>
+      <div class="phone" data-opt="4">
+        <div class="topbar">
+          <div class="who">jscott's pick</div>
+          <span class="badge">YOU</span>
+          <div class="timer">0:47</div>
+        </div>
+        <div class="hero-row">
+          <div class="logo" data-logo>SF</div>
+          <div class="hero-copy">
+            <div class="name" data-name>San Francisco</div>
+            <div class="meta" data-meta>Available</div>
+          </div>
+        </div>
+        <button class="cta" type="button">Draft this team</button>
+        <div class="board" data-board></div>
+        <div class="dock">▾ Draft history (10 picks)</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>
+        <h2>5. Staged card + labeled board</h2>
+        <span>Selected team in a panel; board section labeled</span>
+      </header>
+      <div class="phone o5" data-opt="5">
+        <div class="topbar">
+          <div class="who">jscott's pick</div>
+          <span class="badge">YOU</span>
+          <div class="timer">0:47</div>
+        </div>
+        <div class="stage">
+          <div class="logo" data-logo>SF</div>
+          <div class="name" data-name>San Francisco</div>
+          <div class="meta" data-meta>NFC West · available</div>
+          <button class="cta" type="button" style="width:100%;margin:4px 0 0">Draft this team</button>
+        </div>
+        <div class="board-wrap">
+          <div class="board-label">Tap to select</div>
+          <div class="board" data-board></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+<script>
+const TEAMS = [
+  "ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE",
+  "DAL","DEN","DET","GB","HOU","IND","JAX","KC",
+  "LV","LAC","LAR","MIA","MIN","NE","NO","NYG",
+  "NYJ","PHI","PIT","SF","SEA","TB","TEN","WAS"
+];
+const NAMES = {
+  ARI:"Arizona", ATL:"Atlanta", BAL:"Baltimore", BUF:"Buffalo",
+  CAR:"Carolina", CHI:"Chicago", CIN:"Cincinnati", CLE:"Cleveland",
+  DAL:"Dallas", DEN:"Denver", DET:"Detroit", GB:"Green Bay",
+  HOU:"Houston", IND:"Indianapolis", JAX:"Jacksonville", KC:"Kansas City",
+  LV:"Las Vegas", LAC:"LA Chargers", LAR:"LA Rams", MIA:"Miami",
+  MIN:"Minnesota", NE:"New England", NO:"New Orleans", NYG:"NY Giants",
+  NYJ:"NY Jets", PHI:"Philadelphia", PIT:"Pittsburgh", SF:"San Francisco",
+  SEA:"Seattle", TB:"Tampa Bay", TEN:"Tennessee", WAS:"Washington"
+};
+const TAKEN = new Set([
+  "ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE",
+  "DAL","DEN","DET","GB","HOU","IND"
+]);
+
+document.querySelectorAll(".phone").forEach((phone) => {
+  const board = phone.querySelector("[data-board]");
+  const logo = phone.querySelector("[data-logo]");
+  const name = phone.querySelector("[data-name]");
+  const meta = phone.querySelector("[data-meta]");
+  const cta = phone.querySelector(".cta");
+  let selected = "SF";
+
+  function paint() {
+    logo.textContent = selected;
+    name.textContent = NAMES[selected];
+    const taken = TAKEN.has(selected);
+    logo.classList.toggle("dim", taken);
+    meta.textContent = taken ? "Already drafted" : "Available";
+    cta.disabled = taken;
+    cta.textContent = taken ? "Taken" : "Draft this team";
+    board.querySelectorAll(".tile").forEach((t) => {
+      t.classList.toggle("sel", t.dataset.abbr === selected);
+    });
+  }
+
+  TEAMS.forEach((abbr, i) => {
+    const t = document.createElement("button");
+    t.type = "button";
+    t.className = "tile" + (TAKEN.has(abbr) ? " taken" : "");
+    t.dataset.abbr = abbr;
+    t.textContent = abbr;
+    if (TAKEN.has(abbr)) {
+      const n = document.createElement("span");
+      n.className = "n";
+      n.textContent = String(i + 1);
+      t.appendChild(n);
+    }
+    t.addEventListener("click", () => {
+      selected = abbr;
+      paint();
+    });
+    board.appendChild(t);
+  });
+  paint();
+});
+</script>
+</body>
+</html>

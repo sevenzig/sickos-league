@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MultiLeagueApi, FantasyTeam, FantasyLineup, LeagueRosterEntry } from '../../utils/multiLeagueApi';
 import TeamLogo from '../TeamLogo';
+import { Panel, Button, Badge, Select, Alert } from '@/components/ui';
 
 interface CommissionerLineupsProps {
-  leagueId: string; // full league UUID
+  leagueId: string;
   startersPerWeek: number;
 }
 
-// Phase 3.2: commissioner view of all teams' lineup status for a week, with
-// owner override editing and a "Finalize Week" action (auto-fills missing
-// lineups from lowest draft picks, then locks everything — Phase 3.3).
 const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, startersPerWeek }) => {
   const [selectedWeek, setSelectedWeek] = useState(1);
   const [teams, setTeams] = useState<FantasyTeam[]>([]);
@@ -118,67 +116,48 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
     }
   };
 
-  const lineupStatus = (teamId: string): { label: string; classes: string } => {
+  const lineupStatus = (teamId: string): { label: string; variant: 'success' | 'primary' | 'warning' } => {
     const lineup = lineupsByTeam[teamId];
-    if (lineup?.is_locked) {
-      return { label: 'Locked', classes: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
-    }
-    if (lineup && lineup.active_nfl_teams.length === startersPerWeek) {
-      return { label: 'Complete', classes: 'bg-blue-500/20 text-blue-400 border-blue-500/30' };
-    }
-    return { label: 'Missing', classes: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
+    if (lineup?.is_locked) return { label: 'Locked', variant: 'success' };
+    if (lineup && lineup.active_nfl_teams.length === startersPerWeek) return { label: 'Complete', variant: 'primary' };
+    return { label: 'Missing', variant: 'warning' };
   };
 
   return (
-    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
+    <Panel>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-semibold text-white">Weekly Lineups</h2>
-          <p className="text-slate-400 text-sm mt-1">
+          <h2 className="text-heading text-slate-50">Weekly Lineups</h2>
+          <p className="text-label text-slate-400 mt-1">
             Lineup status for every team; finalize locks all lineups and the week.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <select
+          <Select
             value={selectedWeek}
             onChange={(e) => setSelectedWeek(Number(e.target.value))}
-            className="bg-slate-700 text-slate-200 border border-slate-600 rounded-md px-3 py-2 text-sm"
+            className="w-32"
           >
             {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
               <option key={week} value={week}>Week {week}</option>
             ))}
-          </select>
+          </Select>
           {weekLocked ? (
-            <span className="inline-flex items-center gap-1 px-3 py-2 bg-emerald-500/20 text-emerald-400 rounded-md border border-emerald-500/30 text-sm font-medium">
-              Week Finalized
-            </span>
+            <Badge variant="success">Week Finalized</Badge>
           ) : (
-            <button
-              onClick={finalizeWeek}
-              disabled={finalizing || loading}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-md font-medium transition-colors"
-            >
+            <Button onClick={finalizeWeek} disabled={finalizing || loading}>
               {finalizing ? 'Finalizing...' : 'Finalize Week'}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 mb-4">
-          <p className="text-red-400">{error}</p>
-        </div>
-      )}
-
-      {statusMessage && (
-        <div className="bg-green-900/20 border border-green-700 rounded-lg p-4 mb-4">
-          <p className="text-green-400 font-medium">{statusMessage}</p>
-        </div>
-      )}
+      {error && <Alert variant="error" className="mb-4">{error}</Alert>}
+      {statusMessage && <Alert variant="success" className="mb-4">{statusMessage}</Alert>}
 
       {loading ? (
         <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -193,18 +172,16 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
                 JSON.stringify([...(lineupsByTeam[team.id]?.active_nfl_teams || [])].sort());
 
             return (
-              <div key={team.id} className="bg-slate-900/60 rounded-xl border border-slate-700/50 flex flex-col">
+              <div key={team.id} className="bg-slate-900/60 rounded-md border border-slate-700/50 flex flex-col">
                 <div className="flex items-center justify-between p-3 border-b border-slate-700/30">
-                  <span className="text-sm font-semibold text-slate-200 truncate" title={team.team_name}>
+                  <span className="text-label font-semibold text-slate-200 truncate" title={team.team_name}>
                     {team.team_name}
                   </span>
-                  <span className={`text-xs px-2 py-1 rounded-lg font-bold border ${status.classes}`}>
-                    {status.label}
-                  </span>
+                  <Badge variant={status.variant}>{status.label}</Badge>
                 </div>
 
                 {roster.length === 0 ? (
-                  <p className="text-slate-500 text-xs text-center p-4">No roster yet</p>
+                  <p className="text-caption text-slate-500 text-center p-4">No roster yet</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 p-3 flex-1">
                     {roster.map(entry => {
@@ -214,7 +191,7 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
                           key={entry.nfl_team_id}
                           onClick={() => toggleTeamSelection(team.id, entry.nfl_team_id)}
                           className={`
-                            flex flex-col items-center justify-center rounded-lg p-2 border transition-all duration-150
+                            flex flex-col items-center justify-center rounded-md p-2 border transition-all duration-150
                             ${isSelected
                               ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                               : 'bg-slate-800/50 text-slate-300 border-slate-600/40 hover:bg-slate-700/60'
@@ -222,7 +199,7 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
                           `}
                         >
                           <TeamLogo teamName={entry.nfl_team_name} className="w-8 h-8" />
-                          <span className="text-[11px] font-medium text-center leading-tight truncate w-full mt-1">
+                          <span className="text-caption font-medium text-center leading-tight truncate w-full mt-1">
                             {entry.nfl_team_name}
                           </span>
                         </button>
@@ -233,13 +210,15 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
 
                 {dirty && (
                   <div className="p-3 pt-0">
-                    <button
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="w-full"
                       onClick={() => saveOverride(team.id)}
                       disabled={isSaving}
-                      className="w-full px-3 py-1.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 disabled:opacity-50 rounded-lg text-xs font-medium transition-all duration-200"
                     >
                       {isSaving ? 'Saving...' : 'Save (override)'}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -247,7 +226,7 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
           })}
         </div>
       )}
-    </div>
+    </Panel>
   );
 };
 

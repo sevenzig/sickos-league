@@ -1,0 +1,42 @@
+SICKOS-LEAGUE REPAIR PROMPTS - 2026-07-30
+==========================================
+
+This file contains 1 detailed, self-contained repair prompt to replace the draft screen's ad-hoc, breakpoint-guessed team grid with a proportional density system: a small number of structural column-count tiers, each scaling tile size, gap, and padding together by ratio rather than as independently hand-tuned pixel values, bound to the grid's own available width rather than raw viewport width.
+
+---
+
+PROMPT 1: DRAFT GRID DENSITY SYSTEM (PHASE 5.4)
+------------------------------------------------
+
+### Objective
+Replace the current fixed-tile, single-breakpoint team grid in the draft screen with a density system that stays visually balanced across the full real-device spectrum (~300px-1920px): a handful of column-count tiers (never a fractional column count), each preserving a fixed ratio between icon size, gap, and padding as it scales, bound to the grid's own container width rather than the viewport, so the desktop sidebar doesn't throw off the math.
+
+### Context & Key Files
+*   **Frontend Page:** `src/pages/LeagueDraft.tsx` - contains two independent, disconnected team-grid implementations today: the mobile 6-column grid (with a hardcoded `index === 30` / `col-start-3` hack to center the orphaned last row) and the desktop 4-column grid (fixed `w-12`/`lg:w-20` tiles wrapped in `w-fit mx-auto`, which does not grow to fill available width at any window size).
+*   **Team Count Source:** `src/types.ts` - `NFL_TEAMS` (32 entries). The tier column counts must be chosen from the divisors of 32 (4, 8, 16) so every tier produces a perfectly even grid with no leftover row, eliminating the need for the current `col-start-3` centering hack entirely.
+*   **Design Tokens:** `tailwind.config.js` (`theme.extend` - where the density ratio and tier breakpoints should live as named values, not inline magic numbers) and `src/index.css` (where the `.panel` token and other shared primitives already live; this is also where `container-type` should be declared on the grid's wrapping element).
+*   **Prior Art:** `src/components/league/LeagueHeader.tsx`, `src/components/league/StandingsTable.tsx` - existing examples of this codebase's card/token conventions (`.panel`, slate/blue/emerald palette, `rounded-2xl`, `shadow-panel`) that this system must stay consistent with rather than introducing a parallel visual language.
+
+### Requirements & Rules
+1.  **Column count is tiered, never continuous.** Column count can only ever be one of 4, 8, or 16 - all divisors of 32 - so every tier renders a complete grid with zero orphaned trailing-row items. Do not attempt to interpolate column count smoothly; that is not a meaningful operation for a grid.
+2.  **Three tiers, boundaries in the gaps between real device clusters, not inside one:**
+    *   Tier A - 4 columns x 8 rows: `min-width: 300px` up to `599px` (covers phones, ~320-430px, with margin before the tablet cluster begins).
+    *   Tier B - 8 columns x 4 rows: `600px` up to `1023px` (covers tablets, ~768-834px, comfortably mid-tier rather than at an edge).
+    *   Tier C - 16 columns x 2 rows: `1024px` up to `max-width: 1920px` (covers small laptops through desktop monitors, ~1024-1920px, as one continuously-scaling tier).
+3.  **Spacing is derived from tile size, not independently fixed.** Gap and padding must be expressed as a ratio of the current tile size (e.g. gap ~= 15% of tile edge, padding ~= 2x gap), not as flat pixel values that hold constant while tile size changes. This is what keeps density looking consistent across a tier instead of drifting tight-to-loose as tile size scales.
+4.  **Tile size is fluid within a tier, bounded on both ends.** Within each tier, tile edge length scales continuously with available width (`clamp()` or an equivalent fluid formula) between a floor and a ceiling:
+    *   Floor: `44px` (touch-target minimum - matches the `min-w-11`/`min-h-11` standard already established for the Season W/L/T chart cells).
+    *   Ceiling: choose a value that keeps Tier C from rendering oversized icons purely because a 1920px monitor has room to spare; icons should stop growing well before they look like a different, less dense product than the phone view.
+5.  **Bind to container width, not viewport width.** The grid sits next to a fixed-width sidebar on desktop (`aside` in `LeagueDraft.tsx`, currently `lg:w-96`). Viewport width alone cannot tell the grid how much space it actually has - a wide viewport with a wide sidebar and a narrower viewport with no sidebar can hand the grid the same real space. Use a CSS container query (`container-type: inline-size` on the grid's direct parent) so tier and tile-size math key off the container's own width, not `100vw`.
+6.  **One system, not two.** The current mobile grid and desktop grid are separate, disconnected implementations with different sizing logic. This system must replace both, so the draft screen has a single density system that happens to render differently at different container widths - not a mobile codepath and a desktop codepath that were each hand-tuned once.
+
+### Step-by-Step Implementation
+1.  Define the density ratio (gap-to-tile, padding-to-gap) and the tile-size floor/ceiling as named values in `tailwind.config.js` under `theme.extend`, rather than inline arbitrary values scattered across the component.
+2.  Add `container-type: inline-size` to the grid's direct wrapping element so container queries have something to measure against.
+3.  Implement the three column-count tiers as container query breakpoints at `600px` and `1024px`, each setting `grid-template-columns` to 4, 8, or 16 respectively.
+4.  Within each tier, drive tile edge length with a fluid formula referencing the container's inline size (not `vw`), clamped to the floor/ceiling from Requirement 4, and derive gap/padding from that tile size per Requirement 3.
+5.  Delete the `index === 30` / `col-start-3` special case in `LeagueDraft.tsx` - it becomes unnecessary once every tier's column count is a clean divisor of 32.
+6.  Replace the desktop grid's fixed `w-12`/`lg:w-20` tiles and `w-fit mx-auto` wrapper with the same tiered system, so `LeagueDraft.tsx` has one grid implementation, not two.
+
+### Verification Criteria
+No automated script applies to this prompt (visual/layout behavior, not backend logic) - verify manually by resizing devtools (or the container, once a sidebar is present) through each landmark width: 320, 375, 414, 430, 768, 834, 1024, 1280, 1440, 1920. At every one of those widths, confirm: column count is always exactly 4, 8, or 16 (never a partial row); tile size never drops below 44px or grows past the chosen ceiling; the gap-to-tile-size ratio looks the same at the small and large end of each tier (no tight-then-loose drift); and shrinking the desktop sidebar's effective width (or comparing the draft screen to another page without a sidebar at the same viewport width) changes the grid's tier independently of raw viewport width, confirming the container-query binding is actually working rather than silently falling back to `vw`.

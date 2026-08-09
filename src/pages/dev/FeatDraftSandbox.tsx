@@ -112,7 +112,10 @@ const FeatDraftSandbox: React.FC = () => {
           <h1 className="text-2xl font-semibold">Draft sandbox</h1>
           <p className="text-slate-400 text-sm mt-1">
             Creates a throwaway league, fills 7 unmanaged bots via fill_draft_bots, starts the draft
-            (you pick 1st; bots auto-pick on their turns), opens the draft room.
+            (you pick 1st; bots auto-pick on their turns), opens the draft room. Also:{' '}
+            <Link to="/dev/draft-layouts" className="text-blue-400 hover:underline">
+              compare draft layouts
+            </Link>
           </p>
         </div>
 
@@ -121,7 +124,7 @@ const FeatDraftSandbox: React.FC = () => {
             type="button"
             disabled={busy}
             onClick={() => void launch('async')}
-            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 rounded-md font-medium"
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-600 rounded-md font-medium"
           >
             {busy ? 'Working…' : 'Launch async draft'}
           </button>
@@ -129,7 +132,7 @@ const FeatDraftSandbox: React.FC = () => {
             type="button"
             disabled={busy}
             onClick={() => void launch('live')}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded-md font-medium"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 rounded-md font-medium"
           >
             {busy ? 'Working…' : 'Launch live draft + bots'}
           </button>

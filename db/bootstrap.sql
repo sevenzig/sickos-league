@@ -1,6 +1,6 @@
--- Bootstrap: Supabase-compatibility shims for plain Postgres.
+-- Bootstrap: auth/storage compatibility shims for plain Postgres.
 -- Idempotent; runs on every API startup BEFORE migrations, so the existing
--- migration chain (written for Supabase) applies unchanged.
+-- migration chain applies unchanged.
 
 -- ============================================================
 -- 1. Roles
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS storage.objects (
 
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 
--- Supabase's storage.foldername: path segments of an object name, minus the filename
+-- storage.foldername: path segments of an object name, minus the filename
 CREATE OR REPLACE FUNCTION storage.foldername(name TEXT)
 RETURNS TEXT[]
 LANGUAGE sql

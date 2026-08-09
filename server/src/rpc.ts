@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { adminPool, runAsUser } from './db.js';
 import { requireUser, type AuthedRequest } from './auth.js';
 
-/** SQL functions the client is allowed to call (mirrors the old Supabase RPC surface). */
+/** SQL functions the client is allowed to call via the /rpc endpoint. */
 const RPC_ALLOWLIST = new Set([
   'create_league',
   'create_fantasy_team',

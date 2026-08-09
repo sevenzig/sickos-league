@@ -24,8 +24,9 @@ The schedule generation functionality has been implemented with:
 ### 1. Apply Database Migration
 ```bash
 # Start Docker Desktop, then:
-npx supabase db reset
-# This applies all migrations including the new schedule generation function
+docker compose up --build
+# API migrate() applies all migrations including schedule generation
+# Full wipe: docker compose down -v && docker compose up --build
 ```
 
 ### 2. Create a Test League
@@ -47,7 +48,7 @@ npx supabase db reset
 
 ### Issue: "Function does not exist"
 **Cause**: Migration hasn't been applied
-**Solution**: Run `npx supabase db reset` to apply all migrations
+**Solution**: `docker compose down -v && docker compose up --build` to re-apply migrations
 
 ### Issue: "Only league owners can generate schedules"
 **Cause**: User is not the league owner

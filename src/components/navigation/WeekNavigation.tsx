@@ -1,4 +1,7 @@
 import React from 'react';
+import { Panel } from '@/components/ui/panel';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 interface WeekNavigationProps {
   selectedWeek: number;
@@ -14,41 +17,45 @@ const WeekNavigation: React.FC<WeekNavigationProps> = ({
   onGoToCurrentWeek
 }) => {
   return (
-    <div className="panel min-h-[74px] px-8 flex items-center">
+    <Panel padding="none" className="min-h-[74px] px-8 flex items-center">
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-shrink">
-          <h2 className="text-xl sm:text-2xl font-black text-slate-50 tracking-tight truncate">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-50 tracking-tight truncate">
             Week {selectedWeek}
           </h2>
           {selectedWeek === currentWeek ? (
-            <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-xs font-bold uppercase tracking-wider whitespace-nowrap">
+            <Badge variant="success" className="whitespace-nowrap uppercase tracking-wider">
               Current Week
-            </span>
+            </Badge>
           ) : (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onGoToCurrentWeek}
-              className="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 rounded-lg transition-all duration-200 text-xs font-bold uppercase tracking-wider whitespace-nowrap"
+              className="whitespace-nowrap"
             >
               Go to Current Week
-            </button>
+            </Button>
           )}
         </div>
         <div className="flex gap-2 sm:gap-3 flex-shrink-0">
-          <button
+          <Button
+            variant="secondary"
+            size="md"
             onClick={() => onWeekChange(Math.max(1, selectedWeek - 1))}
-            className="px-3 sm:px-4 py-2 bg-slate-800/90 hover:bg-slate-700/50 text-slate-200 rounded-lg transition-all duration-200 font-medium text-sm sm:text-base whitespace-nowrap"
           >
             Previous
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
             onClick={() => onWeekChange(Math.min(18, selectedWeek + 1))}
-            className="px-3 sm:px-4 py-2 bg-slate-800/90 hover:bg-slate-700/50 text-slate-200 rounded-lg transition-all duration-200 font-medium text-sm sm:text-base whitespace-nowrap"
           >
             Next
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </Panel>
   );
 };
 

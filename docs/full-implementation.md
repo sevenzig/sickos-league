@@ -10,7 +10,7 @@ BQBL Multi-League Rollout: Next Steps Documentation
 
   Before beginning the rollout, ensure you have:
 
-  - Access to production Supabase project dashboard
+  - Access to the production host (Docker Compose)
   - Admin access to the production application
   - Access to the codebase repository
   - Understanding of current user base and league structure
@@ -21,17 +21,17 @@ BQBL Multi-League Rollout: Next Steps Documentation
 
   Timeline: 30 minutesRisk Level: Low (additive only)
 
-  1. Connect to Production Supabase
-  npx supabase link --project-ref YOUR_PROD_PROJECT_REF
-  2. Review Migrations
-    - Verify all migration files in supabase/migrations/
+  1. Review Migrations
+    - Verify all migration files in db/migrations/
     - Confirm they are additive only (no existing table modifications)
-  3. Deploy Migrations
-  npx supabase db push
-  4. Verify Deployment
-    - Check Supabase dashboard for new tables
+  2. Deploy stack (API runs migrate() on boot)
+  docker compose -f docker-compose.prod.yml up -d --build
+  # See docs/ops.md for env vars (JWT_SECRET, POSTGRES_PASSWORD, DOMAIN, …)
+  3. Verify Deployment
+  docker compose -f docker-compose.prod.yml exec db psql -U postgres postgres
+    - Check for new tables
     - Verify RLS policies are active
-    - Test RPC functions in SQL editor
+    - Test RPC functions in psql
 
   Step 1.2: Deploy Application Code
 
@@ -53,13 +53,13 @@ BQBL Multi-League Rollout: Next Steps Documentation
   Timeline: 45 minutesRisk Level: None (dev only)
 
   1. Set Up Development Environment
-  # In .env.development.local
+  # In .env / .env.local (see .env.example)
+  VITE_API_URL=/api
   VITE_ENABLE_MULTI_LEAGUE=true
-  VITE_DEV_SUPABASE_URL=your_dev_supabase_url
-  VITE_DEV_SUPABASE_ANON_KEY=your_dev_anon_key
-  2. Run Development Seed Migration
-    - The seed migration will automatically create test data
-    - Verify test league appears in development
+  docker compose up --build
+  2. Run Development Seed
+    - seed.sql is applied automatically by API migrate() on boot
+    - Verify test data / leagues appear in development
   3. Test Core Functionality
     - League creation
     - Invitation generation and redemption
@@ -102,7 +102,7 @@ BQBL Multi-League Rollout: Next Steps Documentation
     - Create "BQBL 2025 Season" league
     - Document the league ID
   3. Map Existing Teams to League
-  -- Run in Supabase SQL editor
+  -- Run via: docker compose exec db psql -U postgres postgres
   -- Replace LEAGUE_ID with actual league ID
 
   INSERT INTO league_teams (league_id, slot_id, team_id)

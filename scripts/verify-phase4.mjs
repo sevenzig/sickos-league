@@ -131,8 +131,8 @@ async function makeLeague(label) {
   );
   if (error) throw new Error(error.message);
 
-  // fantasy_teams / leagues are SELECT-only for app_user — seed via psql.
-  // Skip the Phase 2 draft: mark complete so generate_league_schedule passes.
+  // fantasy_teams are SELECT-only for app_user — seed via psql.
+  // Schedule generation only needs 8 teams (no draft-complete gate).
   psql(`
     INSERT INTO fantasy_teams (league_id, team_name)
     SELECT '${leagueId}', x.team_name
@@ -140,8 +140,6 @@ async function makeLeague(label) {
       ('${label} Team 2'), ('${label} Team 3'), ('${label} Team 4'), ('${label} Team 5'),
       ('${label} Team 6'), ('${label} Team 7'), ('${label} Team 8')
     ) AS x(team_name);
-
-    UPDATE leagues SET draft_status = 'complete' WHERE id = '${leagueId}';
   `);
 
   const { error: schedErr } = await rpc('generate_league_schedule', { p_league_id: leagueId }, token);

@@ -1,5 +1,6 @@
 import React from 'react';
 import TeamLogo from '../../TeamLogo';
+import { Panel } from '@/components/ui/panel';
 
 interface MatchupCardProps {
   matchup: any;
@@ -44,8 +45,9 @@ const MatchupCard: React.FC<MatchupCardProps> = React.memo(({
   }, [handleClick]);
 
   return (
-    <div
-      className="panel overflow-hidden cursor-pointer hover:shadow-panel-hover hover:scale-[1.02] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+    <Panel
+      padding="none"
+      className="overflow-hidden cursor-pointer hover:shadow-panel-hover transition-shadow duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="button"
@@ -134,10 +136,10 @@ const MatchupCard: React.FC<MatchupCardProps> = React.memo(({
             ) : (
               [1, 2].map((_, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-600 rounded-lg border-2 border-dashed border-gray-500 flex items-center justify-center">
-                    <div className="text-gray-400 text-xs">?</div>
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-600 rounded-md border-2 border-dashed border-slate-500 flex items-center justify-center">
+                    <div className="text-slate-400 text-caption">?</div>
                   </div>
-                  <div className="text-xs text-gray-400">--</div>
+                  <div className="text-caption text-slate-400">--</div>
                 </div>
               ))
             )}
@@ -177,17 +179,17 @@ const MatchupCard: React.FC<MatchupCardProps> = React.memo(({
             ) : (
               [1, 2].map((_, idx) => (
                 <div key={idx} className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-600 rounded-lg border-2 border-dashed border-gray-500 flex items-center justify-center">
-                    <div className="text-gray-400 text-xs">?</div>
+                  <div className="w-12 h-12 md:w-16 md:h-16 bg-slate-600 rounded-md border-2 border-dashed border-slate-500 flex items-center justify-center">
+                    <div className="text-slate-400 text-caption">?</div>
                   </div>
-                  <div className="text-xs text-gray-400">--</div>
+                  <div className="text-caption text-slate-400">--</div>
                 </div>
               ))
             )}
           </div>
         </div>
       </div>
-    </div>
+    </Panel>
   );
 });
 

@@ -2,7 +2,7 @@
 // Functions for interacting with the new multi-league system
 
 import { db } from './db'
-import { uploadPhoto, deletePhoto, uploadTeamPhoto, photoUrl } from './apiClient'
+import { uploadPhoto, deletePhoto, uploadTeamPhoto, photoUrl, apiFetch } from './apiClient'
 import { generateLeagueId, isLeagueId, isValidLeagueId, isValidUUID, isShortId, isValidShortId } from './urlUtils'
 
 // Types for proper multi-league system
@@ -19,6 +19,7 @@ export interface League {
   draft_status: 'pending' | 'in_progress' | 'complete'
   my_pick: boolean
   draft_mode: 'async' | 'live'
+  draft_format: 'snake' | 'linear'
   draft_pick_seconds: number
   draft_paused: boolean
 }
@@ -96,6 +97,7 @@ export interface DraftPick {
 export interface DraftState {
   draft_status: 'pending' | 'in_progress' | 'complete'
   draft_mode: 'async' | 'live'
+  draft_format: 'snake' | 'linear'
   draft_at: string | null
   draft_pick_seconds: number
   draft_paused: boolean
@@ -114,12 +116,14 @@ export interface DraftState {
 export interface CreateLeagueOptions {
   ownerTeamName?: string
   draftMode?: 'async' | 'live'
+  draftFormat?: 'snake' | 'linear'
   draftAt?: string | null
   draftPickSeconds?: 30 | 60 | 90
 }
 
 export interface DraftSettingsUpdate {
   draftMode?: 'async' | 'live'
+  draftFormat?: 'snake' | 'linear'
   draftAt?: string | null
   draftPickSeconds?: 30 | 60 | 90
 }
@@ -149,6 +153,16 @@ export interface EmailPreferences {
   league_updates: boolean
   matchup_reminders: boolean
   weekly_summaries: boolean
+}
+
+export interface LeagueJoinInfo {
+  id: string
+  name: string
+  season: number
+  has_password: boolean
+  draft_status: 'pending' | 'in_progress' | 'complete' | string
+  seats_remaining: number
+  already_member: boolean
 }
 
 export interface FantasyTeamInfo {
@@ -215,6 +229,7 @@ export class MultiLeagueApi {
       p_draft_mode: opts.draftMode || 'async',
       p_draft_at: opts.draftAt ?? null,
       p_draft_pick_seconds: opts.draftPickSeconds ?? 90,
+      p_draft_format: opts.draftFormat || 'snake',
     });
 
     if (error) throw new Error(error.message);
@@ -279,7 +294,7 @@ export class MultiLeagueApi {
     return data
   }
 
-  // Invitation system for code-based league joining
+  // Invitation system for code-based league joining (legacy; password join is primary)
   static async generateInviteCode(leagueId: string): Promise<string> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
     // Generate a simple 8-character code
@@ -379,10 +394,49 @@ export class MultiLeagueApi {
     return data; // Returns the league_id
   }
 
+  /** Owner: set or rotate the shared join password (bcrypt on server). */
+  static async setLeagueJoinPassword(leagueId: string, password: string): Promise<void> {
+    const { status, json } = await apiFetch(`/leagues/${leagueId}/join-password`, {
+      method: 'PUT',
+      body: { password },
+    });
+    if (status >= 400 || json.error) {
+      throw new Error(json.error?.message || 'Failed to set join password');
+    }
+  }
+
+  /** Signed-in: public-enough join page metadata (never includes the hash). */
+  static async getLeagueJoinInfo(leagueId: string): Promise<LeagueJoinInfo> {
+    const { status, json } = await apiFetch(`/leagues/${leagueId}/join-info`, {
+      method: 'GET',
+    });
+    if (status >= 400 || json.error) {
+      throw new Error(json.error?.message || 'Failed to load join info');
+    }
+    return json as LeagueJoinInfo;
+  }
+
+  /** Signed-in: verify password and join; returns league UUID. */
+  static async joinLeagueWithPassword(
+    leagueId: string,
+    password: string,
+    teamName: string
+  ): Promise<string> {
+    const { status, json } = await apiFetch(`/leagues/${leagueId}/join`, {
+      method: 'POST',
+      body: { password, team_name: teamName },
+    });
+    if (status >= 400 || json.error) {
+      throw new Error(json.error?.message || 'Failed to join league');
+    }
+    return json.league_id as string;
+  }
+
   // Schedule management
   static async generateSchedule(leagueId: string): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('generate_league_schedule', {
-      p_league_id: leagueId,
+      p_league_id: fullLeagueId,
     })
 
     if (error) throw new Error(error.message)
@@ -393,8 +447,9 @@ export class MultiLeagueApi {
     leagueId: string,
     week?: number
   ): Promise<LeagueMatchup[]> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('get_league_schedule', {
-      p_league_id: leagueId,
+      p_league_id: fullLeagueId,
       p_week: week,
     })
 
@@ -501,6 +556,7 @@ export class MultiLeagueApi {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
     const args: Record<string, unknown> = { p_league_id: fullLeagueId };
     if (settings.draftMode !== undefined) args.p_draft_mode = settings.draftMode;
+    if (settings.draftFormat !== undefined) args.p_draft_format = settings.draftFormat;
     if (settings.draftAt !== undefined) args.p_draft_at = settings.draftAt;
     if (settings.draftPickSeconds !== undefined) args.p_draft_pick_seconds = settings.draftPickSeconds;
     const { data, error } = await db.rpc('update_league_draft_settings', args);
