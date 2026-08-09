@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { NFL_TEAMS } from '../../types';
+import { NFL_TEAMS, type NFLTeam } from '../../types';
 import { getTeamAbbr, getTeamLogo } from '../../utils/teamLogos';
 import DevOnly from './DevOnly';
 
-const TAKEN = new Set(NFL_TEAMS.slice(0, 14));
+const TAKEN = new Set<NFLTeam>(NFL_TEAMS.slice(0, 14));
 
 type OptId = 1 | 2 | 3 | 4 | 5;
 
@@ -13,8 +13,8 @@ interface PhoneProps {
   title: string;
   blurb: string;
   children: (ctx: {
-    selected: string;
-    setSelected: (t: string) => void;
+    selected: NFLTeam;
+    setSelected: (t: NFLTeam) => void;
     taken: boolean;
     Board: React.FC<{ cols: 4 | 8 }>;
   }) => React.ReactNode;
@@ -25,8 +25,8 @@ function TeamBoard({
   setSelected,
   cols,
 }: {
-  selected: string;
-  setSelected: (t: string) => void;
+  selected: NFLTeam;
+  setSelected: (t: NFLTeam) => void;
   cols: 4 | 8;
 }) {
   return (
@@ -125,7 +125,7 @@ function DraftCta({ disabled }: { disabled: boolean }) {
 }
 
 function PhoneShell({ id, title, blurb, children }: PhoneProps) {
-  const [selected, setSelected] = useState<string>('San Francisco');
+  const [selected, setSelected] = useState<NFLTeam>('San Francisco');
   const taken = TAKEN.has(selected);
   const Board: React.FC<{ cols: 4 | 8 }> = ({ cols }) => (
     <TeamBoard selected={selected} setSelected={setSelected} cols={cols} />
