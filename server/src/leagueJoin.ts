@@ -91,9 +91,9 @@ leagueJoinRouter.put(
   }
 );
 
+/** Public metadata for the join page (no password hash). Membership check only when signed in. */
 leagueJoinRouter.get(
   '/:leagueId/join-info',
-  requireUser,
   async (req: AuthedRequest, res) => {
     try {
       const league = await resolveLeague(req.params.leagueId);
@@ -102,16 +102,19 @@ leagueJoinRouter.get(
         return;
       }
 
-      const [{ rows: memberRows }, { rows: countRows }] = await Promise.all([
-        adminPool.query(
+      const { rows: countRows } = await adminPool.query(
+        `SELECT COUNT(*)::int AS n FROM fantasy_teams WHERE league_id = $1`,
+        [league.id]
+      );
+
+      let alreadyMember = false;
+      if (req.userId) {
+        const { rows: memberRows } = await adminPool.query(
           `SELECT 1 FROM league_members WHERE league_id = $1 AND user_id = $2`,
           [league.id, req.userId]
-        ),
-        adminPool.query(
-          `SELECT COUNT(*)::int AS n FROM fantasy_teams WHERE league_id = $1`,
-          [league.id]
-        ),
-      ]);
+        );
+        alreadyMember = memberRows.length > 0;
+      }
 
       const teamCount = countRows[0]?.n ?? 0;
       const seatsRemaining = Math.max(0, MAX_TEAMS - teamCount);
@@ -123,7 +126,7 @@ leagueJoinRouter.get(
         has_password: league.join_password_hash != null,
         draft_status: league.draft_status,
         seats_remaining: seatsRemaining,
-        already_member: memberRows.length > 0,
+        already_member: alreadyMember,
       });
     } catch (err) {
       const status = (err as { status?: number }).status || 500;

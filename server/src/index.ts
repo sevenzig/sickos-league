@@ -8,6 +8,7 @@ import { rpcRouter } from './rpc.js';
 import { tablesRouter } from './tables.js';
 import { photosRouter, PHOTOS_DIR } from './photos.js';
 import { leagueJoinRouter } from './leagueJoin.js';
+import { invitesRouter } from './invites.js';
 import { startEmailWorkers } from './email.js';
 
 const PORT = Number(process.env.PORT || 3001);
@@ -63,6 +64,7 @@ async function main() {
   app.use('/api/db', tablesRouter);
   app.use('/api/photos', photosRouter);
   app.use('/api/leagues', leagueJoinRouter);
+  app.use('/api/invites', invitesRouter);
   app.use('/photos', express.static(PHOTOS_DIR, { fallthrough: false }));
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

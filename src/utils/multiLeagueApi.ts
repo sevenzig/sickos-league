@@ -361,35 +361,26 @@ export class MultiLeagueApi {
     }));
   }
 
-  static async validateInviteCode(code: string): Promise<Invitation | null> {
-    const { data, error } = await db
-      .from('league_invitations')
-      .select(`
-        code,
-        league_id,
-        expires_at,
-        is_active,
-        used_at,
-        used_by_user_id,
-        leagues!inner(name)
-      `)
-      .eq('code', code.toUpperCase())
-      .eq('is_active', true)
-      .single();
-
-    if (error || !data) return null;
-
-    const invitation: Invitation = {
-      code: data.code,
-      league_id: data.league_id,
-      league_name: data.leagues.name,
-      expires_at: data.expires_at,
-      is_valid: new Date(data.expires_at) > new Date() && !data.used_at,
-      used_at: data.used_at,
-      used_by_user_id: data.used_by_user_id
+  /** Public: preview invite for join/invite landing (no auth). Returns null if not found. */
+  static async previewInviteCode(code: string): Promise<Invitation | null> {
+    const { status, json } = await apiFetch(`/invites/${encodeURIComponent(code.toUpperCase())}`, {
+      method: 'GET',
+    });
+    if (status === 404) return null;
+    if (status >= 400 || json.error) {
+      throw new Error(json.error?.message || 'Failed to load invite');
+    }
+    return {
+      code: json.code,
+      league_id: json.league_id,
+      league_name: json.league_name,
+      expires_at: json.expires_at,
+      is_valid: json.is_valid === true,
     };
+  }
 
-    return invitation;
+  static async validateInviteCode(code: string): Promise<Invitation | null> {
+    return this.previewInviteCode(code);
   }
 
   static async redeemInviteCode(code: string, teamName: string): Promise<string> {
@@ -413,7 +404,7 @@ export class MultiLeagueApi {
     }
   }
 
-  /** Signed-in: public-enough join page metadata (never includes the hash). */
+  /** Join page metadata (guest-readable; never includes the hash). */
   static async getLeagueJoinInfo(leagueId: string): Promise<LeagueJoinInfo> {
     const { status, json } = await apiFetch(`/leagues/${leagueId}/join-info`, {
       method: 'GET',

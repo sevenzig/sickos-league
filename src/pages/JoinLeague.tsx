@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import AuthCheck from '../components/auth/AuthCheck';
+import { useAuth } from '../context/AuthContext';
 import { MultiLeagueApi, LeagueJoinInfo } from '../utils/multiLeagueApi';
 import { getLeagueUrl } from '../utils/urlUtils';
 import { Panel, Input, Button } from '@/components/ui';
@@ -8,6 +9,7 @@ import { Panel, Input, Button } from '@/components/ui';
 const JoinLeague: React.FC = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [info, setInfo] = useState<LeagueJoinInfo | null>(null);
   const [password, setPassword] = useState('');
   const [teamName, setTeamName] = useState('');
@@ -42,7 +44,7 @@ const JoinLeague: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [leagueId, navigate]);
+  }, [leagueId, navigate, user?.id]);
 
   const blockedReason = (): string | null => {
     if (!info) return null;
@@ -89,38 +91,41 @@ const JoinLeague: React.FC = () => {
   const gate = blockedReason();
 
   return (
-    <AuthCheck message="Sign in to join this league with the password from your commissioner.">
-      <div className="max-w-md mx-auto py-12">
-        {loading ? (
-          <Panel>
-            <div className="animate-pulse space-y-3">
-              <div className="h-6 bg-slate-700 rounded w-2/3" />
-              <div className="h-4 bg-slate-700 rounded w-full" />
-              <div className="h-4 bg-slate-700 rounded w-1/2" />
-            </div>
-          </Panel>
-        ) : (
-          <>
-            <div className="text-center mb-8">
-              <h1 className="text-title text-slate-50 mb-3">Join League</h1>
-              {info && (
-                <Panel className="mb-6 text-left">
-                  <h2 className="text-heading text-slate-50 mb-1">{info.name}</h2>
-                  <p className="text-label text-slate-400">
-                    Season {info.season} · {info.seats_remaining} seat
-                    {info.seats_remaining === 1 ? '' : 's'} open
-                  </p>
-                </Panel>
-              )}
-            </div>
-
-            {(error || gate) && (
-              <div className="bg-red-600/10 border border-red-600/20 rounded-lg p-4 mb-6">
-                <p className="text-red-400">{error || gate}</p>
-              </div>
+    <div className="max-w-md mx-auto py-12">
+      {loading ? (
+        <Panel>
+          <div className="animate-pulse space-y-3">
+            <div className="h-6 bg-slate-700 rounded w-2/3" />
+            <div className="h-4 bg-slate-700 rounded w-full" />
+            <div className="h-4 bg-slate-700 rounded w-1/2" />
+          </div>
+        </Panel>
+      ) : (
+        <>
+          <div className="text-center mb-8">
+            <h1 className="text-title text-slate-50 mb-3">Join League</h1>
+            {info && (
+              <Panel className="mb-6 text-left">
+                <h2 className="text-heading text-slate-50 mb-1">{info.name}</h2>
+                <p className="text-label text-slate-400">
+                  Season {info.season} · {info.seats_remaining} seat
+                  {info.seats_remaining === 1 ? '' : 's'} open
+                </p>
+              </Panel>
             )}
+          </div>
 
-            {info && !gate && (
+          {(error || gate) && (
+            <div className="bg-red-600/10 border border-red-600/20 rounded-lg p-4 mb-6">
+              <p className="text-red-400">{error || gate}</p>
+            </div>
+          )}
+
+          {info && !gate && (
+            <AuthCheck
+              inline
+              message="Sign in to join this league with the password from your commissioner."
+            >
               <form onSubmit={handleJoin} className="space-y-6">
                 <div className="space-y-1.5">
                   <label htmlFor="joinPassword" className="text-label font-medium text-slate-300">
@@ -160,11 +165,11 @@ const JoinLeague: React.FC = () => {
                   {submitting ? 'Joining...' : 'Join League'}
                 </Button>
               </form>
-            )}
-          </>
-        )}
-      </div>
-    </AuthCheck>
+            </AuthCheck>
+          )}
+        </>
+      )}
+    </div>
   );
 };
 
