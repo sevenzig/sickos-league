@@ -4,6 +4,7 @@ services:
     environment:
       POSTGRES_PASSWORD: postgres
     ports:
+      # Local only. On Quasar, gut-excellence already owns 127.0.0.1:5433 — use docker-compose.prod.yml there.
       - "5433:5432" # host access for psql debugging; API uses the compose network
     volumes:
       - pgdata:/var/lib/postgresql/data
