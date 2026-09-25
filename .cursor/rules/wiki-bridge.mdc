@@ -1,0 +1,30 @@
+---
+description: Route agent to wiki context before acting
+alwaysApply: true
+---
+
+# Wiki Bridge
+
+Before any task in this project:
+
+1. Read ~/wiki/index.md
+2. Identify the relevant context:
+   - Local Arch work → ~/wiki/contexts/local.md
+   - Homelab work → ~/wiki/contexts/homelab.md
+   - VPS work → ~/wiki/contexts/vps-quasar.md
+3. Read ~/wiki/projects/sickos-league/index.md and linked files for project context
+4. Read linked files from ~/wiki/system/ and ~/wiki/patterns/ as needed
+5. Read ~/wiki/rules/ when writing prose for humans
+
+During the task:
+- Follow every rule with `status: active`
+- Skip files with `status: deprecated`
+- Flag files with `status: draft` for review before acting on them
+- Flag conflicts between rules before writing code or config
+
+After the task:
+- Update ~/wiki/projects/sickos-league/ (decisions.md, deploy.md, known-issues.md, apis.md)
+- Update any ~/wiki/system/ file touched by the change
+- If you created a new pattern, write an atomic note with `status: draft` in the correct folder
+- Update ~/wiki/index.md if you created a new file
+- If unsure where a note belongs, append to ~/wiki/system/scratch.md
