@@ -31,7 +31,7 @@ function streakFromMatchups(
 ): string {
   const results: Array<'W' | 'L' | 'T'> = [];
   const completed = matchups
-    .filter((m) => m.is_complete && m.team1_score != null && m.team2_score != null)
+    .filter((m) => !m.is_playoff && m.is_complete && m.team1_score != null && m.team2_score != null)
     .sort((a, b) => a.week - b.week);
 
   for (const m of completed) {

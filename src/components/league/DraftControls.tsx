@@ -7,7 +7,7 @@ import { Panel, Button, Badge, Alert } from '@/components/ui';
 interface DraftControlsProps {
   leagueId: string;
   draftStatus: 'pending' | 'in_progress' | 'complete';
-  draftMode: 'async' | 'live';
+  draftMode: 'async' | 'live' | 'offline';
   draftAt?: string | null;
   draftPaused?: boolean;
   onDraftStarted: () => void;
@@ -76,12 +76,20 @@ const DraftControls: React.FC<DraftControlsProps> = ({
   };
 
   const startDraft = async () => {
-    if (!window.confirm('Start the draft with this order? Joining closes and the order cannot be changed.')) return;
+    const offline = draftMode === 'offline';
+    const prompt = offline
+      ? 'Start offline draft with this order? Joining closes. You will assign all 32 NFL teams, then lock them.'
+      : 'Start the draft with this order? Joining closes and the order cannot be changed.';
+    if (!window.confirm(prompt)) return;
     try {
       setStarting(true);
       setError(null);
       await MultiLeagueApi.setDraftOrder(leagueId, order.map(t => t.id));
-      await MultiLeagueApi.startDraft(leagueId, order.map(t => t.id));
+      if (offline) {
+        await MultiLeagueApi.startOfflineDraft(leagueId, order.map(t => t.id));
+      } else {
+        await MultiLeagueApi.startDraft(leagueId, order.map(t => t.id));
+      }
       onDraftStarted();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start draft');
@@ -128,7 +136,9 @@ const DraftControls: React.FC<DraftControlsProps> = ({
       ? draftAt
         ? `Live draft auto-starts at ${new Date(draftAt).toLocaleString()} using whichever order is saved at that moment — you can re-save it anytime before then.`
         : 'Live draft needs a scheduled time in Draft Settings.'
-      : 'Set the round-1 pick order, then start the draft.';
+      : draftMode === 'offline'
+        ? 'Set the round-1 order, then start assignment. You fill every NFL team before the draft locks.'
+        : 'Set the round-1 pick order, then start the draft.';
 
   return (
     <Panel>
@@ -140,7 +150,9 @@ const DraftControls: React.FC<DraftControlsProps> = ({
             {draftStatus === 'in_progress' && (
               draftMode === 'live'
                 ? 'Live draft in progress. Pause freezes the pick clock.'
-                : 'The draft is in progress. You can make picks for absent managers in the draft room.'
+                : draftMode === 'offline'
+                  ? 'Assign every NFL team in the draft room, then finalize. That lock cannot be undone.'
+                  : 'The draft is in progress. You can make picks for absent managers in the draft room.'
             )}
             {draftStatus === 'complete' && 'The draft is complete — all 32 NFL teams are rostered.'}
           </p>
@@ -156,7 +168,7 @@ const DraftControls: React.FC<DraftControlsProps> = ({
         <div className="flex items-center gap-3 mb-2">
           <Badge variant={draftPaused ? 'warning' : 'default'}>
             {draftPaused ? 'Paused' : 'In progress'}
-            {draftMode === 'live' ? ' · Live' : ' · Async'}
+            {draftMode === 'live' ? ' · Live' : draftMode === 'offline' ? ' · Offline' : ' · Async'}
           </Badge>
           {draftMode === 'live' && (
             <Button
@@ -230,7 +242,11 @@ const DraftControls: React.FC<DraftControlsProps> = ({
                   disabled={starting || order.length !== 8}
                   title={order.length !== 8 ? 'The draft needs exactly 8 fantasy teams' : ''}
                 >
-                  {starting ? 'Starting...' : 'Start Draft'}
+                  {starting
+                    ? 'Starting...'
+                    : draftMode === 'offline'
+                      ? 'Start offline draft'
+                      : 'Start Draft'}
                 </Button>
               )}
 

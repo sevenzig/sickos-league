@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { NFL_TEAMS } from '../types';
 import { getTeamAbbr, getTeamLogo } from '../utils/teamLogos';
 import { Panel, Badge, Button } from '@/components/ui';
+import DraftControls from '../components/league/DraftControls';
 
 interface NflTeamRow {
   uuid_id: string;
@@ -36,6 +37,279 @@ function initialsOf(label: string): string {
   const parts = label.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return label.slice(0, 2).toUpperCase();
+}
+
+function OfflineDraftRoom({
+  leagueId,
+  draftState,
+  isOwner,
+  nflTeams,
+  error,
+  onReload,
+}: {
+  leagueId: string;
+  draftState: DraftState;
+  isOwner: boolean;
+  nflTeams: NflTeamRow[];
+  error: string | null;
+  onReload: () => Promise<void>;
+}) {
+  const [selectedPick, setSelectedPick] = useState<number | null>(null);
+  const [assignments, setAssignments] = useState<Record<number, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const nflById = useMemo(() => {
+    const map = new Map<string, NflTeamRow>();
+    for (const team of nflTeams) map.set(team.uuid_id, team);
+    return map;
+  }, [nflTeams]);
+
+  const nflByName = useMemo(() => {
+    const map = new Map<string, NflTeamRow>();
+    for (const team of nflTeams) map.set(team.name, team);
+    return map;
+  }, [nflTeams]);
+
+  const takenIds = useMemo(() => {
+    const map = new Map<string, number>();
+    if (draftState.draft_status === 'complete') {
+      for (const pick of draftState.picks) {
+        if (pick.nfl_team_id) map.set(pick.nfl_team_id, pick.pick_number);
+      }
+      return map;
+    }
+    for (const [pickNumber, nflId] of Object.entries(assignments)) {
+      map.set(nflId, Number(pickNumber));
+    }
+    return map;
+  }, [assignments, draftState]);
+
+  const filledCount = draftState.draft_status === 'complete'
+    ? draftState.picks.filter((pick) => pick.nfl_team_id).length
+    : Object.keys(assignments).length;
+  const canAssign = isOwner && draftState.draft_status === 'in_progress';
+  const canFinalize = canAssign && filledCount === 32 && !submitting;
+
+  const assignTeam = (nflId: string) => {
+    if (!canAssign || selectedPick == null) return;
+    if (assignments[selectedPick] === nflId) {
+      setAssignments((prev) => {
+        const next = { ...prev };
+        delete next[selectedPick];
+        return next;
+      });
+      return;
+    }
+    if (takenIds.has(nflId)) return;
+    setAssignments((prev) => ({ ...prev, [selectedPick]: nflId }));
+  };
+
+  const finalize = async () => {
+    if (!canFinalize) return;
+    if (!window.confirm('Finalize this draft? Rosters lock and cannot be changed.')) return;
+    try {
+      setSubmitting(true);
+      setLocalError(null);
+      const picks = Object.entries(assignments).map(([pickNumber, nflId]) => ({
+        pick_number: Number(pickNumber),
+        nfl_team_id: nflId,
+      }));
+      await MultiLeagueApi.setOfflineDraftPicks(leagueId, picks);
+      setAssignments({});
+      setSelectedPick(null);
+      await onReload();
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to finalize draft');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (draftState.draft_status === 'pending') {
+    return (
+      <div className="min-h-[100dvh] bg-slate-900 px-4 py-8">
+        <div className="max-w-3xl mx-auto space-y-4">
+          <Link to={getLeagueUrl(leagueId)} className="text-caption text-slate-400 hover:text-slate-200">
+            ← League
+          </Link>
+          {isOwner ? (
+            <DraftControls
+              leagueId={leagueId}
+              draftStatus="pending"
+              draftMode="offline"
+              onDraftStarted={() => { void onReload(); }}
+            />
+          ) : (
+            <Panel>
+              <h1 className="text-heading text-slate-50 mb-1">Offline draft</h1>
+              <p className="text-label text-slate-400">
+                The commissioner assigns NFL teams after the off-platform draft.
+              </p>
+            </Panel>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const picks = [...draftState.picks].sort((a, b) => a.pick_number - b.pick_number);
+  const shownError = localError || error;
+
+  return (
+    <div className="h-[100dvh] bg-slate-900 flex flex-col overflow-hidden">
+      <header className="flex-shrink-0 flex items-center gap-2 px-3.5 py-3 lg:px-6 border-b border-slate-800 bg-slate-950">
+        <Link to={getLeagueUrl(leagueId)} className="text-caption text-slate-400 hover:text-slate-200 flex-shrink-0">
+          ←
+        </Link>
+        <p className="flex-1 min-w-0 text-label font-semibold text-white truncate">
+          {draftState.draft_status === 'complete'
+            ? 'Draft complete'
+            : 'Commissioner assigning rosters'}
+        </p>
+        <Badge variant={draftState.draft_status === 'complete' ? 'success' : 'warning'}>
+          {filledCount}/32
+        </Badge>
+        {canAssign && (
+          <Button type="button" size="sm" onClick={finalize} disabled={!canFinalize}>
+            {submitting ? 'Locking...' : 'Finalize draft'}
+          </Button>
+        )}
+      </header>
+
+      {shownError && (
+        <div className="flex-shrink-0 px-3 py-1.5 bg-danger/10 border-b border-danger/30">
+          <p className="text-caption text-danger truncate">{shownError}</p>
+        </div>
+      )}
+
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <p className="flex-shrink-0 text-caption uppercase tracking-wider text-slate-500 font-semibold px-3 pt-3 pb-1.5 lg:px-6">
+            {canAssign
+              ? selectedPick == null
+                ? 'Select an empty pick, then a team'
+                : `Pick ${selectedPick} — tap a team`
+              : 'Assigned teams'}
+          </p>
+          <div className="flex-1 min-h-0 px-2.5 pb-3 lg:px-4">
+            <div className="h-full min-h-0 grid grid-cols-4 grid-rows-8 gap-1.5 lg:grid-cols-8 lg:grid-rows-4 lg:gap-2">
+              {NFL_TEAMS.map((teamName) => {
+                const nfl = nflByName.get(teamName);
+                const takenPick = nfl ? takenIds.get(nfl.uuid_id) : undefined;
+                const selected = nfl != null && selectedPick != null && assignments[selectedPick] === nfl.uuid_id;
+                const logo = getTeamLogo(teamName);
+                const abbr = getTeamAbbr(teamName);
+                return (
+                  <button
+                    key={teamName}
+                    type="button"
+                    disabled={!canAssign || selectedPick == null || (takenPick != null && !selected)}
+                    onClick={() => nfl && assignTeam(nfl.uuid_id)}
+                    aria-label={takenPick ? `${teamName}, pick ${takenPick}` : teamName}
+                    className={`relative min-h-0 min-w-0 w-full h-full flex items-center justify-center rounded-lg border overflow-hidden transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                      selected
+                        ? 'bg-emerald-950/50 border-emerald-400 ring-1 ring-emerald-400/50'
+                        : takenPick
+                          ? 'bg-slate-950 border-slate-800 opacity-45'
+                          : 'bg-slate-800/90 border-slate-700 hover:border-slate-500 active:bg-slate-700'
+                    } disabled:cursor-default`}
+                  >
+                    {logo ? (
+                      <img
+                        src={logo}
+                        alt=""
+                        className={`w-[60%] h-[60%] object-contain pointer-events-none ${takenPick ? 'grayscale' : ''}`}
+                        draggable={false}
+                      />
+                    ) : (
+                      <span className={`text-caption ${takenPick ? 'text-slate-600' : 'text-slate-300'}`}>{abbr}</span>
+                    )}
+                    {takenPick != null && (
+                      <span className="absolute top-0.5 right-0.5 min-w-[1.1rem] h-4 px-0.5 flex items-center justify-center rounded-full bg-slate-900 border border-slate-600 text-[10px] font-bold text-slate-300 leading-none">
+                        {takenPick}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <aside className="hidden lg:flex w-80 flex-shrink-0 border-l border-slate-800 flex-col min-h-0 bg-slate-950/50">
+          <p className="flex-shrink-0 px-4 pt-3 pb-2 text-caption uppercase tracking-wide text-slate-400 font-semibold">
+            Draft order
+          </p>
+          <ol className="flex-1 min-h-0 overflow-y-auto overscroll-contain" aria-label="Offline draft picks 1 through 32">
+            {picks.map((pick) => {
+              const localId = assignments[pick.pick_number];
+              const nflId = draftState.draft_status === 'complete' ? pick.nfl_team_id : localId;
+              const nflName = nflId ? nflById.get(nflId)?.name ?? pick.nfl_team_name : null;
+              const logo = nflName ? getTeamLogo(nflName) : null;
+              const isSelected = selectedPick === pick.pick_number;
+              return (
+                <li key={pick.pick_number}>
+                  <button
+                    type="button"
+                    disabled={!canAssign}
+                    onClick={() => setSelectedPick(pick.pick_number)}
+                    className={`w-full flex items-center gap-2 px-4 py-1.5 text-label leading-tight text-left ${
+                      isSelected ? 'bg-primary/10 border-l-2 border-primary' : ''
+                    } disabled:cursor-default`}
+                  >
+                    <span className="font-mono text-caption text-slate-500 w-5 flex-shrink-0 text-right tabular-nums">
+                      {pick.pick_number}
+                    </span>
+                    <div className="w-7 h-7 flex-shrink-0 bg-slate-800 rounded-md overflow-hidden flex items-center justify-center">
+                      {logo ? (
+                        <img src={logo} alt="" className="w-full h-full object-contain" draggable={false} />
+                      ) : (
+                        <span className="text-caption text-slate-600">—</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`truncate ${isSelected ? 'text-slate-100 font-semibold' : 'text-slate-300'}`}>
+                        {pick.fantasy_team_name}
+                      </p>
+                      <p className="truncate text-caption text-slate-500">
+                        {nflName ? getTeamAbbr(nflName) : '—'}
+                      </p>
+                    </div>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </aside>
+      </div>
+
+      <div className="lg:hidden flex-shrink-0 max-h-40 overflow-y-auto border-t border-slate-800">
+        <div className="grid grid-cols-2">
+          {picks.map((pick) => {
+            const localId = assignments[pick.pick_number];
+            const nflId = draftState.draft_status === 'complete' ? pick.nfl_team_id : localId;
+            const nflName = nflId ? nflById.get(nflId)?.name ?? pick.nfl_team_name : null;
+            const isSelected = selectedPick === pick.pick_number;
+            return (
+              <button
+                key={pick.pick_number}
+                type="button"
+                disabled={!canAssign}
+                onClick={() => setSelectedPick(pick.pick_number)}
+                className={`px-3 py-2 text-left text-caption border-b border-slate-800 ${
+                  isSelected ? 'bg-primary/10 text-white' : 'text-slate-400'
+                }`}
+              >
+                {pick.pick_number}. {pick.fantasy_team_name}
+                {nflName ? ` · ${getTeamAbbr(nflName)}` : ''}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const LeagueDraft: React.FC = () => {
@@ -395,6 +669,19 @@ const LeagueDraft: React.FC = () => {
       <div className="h-[100dvh] bg-slate-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
       </div>
+    );
+  }
+
+  if (draftState?.draft_mode === 'offline' && leagueId) {
+    return (
+      <OfflineDraftRoom
+        leagueId={leagueId}
+        draftState={draftState}
+        isOwner={isOwner}
+        nflTeams={nflTeams}
+        error={error}
+        onReload={loadDraftState}
+      />
     );
   }
 

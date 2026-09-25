@@ -1,4 +1,5 @@
 import { Matchup, Team, WeeklyLineup, TeamRecord } from '../types';
+import { compareStandings, type StandingsTiebreaker } from './season';
 import { getWeeklyCSVData } from '../data/scoringData';
 import { parseWeeklyCSV } from './csvParser';
 
@@ -66,7 +67,8 @@ export function calculateMatchupScore(
 export function calculateStandings(
   matchups: Matchup[],
   lineups: WeeklyLineup[],
-  teams: Team[]
+  teams: Team[],
+  tiebreaker: StandingsTiebreaker = 'record_then_points'
 ): TeamRecord[] {
   const records: { [teamName: string]: { wins: number; losses: number; ties: number; totalPoints: number } } = {};
 
@@ -130,10 +132,11 @@ export function calculateStandings(
       totalPoints: record.totalPoints,
       weeklyResults: [] // Will be calculated separately for the chart
     }))
-    .sort((a, b) => {
-      if (a.wins !== b.wins) return b.wins - a.wins;
-      return b.totalPoints - a.totalPoints;
-    });
+    .sort((a, b) => compareStandings(
+      { wins: a.wins, totalPoints: a.totalPoints, teamName: a.teamName },
+      { wins: b.wins, totalPoints: b.totalPoints, teamName: b.teamName },
+      tiebreaker
+    ));
 }
 
 /**

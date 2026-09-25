@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MultiLeagueApi } from '../utils/multiLeagueApi';
+import { MultiLeagueApi, FantasyTeam, LeagueMatchup } from '../utils/multiLeagueApi';
+import { seasonMaxWeek } from '../utils/season';
 import { getLeagueUrl, getLeagueJoinUrl } from '../utils/urlUtils';
 import TeamManagement from '../components/league/TeamManagement';
 import CommissionerLineups from '../components/league/CommissionerLineups';
 import DraftControls from '../components/league/DraftControls';
 import DraftSettingsEditor from '../components/league/DraftSettingsEditor';
 import MemberManagement from '../components/league/MemberManagement';
-import { Panel, Button, Badge, Input } from '@/components/ui';
+import { Panel, Button, Badge, Input, Select } from '@/components/ui';
 
 interface LeagueDetails {
   id: string;
@@ -21,10 +22,34 @@ interface LeagueDetails {
   fantasy_teams_count: number;
   owner_user_id?: string;
   draft_status: 'pending' | 'in_progress' | 'complete';
-  draft_mode: 'async' | 'live';
+  draft_mode: 'async' | 'live' | 'offline';
   draft_format: 'snake' | 'linear';
   draft_pick_seconds: number;
   draft_paused: boolean;
+  playoff_teams: number;
+  standings_tiebreaker: 'record_then_points' | 'points_then_record';
+}
+
+type ManualPair = { team1: string; team2: string };
+
+function blankManualGrid(): ManualPair[][] {
+  return Array.from({ length: 14 }, () =>
+    Array.from({ length: 4 }, () => ({ team1: '', team2: '' }))
+  );
+}
+
+function gridFromSchedule(rows: LeagueMatchup[]): ManualPair[][] {
+  const grid = blankManualGrid();
+  for (let week = 1; week <= 14; week++) {
+    const games = rows.filter(m => m.week === week && !m.is_playoff);
+    games.slice(0, 4).forEach((game, i) => {
+      grid[week - 1][i] = {
+        team1: game.fantasy_team1_id,
+        team2: game.fantasy_team2_id,
+      };
+    });
+  }
+  return grid;
 }
 
 const LeagueAdmin: React.FC = () => {
@@ -42,6 +67,16 @@ const LeagueAdmin: React.FC = () => {
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [copiedJoinLink, setCopiedJoinLink] = useState(false);
+  const [playoffTeams, setPlayoffTeams] = useState<4 | 5 | 6 | 8>(4);
+  const [tiebreaker, setTiebreaker] = useState<'record_then_points' | 'points_then_record'>('record_then_points');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+  const [fantasyTeams, setFantasyTeams] = useState<FantasyTeam[]>([]);
+  const [scheduleRows, setScheduleRows] = useState<LeagueMatchup[]>([]);
+  const [manualGrid, setManualGrid] = useState<ManualPair[][]>(blankManualGrid);
+  const [showManual, setShowManual] = useState(false);
+  const [savingManual, setSavingManual] = useState(false);
+  const [generatingPlayoffs, setGeneratingPlayoffs] = useState(false);
 
   useEffect(() => {
     if (leagueId) {
@@ -56,6 +91,15 @@ const LeagueAdmin: React.FC = () => {
       setLoading(true);
       const leagueDetails = await MultiLeagueApi.getLeagueDetails(leagueId);
       setLeague(leagueDetails);
+      if (leagueDetails) {
+        const size = leagueDetails.playoff_teams;
+        setPlayoffTeams(size === 5 || size === 6 || size === 8 ? size : 4);
+        setTiebreaker(
+          leagueDetails.standings_tiebreaker === 'points_then_record'
+            ? 'points_then_record'
+            : 'record_then_points'
+        );
+      }
 
       // Redirect non-owners to the main league page
       if (leagueDetails && leagueDetails.user_role !== 'owner') {
@@ -68,6 +112,18 @@ const LeagueAdmin: React.FC = () => {
         setHasJoinPassword(joinInfo.has_password);
       } catch {
         // join-info may fail on older DBs; ignore
+      }
+
+      try {
+        const [teams, rows] = await Promise.all([
+          MultiLeagueApi.getLeagueFantasyTeams(leagueId),
+          MultiLeagueApi.getLeagueSchedule(leagueId).catch(() => [] as LeagueMatchup[]),
+        ]);
+        setFantasyTeams(teams);
+        setScheduleRows(rows);
+        setManualGrid(gridFromSchedule(rows));
+      } catch {
+        // Teams may not be readable yet; the schedule panel stays empty.
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load league data');
@@ -126,6 +182,9 @@ const LeagueAdmin: React.FC = () => {
       console.log('Schedule generation result:', result);
 
       setScheduleGenerated(true);
+      const rows = await MultiLeagueApi.getLeagueSchedule(leagueId).catch(() => [] as LeagueMatchup[]);
+      setScheduleRows(rows);
+      setManualGrid(gridFromSchedule(rows));
 
       setTimeout(() => {
         setScheduleGenerated(false);
@@ -137,6 +196,81 @@ const LeagueAdmin: React.FC = () => {
     } finally {
       setGeneratingSchedule(false);
     }
+  };
+
+  const bracketLocked = scheduleRows.some(m => m.is_playoff);
+  const finalWeek = playoffTeams === 4 ? 16 : 17;
+  const week14 = scheduleRows.filter(m => m.week === 14 && !m.is_playoff);
+  const week14Done = week14.length === 4 && week14.every(m => m.is_complete && m.team1_score != null);
+  const playoffRows = scheduleRows.filter(m => m.is_playoff);
+  const latestPlayoffWeek = playoffRows.reduce((max, m) => Math.max(max, m.week), 0);
+  const latestPlayoffDone = latestPlayoffWeek > 0 && playoffRows
+    .filter(m => m.week === latestPlayoffWeek)
+    .every(m => m.is_complete && m.team1_score != null);
+  const championshipExists = scheduleRows.some(m => m.is_playoff && m.week === finalWeek);
+  const canGeneratePlayoffs = week14Done && !championshipExists && (playoffRows.length === 0 || latestPlayoffDone);
+
+  const handleSaveSettings = async () => {
+    if (!leagueId) return;
+    try {
+      setSavingSettings(true);
+      setSettingsMessage(null);
+      setError(null);
+      await MultiLeagueApi.setLeagueSeasonSettings(leagueId, playoffTeams, tiebreaker);
+      setSettingsMessage('Season settings saved');
+      await loadLeagueData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save season settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleSaveManual = async () => {
+    if (!leagueId) return;
+    const matchups = manualGrid.flatMap((pairs, weekIndex) =>
+      pairs.map(pair => ({
+        week: weekIndex + 1,
+        fantasy_team1_id: pair.team1,
+        fantasy_team2_id: pair.team2,
+      }))
+    );
+    try {
+      setSavingManual(true);
+      setError(null);
+      await MultiLeagueApi.setLeagueSchedule(leagueId, matchups);
+      setScheduleGenerated(true);
+      const rows = await MultiLeagueApi.getLeagueSchedule(leagueId);
+      setScheduleRows(rows);
+      setManualGrid(gridFromSchedule(rows));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save schedule');
+    } finally {
+      setSavingManual(false);
+    }
+  };
+
+  const handleGeneratePlayoffs = async () => {
+    if (!leagueId) return;
+    try {
+      setGeneratingPlayoffs(true);
+      setError(null);
+      await MultiLeagueApi.generatePlayoffs(leagueId);
+      const rows = await MultiLeagueApi.getLeagueSchedule(leagueId);
+      setScheduleRows(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate playoffs');
+    } finally {
+      setGeneratingPlayoffs(false);
+    }
+  };
+
+  const updatePair = (weekIndex: number, pairIndex: number, side: 'team1' | 'team2', value: string) => {
+    setManualGrid(prev => prev.map((week, wi) => (
+      wi !== weekIndex ? week : week.map((pair, pi) => (
+        pi !== pairIndex ? pair : { ...pair, [side]: value }
+      ))
+    )));
   };
 
   const handleDeleteLeague = async () => {
@@ -209,7 +343,7 @@ const LeagueAdmin: React.FC = () => {
   const scheduleHint =
     teamCount !== 8
       ? 'Schedule generation requires 8 fantasy teams'
-      : 'Randomizes matchups. If you skip this, the schedule is created when the draft starts.';
+      : 'Randomizes weeks 1–14. If you skip this, the schedule is created when the draft starts.';
 
   return (
     <div className="space-y-8">
@@ -245,7 +379,7 @@ const LeagueAdmin: React.FC = () => {
                 {generatingSchedule && (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 )}
-                {generatingSchedule ? 'Generating...' : 'Generate Schedule'}
+                {generatingSchedule ? 'Randomizing...' : 'Randomize schedule'}
               </Button>
             </div>
             {scheduleHint && (
@@ -292,10 +426,14 @@ const LeagueAdmin: React.FC = () => {
         </Panel>
         <Panel>
           <div className="text-heading text-slate-50 leading-snug">
-            {league.draft_at ? new Date(league.draft_at).toLocaleString() : 'TBD'}
+            {league.draft_mode === 'offline'
+              ? 'Offline'
+              : league.draft_at
+                ? new Date(league.draft_at).toLocaleString()
+                : 'TBD'}
           </div>
           <div className="text-label text-slate-400">
-            Draft {league.draft_mode === 'live' ? '(Live)' : '(Async)'}
+            Draft {league.draft_mode === 'live' ? '(Live)' : league.draft_mode === 'offline' ? '(Offline)' : '(Async)'}
           </div>
         </Panel>
       </div>
@@ -341,7 +479,65 @@ const LeagueAdmin: React.FC = () => {
         <CommissionerLineups
           leagueId={league.id}
           startersPerWeek={league.teams_started_per_week}
+          maxWeek={seasonMaxWeek(playoffTeams, bracketLocked)}
         />
+
+        <Panel>
+          <h2 className="text-title text-slate-50 mb-2">Regular season</h2>
+          <p className="text-label text-slate-400 mb-4">
+            Weeks 1–14, four games each week. Randomize, or assign every game yourself. Locked after a week is finalized or a score is recorded.
+          </p>
+          <Button type="button" variant="secondary" onClick={() => setShowManual(open => !open)} disabled={!canGenerateSchedule}>
+            {showManual ? 'Hide manual grid' : 'Assign manually'}
+          </Button>
+          {showManual && (
+            <div className="mt-6 space-y-4">
+              {manualGrid.map((pairs, weekIndex) => (
+                <div key={weekIndex} className="space-y-2">
+                  <div className="text-label font-medium text-slate-300">Week {weekIndex + 1}</div>
+                  {pairs.map((pair, pairIndex) => (
+                    <div key={pairIndex} className="flex items-center gap-2">
+                      <Select
+                        value={pair.team1}
+                        onChange={(e) => updatePair(weekIndex, pairIndex, 'team1', e.target.value)}
+                        className="flex-1"
+                      >
+                        <option value="">Team</option>
+                        {fantasyTeams.map(team => (
+                          <option key={team.id} value={team.id}>{team.team_name}</option>
+                        ))}
+                      </Select>
+                      <span className="text-caption text-slate-500 shrink-0">vs</span>
+                      <Select
+                        value={pair.team2}
+                        onChange={(e) => updatePair(weekIndex, pairIndex, 'team2', e.target.value)}
+                        className="flex-1"
+                      >
+                        <option value="">Team</option>
+                        {fantasyTeams.map(team => (
+                          <option key={team.id} value={team.id}>{team.team_name}</option>
+                        ))}
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              <Button type="button" onClick={handleSaveManual} disabled={savingManual || !canGenerateSchedule}>
+                {savingManual ? 'Saving...' : 'Save manual schedule'}
+              </Button>
+            </div>
+          )}
+          {canGeneratePlayoffs && (
+            <div className="mt-6 border-t border-slate-700/30 pt-4">
+              <p className="text-label text-slate-400 mb-3">
+                Week 14 is complete. Generate the next playoff round from the standings.
+              </p>
+              <Button type="button" onClick={handleGeneratePlayoffs} disabled={generatingPlayoffs}>
+                {generatingPlayoffs ? 'Generating...' : 'Generate playoffs'}
+              </Button>
+            </div>
+          )}
+        </Panel>
 
         {/* League Settings */}
         <Panel>
@@ -368,6 +564,47 @@ const LeagueAdmin: React.FC = () => {
                 readOnly
               />
               <p className="text-caption text-slate-500">Cannot be changed after creation</p>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="adminPlayoffTeams" className="text-label font-medium text-slate-300">
+                Playoff teams
+              </label>
+              <Select
+                id="adminPlayoffTeams"
+                value={playoffTeams}
+                disabled={bracketLocked}
+                onChange={(e) => setPlayoffTeams(Number(e.target.value) as 4 | 5 | 6 | 8)}
+              >
+                <option value={4}>4 teams (ends week 16)</option>
+                <option value={5}>5 teams (ends week 17)</option>
+                <option value={6}>6 teams (ends week 17)</option>
+                <option value={8}>8 teams (ends week 17)</option>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="adminTiebreaker" className="text-label font-medium text-slate-300">
+                Standings tiebreaker
+              </label>
+              <Select
+                id="adminTiebreaker"
+                value={tiebreaker}
+                disabled={bracketLocked}
+                onChange={(e) => setTiebreaker(e.target.value as 'record_then_points' | 'points_then_record')}
+              >
+                <option value="record_then_points">Wins, then points</option>
+                <option value="points_then_record">Points, then wins</option>
+              </Select>
+            </div>
+            <div className="md:col-span-2 flex items-center gap-4">
+              <Button type="button" onClick={handleSaveSettings} disabled={savingSettings || bracketLocked}>
+                {savingSettings ? 'Saving...' : 'Save season settings'}
+              </Button>
+              <p className="text-caption text-slate-500">
+                {bracketLocked
+                  ? 'Locked once the playoff bracket exists.'
+                  : 'Editable until the first playoff game is created.'}
+              </p>
+              {settingsMessage && <p className="text-caption text-green-400">{settingsMessage}</p>}
             </div>
           </div>
 

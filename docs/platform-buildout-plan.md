@@ -7,13 +7,15 @@
 | Decision | Choice |
 |---|---|
 | Game model | BQBL: 8 fantasy teams × 4 NFL teams = all 32 drafted; bad-QB scoring |
-| Draft | Async turn-based **or** live draft room (commissioner chooses at league setup). Live: lobby opens 1h before `draft_at`, autostart, 30/60/90s clock, pause/resume, alphabetical auto-pick on timeout. No chat / no ranked queue. |
+| Draft | Async turn-based, live draft room, or offline assignment (commissioner chooses at league setup). Live: lobby opens 1h before `draft_at`, autostart, 30/60/90s clock, pause/resume, alphabetical auto-pick on timeout. Offline: commissioner records an off-platform draft, all 32 picks at once, no clock. No chat / no ranked queue. |
 | Stats | Manual CSV upload, one site-wide upload per week serves all leagues |
 | League size | Fixed 8×4; no free agency, no undrafted teams |
 | Mid-season management | Weekly lineups + team identity only; no trades or waivers |
 | Audience | Private friend leagues now; architecture must not block public launch later |
 
-**Non-goals (explicitly out of scope):** player-level fantasy, draft chat / ranked pick queues, automated stats APIs, trades/waivers, variable league sizes, playoffs bracket customization.
+**Non-goals (explicitly out of scope):** player-level fantasy, draft chat / ranked pick queues, automated stats APIs, trades/waivers, variable league sizes.
+
+Regular season is 14 weeks (four games a week). Playoffs start week 15. The commissioner picks a field of 4, 5, 6, or 8 and a standings tiebreaker. The bracket reseeds each round. There is no losers bracket and no consolation game.
 
 ---
 

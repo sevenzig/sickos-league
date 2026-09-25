@@ -135,7 +135,9 @@ const Rules: React.FC = () => {
               ['Lineups', 'Each team starts exactly 2 QBs per week'],
               ['Scoring', 'Team score = sum of both QB scores'],
               ['Matchups', 'Higher total score wins the matchup'],
-              ['Standings', 'Sorted by wins, then total points'],
+              ['Regular season', '14 weeks. Every team plays once each week'],
+              ['Playoffs', 'Start week 15. The commissioner picks a field of 4, 5, 6, or 8. No consolation games'],
+              ['Standings', 'The commissioner picks the tiebreaker: wins then points, or points then wins'],
               ['QB Tracking', 'Teams draft NFL franchises (e.g., "Chicago"), all QB stats for that team combine'],
               ['Minimum Starts', 'All teams must be started for at least 4 games each season'],
             ].map(([title, body]) => (

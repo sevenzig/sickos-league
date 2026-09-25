@@ -12,7 +12,7 @@ import DraftSetupFields, {
   PickSeconds,
   fromDatetimeLocalValue,
 } from '../components/league/DraftSetupFields';
-import { Panel, Button, Input } from '@/components/ui';
+import { Panel, Button, Input, Select } from '@/components/ui';
 
 const CreateLeague: React.FC = () => {
   const navigate = useNavigate();
@@ -22,6 +22,8 @@ const CreateLeague: React.FC = () => {
   const [draftFormat, setDraftFormat] = useState<DraftFormat>('snake');
   const [draftAtLocal, setDraftAtLocal] = useState('');
   const [draftPickSeconds, setDraftPickSeconds] = useState<PickSeconds>(90);
+  const [playoffTeams, setPlayoffTeams] = useState<4 | 5 | 6 | 8>(4);
+  const [standingsTiebreaker, setStandingsTiebreaker] = useState<'record_then_points' | 'points_then_record'>('record_then_points');
   const [joinPassword, setJoinPassword] = useState('');
   const [joinPasswordConfirm, setJoinPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -89,6 +91,8 @@ const CreateLeague: React.FC = () => {
           draftFormat,
           draftAt: draftMode === 'live' ? fromDatetimeLocalValue(draftAtLocal) : null,
           draftPickSeconds,
+          playoffTeams,
+          standingsTiebreaker,
         }
       );
 
@@ -161,6 +165,43 @@ const CreateLeague: React.FC = () => {
               error={draftAtError ?? undefined}
               showHint
             />
+          </Panel>
+
+          <Panel size="md">
+            <h2 className="text-heading text-slate-50 mb-2">Season</h2>
+            <p className="text-label text-slate-400 mb-4">
+              Weeks 1–14 are the regular season. Playoffs start in week 15. You can change these until the bracket is created.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="playoffTeams" className="text-label font-medium text-slate-300">
+                  Playoff teams
+                </label>
+                <Select
+                  id="playoffTeams"
+                  value={playoffTeams}
+                  onChange={(e) => setPlayoffTeams(Number(e.target.value) as 4 | 5 | 6 | 8)}
+                >
+                  <option value={4}>4 teams (ends week 16)</option>
+                  <option value={5}>5 teams (ends week 17)</option>
+                  <option value={6}>6 teams (ends week 17)</option>
+                  <option value={8}>8 teams (ends week 17)</option>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="tiebreaker" className="text-label font-medium text-slate-300">
+                  Standings tiebreaker
+                </label>
+                <Select
+                  id="tiebreaker"
+                  value={standingsTiebreaker}
+                  onChange={(e) => setStandingsTiebreaker(e.target.value as 'record_then_points' | 'points_then_record')}
+                >
+                  <option value="record_then_points">Wins, then points</option>
+                  <option value="points_then_record">Points, then wins</option>
+                </Select>
+              </div>
+            </div>
           </Panel>
 
           <Panel size="md">

@@ -1,7 +1,7 @@
 import React from 'react';
 import DatetimeLocalPicker from './DatetimeLocalPicker';
 
-export type DraftMode = 'async' | 'live';
+export type DraftMode = 'async' | 'live' | 'offline';
 export type DraftFormat = 'snake' | 'linear';
 export type PickSeconds = 30 | 60 | 90;
 
@@ -93,7 +93,7 @@ const DraftSetupFields: React.FC<DraftSetupFieldsProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-slate-300 mb-3">Draft timing</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             type="button"
             disabled={disabled}
@@ -122,6 +122,21 @@ const DraftSetupFields: React.FC<DraftSetupFieldsProps> = ({
             <div className="text-white font-medium mb-1">Live draft room</div>
             <p className="text-slate-400 text-sm">
               Opens 1 hour before the scheduled time, auto-starts on the clock, pick timer.
+            </p>
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onDraftModeChange('offline')}
+            className={`text-left p-4 rounded-lg border transition-colors ${
+              draftMode === 'offline'
+                ? 'border-blue-500 bg-blue-900/20'
+                : 'border-slate-600 bg-slate-800/50 hover:border-slate-500'
+            } disabled:opacity-50`}
+          >
+            <div className="text-white font-medium mb-1">Offline draft</div>
+            <p className="text-slate-400 text-sm">
+              Commissioner assigns NFL teams after an off-platform draft.
             </p>
           </button>
         </div>

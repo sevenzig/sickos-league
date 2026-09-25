@@ -17,6 +17,8 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
+      # Bridge DNS (UDP/TCP 53) is broken on this host; host net uses systemd-resolved.
+      network: host
     ports:
       - "3001:3001"
     environment:
@@ -37,6 +39,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+      # Same bridge-DNS workaround as api (see above).
+      network: host
     ports:
       - "5173:5173"
     environment:

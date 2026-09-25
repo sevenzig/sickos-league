@@ -9,6 +9,7 @@ import WeekNavigation from '../components/navigation/WeekNavigation';
 import MatchupCard from '../components/matchup-cards/2-team/MatchupCard';
 import MatchupModal from '../components/matchup-modals/2-team/MatchupModal';
 import { Panel } from '@/components/ui';
+import { REGULAR_SEASON_WEEKS, seasonMaxWeek } from '../utils/season';
 
 interface LineupRow {
   fantasy_team_id: string;
@@ -31,6 +32,7 @@ const LeagueSchedule: React.FC = () => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [playoffTeams, setPlayoffTeams] = useState(4);
 
   const [selectedMatchup, setSelectedMatchup] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,10 +42,12 @@ const LeagueSchedule: React.FC = () => {
     [schedule]
   );
 
+  const maxWeek = seasonMaxWeek(playoffTeams, schedule.some(m => m.is_playoff));
+
   const currentWeek = useMemo(() => {
     const completedWeeks = schedule.filter(m => m.is_complete).map(m => m.week);
-    return completedWeeks.length > 0 ? Math.min(18, Math.max(...completedWeeks) + 1) : 1;
-  }, [schedule]);
+    return completedWeeks.length > 0 ? Math.min(maxWeek, Math.max(...completedWeeks) + 1) : 1;
+  }, [schedule, maxWeek]);
 
   useEffect(() => {
     if (isDataLoaded && !hasManuallyNavigated) {
@@ -60,14 +64,16 @@ const LeagueSchedule: React.FC = () => {
 
         const fullLeagueId = await MultiLeagueApi.resolveLeagueId(leagueId);
 
-        const [teams, leagueSchedule, nflTeamsResult] = await Promise.all([
+        const [teams, leagueSchedule, nflTeamsResult, details] = await Promise.all([
           MultiLeagueApi.getLeagueFantasyTeams(fullLeagueId),
           MultiLeagueApi.getLeagueSchedule(fullLeagueId).catch(err => {
             console.error('Error loading schedule (might not be generated yet):', err);
             return [] as LeagueMatchup[];
           }),
           db.from('teams').select('uuid_id, name'),
+          MultiLeagueApi.getLeagueDetails(fullLeagueId).catch(() => null),
         ]);
+        if (details?.playoff_teams) setPlayoffTeams(details.playoff_teams);
 
         if (nflTeamsResult.error) throw new Error(nflTeamsResult.error.message);
         const nameByUuid: Record<string, string> = {};
@@ -194,6 +200,7 @@ const LeagueSchedule: React.FC = () => {
           currentWeek={currentWeek}
           onWeekChange={handleWeekChange}
           onGoToCurrentWeek={handleGoToCurrentWeek}
+          maxWeek={maxWeek}
         />
 
         {isDataLoaded && (
@@ -219,7 +226,9 @@ const LeagueSchedule: React.FC = () => {
             <Panel className="text-center text-slate-400">
               {schedule.length === 0
                 ? 'No schedule yet. The commissioner can generate it from League Admin once all 8 teams have joined, or it will be created when the draft starts.'
-                : `No matchups scheduled for Week ${selectedWeek}`}
+                : selectedWeek > REGULAR_SEASON_WEEKS
+                  ? 'No playoff games this week. Byes and teams that missed the playoffs have no matchup.'
+                  : `No matchups scheduled for Week ${selectedWeek}`}
             </Panel>
           )
         )}

@@ -18,10 +18,13 @@ export interface League {
   fantasy_teams_count: number
   draft_status: 'pending' | 'in_progress' | 'complete'
   my_pick: boolean
-  draft_mode: 'async' | 'live'
+  draft_mode: 'async' | 'live' | 'offline'
   draft_format: 'snake' | 'linear'
   draft_pick_seconds: number
   draft_paused: boolean
+  playoff_teams?: number
+  standings_tiebreaker?: 'record_then_points' | 'points_then_record'
+  regular_season_weeks?: number
 }
 
 export interface FantasyTeam {
@@ -59,6 +62,7 @@ export interface LeagueMatchup {
   team1_score: number | null
   team2_score: number | null
   is_complete: boolean
+  is_playoff?: boolean
 }
 
 export interface FantasyLineup {
@@ -96,7 +100,7 @@ export interface DraftPick {
 
 export interface DraftState {
   draft_status: 'pending' | 'in_progress' | 'complete'
-  draft_mode: 'async' | 'live'
+  draft_mode: 'async' | 'live' | 'offline'
   draft_format: 'snake' | 'linear'
   draft_at: string | null
   draft_pick_seconds: number
@@ -115,14 +119,16 @@ export interface DraftState {
 
 export interface CreateLeagueOptions {
   ownerTeamName?: string
-  draftMode?: 'async' | 'live'
+  draftMode?: 'async' | 'live' | 'offline'
   draftFormat?: 'snake' | 'linear'
   draftAt?: string | null
   draftPickSeconds?: 30 | 60 | 90
+  playoffTeams?: 4 | 5 | 6 | 8
+  standingsTiebreaker?: 'record_then_points' | 'points_then_record'
 }
 
 export interface DraftSettingsUpdate {
-  draftMode?: 'async' | 'live'
+  draftMode?: 'async' | 'live' | 'offline'
   draftFormat?: 'snake' | 'linear'
   draftAt?: string | null
   draftPickSeconds?: 30 | 60 | 90
@@ -230,6 +236,8 @@ export class MultiLeagueApi {
       p_draft_at: opts.draftAt ?? null,
       p_draft_pick_seconds: opts.draftPickSeconds ?? 90,
       p_draft_format: opts.draftFormat || 'snake',
+      p_playoff_teams: opts.playoffTeams ?? 4,
+      p_standings_tiebreaker: opts.standingsTiebreaker || 'record_then_points',
     });
 
     if (error) throw new Error(error.message);
@@ -443,6 +451,43 @@ export class MultiLeagueApi {
     return data
   }
 
+  static async setLeagueSchedule(
+    leagueId: string,
+    matchups: Array<{ week: number; fantasy_team1_id: string; fantasy_team2_id: string }>
+  ): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('set_league_schedule', {
+      p_league_id: fullLeagueId,
+      p_matchups: JSON.stringify(matchups),
+    })
+    if (error) throw new Error(error.message)
+    return data
+  }
+
+  static async setLeagueSeasonSettings(
+    leagueId: string,
+    playoffTeams: 4 | 5 | 6 | 8,
+    standingsTiebreaker: 'record_then_points' | 'points_then_record'
+  ): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('set_league_season_settings', {
+      p_league_id: fullLeagueId,
+      p_playoff_teams: playoffTeams,
+      p_standings_tiebreaker: standingsTiebreaker,
+    })
+    if (error) throw new Error(error.message)
+    return data
+  }
+
+  static async generatePlayoffs(leagueId: string): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('generate_playoffs', {
+      p_league_id: fullLeagueId,
+    })
+    if (error) throw new Error(error.message)
+    return data
+  }
+
   static async getLeagueSchedule(
     leagueId: string,
     week?: number
@@ -523,6 +568,32 @@ export class MultiLeagueApi {
     const { data, error } = await db.rpc('start_draft', {
       p_league_id: fullLeagueId,
       p_draft_order: draftOrder,
+    })
+
+    if (error) throw new Error(error.message)
+    return data
+  }
+
+  static async startOfflineDraft(leagueId: string, draftOrder?: string[]): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('start_offline_draft', {
+      p_league_id: fullLeagueId,
+      p_draft_order: draftOrder,
+    })
+
+    if (error) throw new Error(error.message)
+    return data
+  }
+
+  static async setOfflineDraftPicks(
+    leagueId: string,
+    picks: { pick_number: number; nfl_team_id: string }[]
+  ): Promise<boolean> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
+    const { data, error } = await db.rpc('set_offline_draft_picks', {
+      p_league_id: fullLeagueId,
+      // node-pg sends JS arrays as Postgres arrays, which are not valid jsonb.
+      p_picks: JSON.stringify(picks),
     })
 
     if (error) throw new Error(error.message)

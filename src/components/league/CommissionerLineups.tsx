@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MultiLeagueApi, FantasyTeam, FantasyLineup, LeagueRosterEntry } from '../../utils/multiLeagueApi';
+import { MultiLeagueApi, FantasyTeam, FantasyLineup, LeagueRosterEntry, LeagueMatchup } from '../../utils/multiLeagueApi';
 import TeamLogo from '../TeamLogo';
 import { Panel, Button, Badge, Select, Alert } from '@/components/ui';
 
 interface CommissionerLineupsProps {
   leagueId: string;
   startersPerWeek: number;
+  maxWeek?: number;
 }
 
-const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, startersPerWeek }) => {
+const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, startersPerWeek, maxWeek = 14 }) => {
   const [selectedWeek, setSelectedWeek] = useState(1);
+  const [schedule, setSchedule] = useState<LeagueMatchup[]>([]);
   const [teams, setTeams] = useState<FantasyTeam[]>([]);
   const [rostersByTeam, setRostersByTeam] = useState<Record<string, LeagueRosterEntry[]>>({});
   const [lineupsByTeam, setLineupsByTeam] = useState<Record<string, FantasyLineup>>({});
@@ -25,14 +27,16 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
     try {
       setLoading(true);
       setError(null);
-      const [fantasyTeams, leagueRosters, lineups, status] = await Promise.all([
+      const [fantasyTeams, leagueRosters, lineups, status, leagueSchedule] = await Promise.all([
         MultiLeagueApi.getLeagueFantasyTeams(leagueId),
         MultiLeagueApi.getLeagueRosters(leagueId),
         MultiLeagueApi.getFantasyLineups(leagueId, selectedWeek),
         MultiLeagueApi.getWeekStatus(leagueId, selectedWeek),
+        MultiLeagueApi.getLeagueSchedule(leagueId).catch(() => [] as LeagueMatchup[]),
       ]);
 
       setTeams(fantasyTeams);
+      setSchedule(leagueSchedule);
       setWeekLocked(status?.is_locked ?? false);
 
       const rosters: Record<string, LeagueRosterEntry[]> = {};
@@ -138,7 +142,7 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
             onChange={(e) => setSelectedWeek(Number(e.target.value))}
             className="w-32"
           >
-            {Array.from({ length: 18 }, (_, i) => i + 1).map(week => (
+            {Array.from({ length: maxWeek }, (_, i) => i + 1).map(week => (
               <option key={week} value={week}>Week {week}</option>
             ))}
           </Select>
@@ -159,9 +163,19 @@ const CommissionerLineups: React.FC<CommissionerLineupsProps> = ({ leagueId, sta
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
         </div>
+      ) : schedule.length > 0 && !schedule.some(m => m.week === selectedWeek) ? (
+        <p className="text-label text-slate-400 text-center py-6">
+          No matchups this week. Teams without a game do not set a lineup.
+        </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {teams.map(team => {
+          {(schedule.some(m => m.week === selectedWeek)
+            ? teams.filter(team => schedule.some(
+                m => m.week === selectedWeek &&
+                  (m.fantasy_team1_id === team.id || m.fantasy_team2_id === team.id)
+              ))
+            : teams
+          ).map(team => {
             const roster = rostersByTeam[team.id] || [];
             const selection = selections[team.id] || [];
             const status = lineupStatus(team.id);

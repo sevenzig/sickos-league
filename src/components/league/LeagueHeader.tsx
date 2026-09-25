@@ -18,6 +18,7 @@ interface HeaderDetails {
   season: number;
   user_role: 'owner' | 'manager';
   draft_status: 'pending' | 'in_progress' | 'complete';
+  draft_mode?: 'async' | 'live' | 'offline';
   my_pick?: boolean;
 }
 
@@ -87,16 +88,20 @@ const LeagueHeader: React.FC<LeagueHeaderProps> = ({ leagueId, active }) => {
                 league.draft_status === 'in_progress' ? 'text-yellow-300' : 'text-blue-300'
               )}
             >
-              {league.draft_status === 'in_progress'
-                ? league.my_pick
-                  ? "Draft in progress - you're on the clock!"
-                  : 'Draft in progress'
-                : 'The draft has not started yet'}
+              {league.draft_mode === 'offline' && league.draft_status === 'in_progress'
+                ? 'Commissioner assigning rosters'
+                : league.draft_status === 'in_progress'
+                  ? league.my_pick
+                    ? "Draft in progress - you're on the clock!"
+                    : 'Draft in progress'
+                  : 'The draft has not started yet'}
             </p>
             <p className="text-slate-400 text-label mt-1">
-              {league.draft_status === 'in_progress'
-                ? 'Rosters are being drafted right now.'
-                : league.user_role === 'owner'
+              {league.draft_mode === 'offline' && league.draft_status === 'in_progress'
+                ? 'The commissioner is filling NFL teams from the off-platform draft.'
+                : league.draft_status === 'in_progress'
+                  ? 'Rosters are being drafted right now.'
+                  : league.user_role === 'owner'
                   ? 'Set the pick order and start the draft from the admin panel once all 8 teams have joined.'
                   : 'The schedule is set when the draft starts (or earlier from League Admin). Join the draft room when it begins.'}
             </p>

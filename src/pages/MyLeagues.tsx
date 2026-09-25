@@ -15,7 +15,7 @@ const LeagueCard: React.FC<{ league: League }> = ({ league }) => (
           {league.name}
         </h3>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {league.my_pick && (
+          {league.my_pick && league.draft_mode !== 'offline' && (
             <Badge variant="solid" className="animate-pulse">Your pick!</Badge>
           )}
           <Badge variant={league.user_role === 'owner' ? 'primary' : 'success'}>
@@ -64,11 +64,13 @@ const LeagueCard: React.FC<{ league: League }> = ({ league }) => (
                 ? 'text-yellow-400'
                 : 'text-slate-300'
           }>
-            {league.draft_status === 'in_progress'
-              ? 'In progress'
-              : league.draft_status === 'complete'
-                ? 'Complete'
-                : 'Not started'}
+            {league.draft_mode === 'offline' && league.draft_status === 'in_progress'
+              ? 'Commissioner assigning rosters'
+              : league.draft_status === 'in_progress'
+                ? 'In progress'
+                : league.draft_status === 'complete'
+                  ? 'Complete'
+                  : 'Not started'}
           </span>
         </div>
       </div>
@@ -80,6 +82,8 @@ const LeagueCard: React.FC<{ league: League }> = ({ league }) => (
               ? `${8 - league.fantasy_teams_count} spots remaining`
               : league.draft_status === 'pending'
                 ? 'Draft next'
+                : league.draft_mode === 'offline' && league.draft_status === 'in_progress'
+                ? 'Commissioner assigning rosters'
                 : league.draft_status === 'in_progress'
                   ? 'Draft in progress'
                   : 'Draft complete'}

@@ -12,6 +12,7 @@ import MatchupModal from '../components/matchup-modals/2-team/MatchupModal';
 import StandingsTable from '../components/league/StandingsTable';
 import SeasonWLTChart from '../components/tables/SeasonWLTChart';
 import { Panel } from '@/components/ui';
+import { REGULAR_SEASON_WEEKS, seasonMaxWeek } from '../utils/season';
 
 interface LineupRow {
   fantasy_team_id: string;
@@ -42,6 +43,7 @@ const LeagueView: React.FC = () => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [playoffTeams, setPlayoffTeams] = useState<number>(4);
 
   // A week is locked when its weeks row is locked (surfaced per matchup by get_league_schedule)
   const isWeekLocked = useCallback(
@@ -50,18 +52,20 @@ const LeagueView: React.FC = () => {
   );
 
   // Current week = first week after the latest finalized one
+  const maxWeek = seasonMaxWeek(playoffTeams, schedule.some(m => m.is_playoff));
+
   const currentWeek = useMemo(() => {
     const completedWeeks = schedule.filter(m => m.is_complete).map(m => m.week);
-    return completedWeeks.length > 0 ? Math.min(18, Math.max(...completedWeeks) + 1) : 1;
-  }, [schedule]);
+    return completedWeeks.length > 0 ? Math.min(maxWeek, Math.max(...completedWeeks) + 1) : 1;
+  }, [schedule, maxWeek]);
 
   // Deep-link: keep selected week in sync with the matchup URL
   useEffect(() => {
-    if (matchupWeek && matchupWeek >= 1 && matchupWeek <= 18) {
+    if (matchupWeek && matchupWeek >= 1 && matchupWeek <= maxWeek) {
       setSelectedWeek(matchupWeek);
       setHasManuallyNavigated(true);
     }
-  }, [matchupWeek]);
+  }, [matchupWeek, maxWeek]);
 
   // Update selected week when data loads (only on initial load, not on manual navigation)
   useEffect(() => {
@@ -81,14 +85,16 @@ const LeagueView: React.FC = () => {
 
         const fullLeagueId = await MultiLeagueApi.resolveLeagueId(leagueId);
 
-        const [teams, leagueSchedule, nflTeamsResult] = await Promise.all([
+        const [teams, leagueSchedule, nflTeamsResult, details] = await Promise.all([
           MultiLeagueApi.getLeagueFantasyTeams(fullLeagueId),
           MultiLeagueApi.getLeagueSchedule(fullLeagueId).catch(err => {
             console.error('Error loading schedule (might not be generated yet):', err);
             return [] as LeagueMatchup[];
           }),
           db.from('teams').select('uuid_id, name'),
+          MultiLeagueApi.getLeagueDetails(fullLeagueId).catch(() => null),
         ]);
+        if (details?.playoff_teams) setPlayoffTeams(details.playoff_teams);
 
         if (nflTeamsResult.error) throw new Error(nflTeamsResult.error.message);
         const nameByUuid: Record<string, string> = {};
@@ -182,7 +188,7 @@ const LeagueView: React.FC = () => {
     });
 
     schedule.forEach(m => {
-      if (!m.is_complete || m.team1_score == null || m.team2_score == null) return;
+      if (m.is_playoff || !m.is_complete || m.team1_score == null || m.team2_score == null) return;
       const s1 = Number(m.team1_score);
       const s2 = Number(m.team2_score);
       const team1QBs = lineupNamesFor(m.fantasy_team1_id, m.week);
@@ -221,7 +227,7 @@ const LeagueView: React.FC = () => {
     return { teamRecords: records, teamWeekResults: results, teamWeekMatchupDetails: details };
   }, [schedule, teams, lineupNamesFor]);
 
-  const weeks = useMemo(() => Array.from({ length: 18 }, (_, i) => i + 1), []);
+  const weeks = useMemo(() => Array.from({ length: REGULAR_SEASON_WEEKS }, (_, i) => i + 1), []);
 
   // Modal data from URL params (works for click-through and cold deep-links)
   const selectedMatchup = useMemo(() => {
@@ -303,6 +309,7 @@ const LeagueView: React.FC = () => {
         currentWeek={currentWeek}
         onWeekChange={handleWeekChange}
         onGoToCurrentWeek={handleGoToCurrentWeek}
+        maxWeek={maxWeek}
       />
 
       {/* Show loading state while data loads */}
@@ -341,7 +348,9 @@ const LeagueView: React.FC = () => {
           <Panel className="text-center text-slate-400" size="md">
                 {schedule.length === 0
                   ? 'No schedule yet. The commissioner can generate it from League Admin once all 8 teams have joined, or it will be created when the draft starts.'
-                  : `No matchups scheduled for Week ${selectedWeek}`}
+                  : selectedWeek > REGULAR_SEASON_WEEKS
+                    ? 'No playoff games this week. Byes and teams that missed the playoffs have no matchup.'
+                    : `No matchups scheduled for Week ${selectedWeek}`}
               </Panel>
         )}
         </div>

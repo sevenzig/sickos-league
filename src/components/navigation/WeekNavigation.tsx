@@ -8,13 +8,15 @@ interface WeekNavigationProps {
   currentWeek: number;
   onWeekChange: (week: number) => void;
   onGoToCurrentWeek: () => void;
+  maxWeek?: number;
 }
 
 const WeekNavigation: React.FC<WeekNavigationProps> = ({
   selectedWeek,
   currentWeek,
   onWeekChange,
-  onGoToCurrentWeek
+  onGoToCurrentWeek,
+  maxWeek = 14,
 }) => {
   return (
     <Panel padding="none" className="min-h-[74px] px-8 flex items-center">
@@ -49,7 +51,8 @@ const WeekNavigation: React.FC<WeekNavigationProps> = ({
           <Button
             variant="secondary"
             size="md"
-            onClick={() => onWeekChange(Math.min(18, selectedWeek + 1))}
+            onClick={() => onWeekChange(Math.min(maxWeek, selectedWeek + 1))}
+            disabled={selectedWeek >= maxWeek}
           >
             Next
           </Button>

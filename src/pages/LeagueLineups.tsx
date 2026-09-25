@@ -7,11 +7,13 @@ import TeamLogo from '../components/TeamLogo';
 import TeamIdentityEditor from '../components/league/TeamIdentityEditor';
 import LeagueHeader from '../components/league/LeagueHeader';
 import { Panel, Button } from '@/components/ui';
+import { seasonMaxWeek } from '../utils/season';
 
 interface LeagueInfo {
   id: string;
   name: string;
   teams_started_per_week: number;
+  playoff_teams?: number;
 }
 
 // Self-serve weekly lineup page (Phase 3.1): the caller's own rostered NFL
@@ -133,7 +135,10 @@ const LeagueLineups: React.FC = () => {
   }, [selectedWeek, loadWeek]);
 
   const startersNeeded = league?.teams_started_per_week ?? 1;
-  const canEdit = !weekLocked && !myLineupLocked;
+  const hasGameThisWeek = schedule.length === 0 || !myTeam || schedule.some(
+    m => m.week === selectedWeek && (m.fantasy_team1_id === myTeam.id || m.fantasy_team2_id === myTeam.id)
+  );
+  const canEdit = hasGameThisWeek && !weekLocked && !myLineupLocked;
   const isComplete = selectedTeams.length === startersNeeded;
 
   // Returns true if this NFL team's game has already kicked off.
@@ -244,6 +249,7 @@ const LeagueLineups: React.FC = () => {
         currentWeek={currentWeek}
         onWeekChange={setSelectedWeek}
         onGoToCurrentWeek={() => setSelectedWeek(currentWeek)}
+        maxWeek={seasonMaxWeek(league?.playoff_teams, schedule.some(m => m.is_playoff))}
       />
 
       {error && (
@@ -258,7 +264,13 @@ const LeagueLineups: React.FC = () => {
         </div>
       )}
 
-      {/* My lineup card */}
+      {!hasGameThisWeek && (
+        <Panel className="p-6 text-center text-slate-400">
+          No game this week. Only playoff teams with a matchup set a lineup.
+        </Panel>
+      )}
+
+      {hasGameThisWeek && (
       <Panel className="p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
@@ -380,6 +392,7 @@ const LeagueLineups: React.FC = () => {
           </div>
         )}
       </Panel>
+      )}
 
       {/* Opponent card */}
       {opponentName && (
