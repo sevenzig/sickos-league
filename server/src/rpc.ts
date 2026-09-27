@@ -34,6 +34,7 @@ const RPC_ALLOWLIST = new Set([
   'get_team_roster',
   'get_league_rosters',
   'get_nfl_kickoff_times',
+  'get_nfl_week_team_status',
   'upsert_nfl_kickoff_times',
   'set_week_lock',
   'toggle_week_lock',

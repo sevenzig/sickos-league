@@ -60,13 +60,15 @@ Then sign out/in so the JWT picks up the flag.
 
 ## Weekly season loop (checklist)
 
-1. **Thursday** — remind managers to set lineups (email when Resend is live; manual until then).
-2. **Lineup deadline** — managers set + lock via League Lineups; opponents stay hidden until the week is locked.
-3. **Finalize Week** — commissioner: Admin → Weekly Lineups → Finalize Week (auto-starts empty lineups from lowest draft picks, locks the week).
-4. **Sunday/Monday** — platform admin uploads the week CSV at `/admin/import` (requires platform-admin grant above).
-5. **Confirm** — LeagueView scores, standings, WLT chart, matchup modal; re-running finalize is safe (idempotent).
+1. **Wednesday ~9pm America/New_York** — platform admin: ESPN kickoff sync for weeks `N`, `N+1`, `N+2` (`node scripts/sync-nfl-kickoffs-espn.mjs --year YYYY --weeks N,N+1,N+2`). Season start: `--all-season` (weeks 1–18). Confirm the current week is seeded before TNF; bye pills appear only after seed.
+2. **Thursday** — remind managers to set lineups (email when Resend is live; manual until then).
+3. **Lineup deadline** — managers set + lock via League Lineups; opponents stay hidden until the week is locked. Per-team locks at NFL kickoff; bye-week teams cannot be started.
+4. **Finalize Week** — commissioner: Admin → Weekly Lineups → Finalize Week (auto-starts empty lineups from lowest draft picks, skipping NFL byes when seeded; locks the week).
+5. **Sunday/Monday** — platform admin uploads the week CSV at `/admin/import` (requires platform-admin grant above).
+6. **Confirm** — LeagueView scores, standings, WLT chart, matchup modal; re-running finalize is safe (idempotent).
 
-Dry-run verifier (compose up): `node scripts/verify-a3-weekly-ops.mjs`
+Dry-run verifier (compose up): `node scripts/verify-a3-weekly-ops.mjs`  
+Kickoff freeze / bye locks: `node scripts/verify-nfl-kickoff-locks.mjs`
 
 ## Live draft ticker
 

@@ -747,6 +747,28 @@ export class MultiLeagueApi {
     return data || []
   }
 
+  /**
+   * When week N has at least one seeded kickoff, returns all 32 NFL teams as
+   * playing (kickoff, opponent, home/away) or bye. Empty when not seeded.
+   * is_home: team is matchups.team2 (ESPN home); team1 is away.
+   */
+  static async getNflWeekTeamStatus(
+    week: number
+  ): Promise<{
+    nfl_team_id: string
+    game_time: string | null
+    status: 'playing' | 'bye'
+    opponent_name: string | null
+    is_home: boolean | null
+  }[]> {
+    const { data, error } = await db.rpc('get_nfl_week_team_status', {
+      p_week: week,
+    })
+
+    if (error) throw new Error(error.message)
+    return data || []
+  }
+
   /** Platform-admin upsert of NFL kickoffs into matchups.game_time for a week. */
   static async upsertNflKickoffTimes(
     week: number,

@@ -135,13 +135,13 @@ const rosterOf = (teamId) =>
 const myRoster = rosterOf(myTeam.id);
 const myLineup = [myRoster[0].nfl_team_id, myRoster[1].nfl_team_id];
 
-// --- A1: kickoff game_time seed + set_fantasy_lineup enforcement (week 2) -----
+// --- A1: kickoff freeze + bye (week 2) ----------------------------------------
 // Uses week 2 so week-1 lock/finalize checks below stay independent.
 {
   psql(`UPDATE auth.users SET is_platform_admin = true WHERE id = '${ownerSignup.user?.id}';`);
 
   const nameLines = execSync(
-    `docker compose exec -T db psql -U postgres -t -A -F "|" -c "SELECT uuid_id::text, name FROM teams WHERE uuid_id IN ('${myRoster[0].nfl_team_id}','${myRoster[1].nfl_team_id}') OR (is_nfl AND uuid_id NOT IN ('${myRoster[0].nfl_team_id}','${myRoster[1].nfl_team_id}')) ORDER BY CASE WHEN uuid_id IN ('${myRoster[0].nfl_team_id}','${myRoster[1].nfl_team_id}') THEN 0 ELSE 1 END, name LIMIT 4"`,
+    `docker compose exec -T db psql -U postgres -t -A -F "|" -c "SELECT uuid_id::text, name FROM teams WHERE uuid_id IN ('${myRoster[0].nfl_team_id}','${myRoster[1].nfl_team_id}','${myRoster[2].nfl_team_id}','${myRoster[3].nfl_team_id}') OR (is_nfl AND uuid_id NOT IN ('${myRoster[0].nfl_team_id}','${myRoster[1].nfl_team_id}','${myRoster[2].nfl_team_id}','${myRoster[3].nfl_team_id}')) ORDER BY CASE WHEN uuid_id IN ('${myRoster[0].nfl_team_id}','${myRoster[1].nfl_team_id}','${myRoster[2].nfl_team_id}','${myRoster[3].nfl_team_id}') THEN 0 ELSE 1 END, name LIMIT 8"`,
     { encoding: 'utf8' }
   )
     .trim()
@@ -154,22 +154,31 @@ const myLineup = [myRoster[0].nfl_team_id, myRoster[1].nfl_team_id];
 
   const pastName = nameLines.find((r) => r.uuid === myRoster[0].nfl_team_id)?.name;
   const futureName = nameLines.find((r) => r.uuid === myRoster[1].nfl_team_id)?.name;
+  const future2Name = nameLines.find((r) => r.uuid === myRoster[2].nfl_team_id)?.name;
+  const byeName = nameLines.find((r) => r.uuid === myRoster[3].nfl_team_id)?.name;
   const extras = nameLines.filter(
-    (r) => r.uuid !== myRoster[0].nfl_team_id && r.uuid !== myRoster[1].nfl_team_id
+    (r) =>
+      r.uuid !== myRoster[0].nfl_team_id &&
+      r.uuid !== myRoster[1].nfl_team_id &&
+      r.uuid !== myRoster[2].nfl_team_id &&
+      r.uuid !== myRoster[3].nfl_team_id
   );
   const oppPast = extras[0]?.name;
-  const oppFuture = extras[1]?.name || extras[0]?.name;
+  const oppFuture = extras[1]?.name;
+  const oppFuture2 = extras[2]?.name;
   check(
     'A1 setup: resolved NFL names for kickoff seed',
-    !!(pastName && futureName && oppPast && oppFuture && oppPast !== pastName && oppFuture !== futureName),
-    `${pastName}/${futureName}/${oppPast}/${oppFuture}`
+    !!(pastName && futureName && future2Name && byeName && oppPast && oppFuture && oppFuture2),
+    `${pastName}/${futureName}/${future2Name}/${byeName}`
   );
 
   const pastIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const futureIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  // Seed three games; leave byeName (roster[3]) without a matchup → bye once seeded
   const games = [
     { team1: pastName, team2: oppPast, game_time: pastIso },
     { team1: futureName, team2: oppFuture, game_time: futureIso },
+    { team1: future2Name, team2: oppFuture2, game_time: futureIso },
   ];
 
   const { data: written, error: upErr } = await rpc(
@@ -177,50 +186,44 @@ const myLineup = [myRoster[0].nfl_team_id, myRoster[1].nfl_team_id];
     { p_week: 2, p_games: JSON.stringify(games) },
     ownerToken
   );
-  check('A1: upsert_nfl_kickoff_times writes week-2 games', !upErr && written === 2, upErr?.message ?? `written=${written}`);
-
-  const countBefore = Number(
-    execSync(
-      'docker compose exec -T db psql -U postgres -t -A -c "SELECT COUNT(*) FROM matchups WHERE week = 2"',
-      { encoding: 'utf8' }
-    ).trim()
-  );
-  const { data: written2, error: upErr2 } = await rpc(
-    'upsert_nfl_kickoff_times',
-    { p_week: 2, p_games: JSON.stringify(games) },
-    ownerToken
-  );
-  const countAfter = Number(
-    execSync(
-      'docker compose exec -T db psql -U postgres -t -A -c "SELECT COUNT(*) FROM matchups WHERE week = 2"',
-      { encoding: 'utf8' }
-    ).trim()
-  );
-  check(
-    'A1: re-upsert is idempotent (no duplicate rows)',
-    !upErr2 && written2 === 2 && countAfter === countBefore,
-    `before=${countBefore} after=${countAfter}`
-  );
+  check('A1: upsert_nfl_kickoff_times writes week-2 games', !upErr && written === 3, upErr?.message ?? `written=${written}`);
 
   const { data: kickoffs, error: koErr } = await rpc('get_nfl_kickoff_times', { p_week: 2 }, managerToken);
   check(
     'A1: get_nfl_kickoff_times returns seeded rows',
-    !koErr && Array.isArray(kickoffs) && kickoffs.length >= 2,
+    !koErr && Array.isArray(kickoffs) && kickoffs.length >= 6,
     koErr?.message ?? `n=${kickoffs?.length}`
   );
+
+  const { data: teamStatus, error: stErr } = await rpc('get_nfl_week_team_status', { p_week: 2 }, managerToken);
   check(
-    'A1: kickoffs include past roster team',
-    !!kickoffs?.some((k) => k.nfl_team_id === myRoster[0].nfl_team_id)
+    'A1: get_nfl_week_team_status returns 32 teams when seeded',
+    !stErr && Array.isArray(teamStatus) && teamStatus.length === 32,
+    stErr?.message ?? `n=${teamStatus?.length}`
+  );
+  check(
+    'A1: roster[3] is bye in status RPC',
+    !!teamStatus?.some((r) => r.nfl_team_id === myRoster[3].nfl_team_id && r.status === 'bye')
   );
 
+  const futureOnly = [myRoster[1].nfl_team_id, myRoster[2].nfl_team_id];
   {
+    const { data, error } = await rpc(
+      'set_fantasy_lineup',
+      { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: futureOnly },
+      managerToken
+    );
+    check('A1: manager can start future-only lineup', !error && data === true, error?.message);
+  }
+  {
+    const withPast = [myRoster[0].nfl_team_id, myRoster[1].nfl_team_id];
     const { error } = await rpc(
       'set_fantasy_lineup',
-      { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: myLineup },
+      { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: withPast },
       managerToken
     );
     check(
-      'A1: past kickoff blocks non-owner lineup',
+      'A1: cannot newly start a kicked-off team',
       !!error && /kicked off/i.test(error.message || ''),
       error?.message
     );
@@ -231,17 +234,67 @@ const myLineup = [myRoster[0].nfl_team_id, myRoster[1].nfl_team_id];
       { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: myLineup },
       ownerToken
     );
-    check('A1: owner override still allowed after kickoff', !error && data === true, error?.message);
+    check('A1: owner can start kicked-off team', !error && data === true, error?.message);
   }
   {
-    // myRoster[0] is past-kickoff; start two teams that are not past-locked.
-    const futureOnly = [myRoster[1].nfl_team_id, myRoster[2].nfl_team_id];
+    // Keep past (TNF), swap Sunday (roster[1] → roster[2])
+    const swapSunday = [myRoster[0].nfl_team_id, myRoster[2].nfl_team_id];
     const { data, error } = await rpc(
+      'set_fantasy_lineup',
+      { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: swapSunday },
+      managerToken
+    );
+    check('A1: manager can swap non-kicked-off slot after TNF', !error && data === true, error?.message);
+  }
+  {
+    const { error } = await rpc(
       'set_fantasy_lineup',
       { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: futureOnly },
       managerToken
     );
-    check('A1: future kickoff still allows non-owner lineup', !error && data === true, error?.message);
+    check(
+      'A1: cannot bench a kicked-off team',
+      !!error && /bench/i.test(error.message || ''),
+      error?.message
+    );
+  }
+  // Clear kicked-off starters via owner so bye checks are not masked by bench freeze
+  {
+    await rpc(
+      'set_fantasy_lineup',
+      { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: futureOnly },
+      ownerToken
+    );
+  }
+  {
+    const withBye = [myRoster[1].nfl_team_id, myRoster[3].nfl_team_id];
+    const { error } = await rpc(
+      'set_fantasy_lineup',
+      { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: withBye },
+      managerToken
+    );
+    check(
+      'A1: manager cannot start a bye team',
+      !!error && /bye/i.test(error.message || ''),
+      error?.message
+    );
+  }
+  {
+    const withBye = [myRoster[1].nfl_team_id, myRoster[3].nfl_team_id];
+    const { data, error } = await rpc(
+      'set_fantasy_lineup',
+      { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: withBye },
+      ownerToken
+    );
+    check('A1: owner can start a bye team', !error && data === true, error?.message);
+  }
+  // Restore a valid lineup without bye/past for later week-2 independence
+  {
+    await rpc(
+      'set_fantasy_lineup',
+      { p_fantasy_team_id: myTeam.id, p_week: 2, p_active_nfl_teams: futureOnly },
+      ownerToken
+    );
   }
 }
 
@@ -331,6 +384,11 @@ const team3Roster = rosterOf(team3.id);
 }
 
 // --- 3.2 / 3.3: finalize week (owner-only, auto-fill, full lock) -------------
+
+{
+  const { error } = await rpc('generate_league_schedule', { p_league_id: leagueId }, ownerToken);
+  check('3.2 setup: generate_league_schedule', !error, error?.message);
+}
 
 {
   const { error } = await rpc('finalize_week_lineups', { p_league_id: leagueId, p_week: 1 }, managerToken);

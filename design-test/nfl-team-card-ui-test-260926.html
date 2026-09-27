@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NFL team card UI test — 26 Sep 2026</title>
+  <!-- Tailwind utilities match LeagueLineups.tsx class strings 1:1 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+          fontSize: {
+            caption: ['12px', { lineHeight: '1.25', fontWeight: '500' }],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; }
+    /* Relative to this file: design-test/ → public/logos/ */
+    .team-logo { width: 2.5rem; height: 2.5rem; object-fit: contain; flex-shrink: 0; }
+    @media (min-width: 640px) {
+      .team-logo { width: 3rem; height: 3rem; }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 p-5 sm:p-8 pb-16">
+
+  <header class="max-w-3xl mb-8">
+    <h1 class="text-xl font-bold text-slate-50">NFL team card UI test</h1>
+    <p class="text-caption text-slate-500 mt-1">
+      design-test/nfl-team-card-ui-test-260926.html · markup + classes from
+      <code class="text-slate-400">src/pages/LeagueLineups.tsx</code> · logos from
+      <code class="text-slate-400">public/logos/</code> via <code class="text-slate-400">TeamLogo</code>
+    </p>
+    <p class="text-sm text-slate-400 mt-3">
+      Part A is a 1:1 static refactor of the live roster button. Part B locks opponent meta to
+      <strong class="font-semibold text-slate-300">Option 5</strong> (tinted <code class="text-slate-300">@</code> /
+      <code class="text-slate-300">vs</code> + abbr) and varies only the
+      <strong class="font-semibold text-slate-300">selected + started</strong> color treatment.
+    </p>
+  </header>
+
+  <!--
+    Shared card shell — exact class set from LeagueLineups.tsx (sm breakpoint).
+    Logo: <img> equivalent of <TeamLogo className="w-10 h-10 sm:w-12 sm:h-12" />
+  -->
+
+  <h2 class="text-lg font-semibold text-slate-50 mb-2">A. Current states (as shipped)</h2>
+  <p class="text-sm text-slate-400 mb-4 max-w-2xl">
+    No NFL opponent on the card. Fantasy opponent remains a separate panel below the grid in the app.
+  </p>
+
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-3xl mb-2">
+
+    <!-- Available · kickoff pending (canEdit && canSelect) -->
+    <div>
+      <button type="button" title=""
+        class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/50 text-slate-200 border-slate-600/40 hover:bg-slate-700/60 hover:border-slate-500/50 hover:shadow-lg">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center">
+          <img src="../public/logos/cin.png" alt="Cincinnati logo" class="team-logo" />
+        </div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+          <span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Cincinnati</span>
+        </div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">
+          Locks in 2h 14m
+        </div>
+      </button>
+      <p class="text-caption text-slate-500 text-center mt-2">Available · kickoff pending</p>
+    </div>
+
+    <!-- Selected · checkmark (isSelected && !kicked && !onBye) -->
+    <div>
+      <button type="button"
+        class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/30 shadow-lg shadow-emerald-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+          <div class="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg">
+            <svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center">
+          <img src="../public/logos/nyj.png" alt="NY Jets logo" class="team-logo" />
+        </div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+          <span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">NY Jets</span>
+        </div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">
+          Locks in 2h 14m
+        </div>
+      </button>
+      <p class="text-caption text-slate-500 text-center mt-2">Selected · checkmark</p>
+    </div>
+
+    <!-- Kicked off · locked (kicked) — orange + lock icon -->
+    <div>
+      <button type="button" disabled title="Game has already kicked off — lineup locked for this team"
+        class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-orange-900/20 text-orange-400 border-orange-700/40 cursor-not-allowed opacity-70">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+          <div class="bg-orange-600/80 rounded-full p-0.5 sm:p-1 shadow-lg">
+            <svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center">
+          <img src="../public/logos/kc.png" alt="Kansas City logo" class="team-logo" />
+        </div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+          <span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Kansas City</span>
+        </div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-orange-400">
+          Started
+        </div>
+      </button>
+      <p class="text-caption text-slate-500 text-center mt-2">Kicked off · locked</p>
+    </div>
+
+    <!-- Selected + kicked: same kicked shell (selection does not keep emerald) -->
+    <div>
+      <button type="button" disabled title="Game has already kicked off — lineup locked for this team"
+        class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-orange-900/20 text-orange-400 border-orange-700/40 cursor-not-allowed opacity-70">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+          <div class="bg-orange-600/80 rounded-full p-0.5 sm:p-1 shadow-lg">
+            <svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center">
+          <img src="../public/logos/buf.png" alt="Buffalo logo" class="team-logo" />
+        </div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+          <span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Buffalo</span>
+        </div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-orange-400">
+          Started
+        </div>
+      </button>
+      <p class="text-caption text-slate-500 text-center mt-2">Was selected · game started<br/>(kicked styling + lock)</p>
+    </div>
+
+    <!-- Bye · cannot start -->
+    <div>
+      <button type="button" disabled title="Bye week — cannot start"
+        class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/30 text-slate-500 border-slate-700/30 cursor-not-allowed opacity-60">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center">
+          <img src="../public/logos/det.png" alt="Detroit logo" class="team-logo" />
+        </div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+          <span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Detroit</span>
+        </div>
+        <div class="mt-1 text-caption font-medium text-slate-400 text-center leading-none">
+          (bye week)
+        </div>
+      </button>
+      <p class="text-caption text-slate-500 text-center mt-2">Bye · cannot start</p>
+    </div>
+
+    <!-- Bye selected (stale) · deselect allowed — orange + lock -->
+    <div>
+      <button type="button" title="Bye week — cannot start"
+        class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-orange-900/20 text-orange-400 border-orange-700/40 hover:bg-orange-900/30">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
+          <div class="bg-orange-600/80 rounded-full p-0.5 sm:p-1 shadow-lg">
+            <svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center">
+          <img src="../public/logos/det.png" alt="Detroit logo" class="team-logo" />
+        </div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+          <span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Detroit</span>
+        </div>
+        <div class="mt-1 text-caption font-medium text-slate-400 text-center leading-none">
+          (bye week)
+        </div>
+      </button>
+      <p class="text-caption text-slate-500 text-center mt-2">Bye selected (stale) · deselect ok</p>
+    </div>
+
+    <!-- Disabled · lineup full / week locked -->
+    <div>
+      <button type="button" disabled
+        class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/20 text-slate-500 border-slate-700/20 cursor-not-allowed opacity-60">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center">
+          <img src="../public/logos/mia.png" alt="Miami logo" class="team-logo" />
+        </div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+          <span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Miami</span>
+        </div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">
+          Locks in 5h 2m
+        </div>
+      </button>
+      <p class="text-caption text-slate-500 text-center mt-2">Disabled · lineup full / locked</p>
+    </div>
+
+    <!-- Unseeded · no bye / no kickoff meta -->
+    <div>
+      <button type="button"
+        class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/50 text-slate-200 border-slate-600/40 hover:bg-slate-700/60 hover:border-slate-500/50 hover:shadow-lg">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center">
+          <img src="../public/logos/lar.png" alt="LA Rams logo" class="team-logo" />
+        </div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden">
+          <span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">LA Rams</span>
+        </div>
+      </button>
+      <p class="text-caption text-slate-500 text-center mt-2">Unseeded · no meta</p>
+    </div>
+  </div>
+
+  <h2 class="text-lg font-semibold text-slate-50 mt-12 mb-2 pt-8 border-t border-slate-800">B. Option 5 × lock color treatments</h2>
+  <p class="text-sm text-slate-400 mb-2 max-w-2xl">
+    Opponent meta is fixed: tinted <code class="text-slate-300">vs</code> /
+    <code class="text-slate-300">@</code> + abbr (chosen Option 5). Each row varies only how
+    <strong class="font-semibold text-slate-300">selected + started</strong> looks (3rd card).
+    Available / selected-pending / bye stay the same so you can compare the freeze treatment.
+  </p>
+  <p class="text-caption text-slate-500 mb-6 max-w-2xl">
+    Orange is reserved for problems (e.g. stale bye in Part A) — not shown as the started-starter treatment here.
+  </p>
+
+  <!-- Color 1: Emerald + lock -->
+  <section class="mb-10 max-w-3xl">
+    <div class="flex flex-wrap items-baseline gap-2 mb-1">
+      <span class="text-caption font-bold uppercase tracking-wider text-sky-400">Color 1</span>
+      <h3 class="text-sm font-semibold text-slate-100">Emerald + lock</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-3">Keep selected green. Swap check → lock. <code class="text-slate-300">Started</code> stays amber.</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/50 text-slate-200 border-slate-600/40">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/cin.png" alt="Cincinnati logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Cincinnati</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-violet-300">vs</span> <span class="text-slate-300">KC</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-lg shadow-emerald-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/nyj.png" alt="NY Jets logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">NY Jets</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">DEN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" disabled title="Game has already kicked off — lineup locked for this team" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full cursor-not-allowed bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-lg shadow-emerald-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-emerald-700 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/kc.png" alt="Kansas City logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Kansas City</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">CIN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Started</div>
+      </button>
+      <button type="button" disabled class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/30 text-slate-500 border-slate-700/30 cursor-not-allowed opacity-60">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/det.png" alt="Detroit logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Detroit</span></div>
+        <div class="mt-1 text-caption font-medium text-slate-400 text-center leading-none">(bye week)</div>
+      </button>
+    </div>
+  </section>
+
+  <!-- Color 2: Emerald + ring -->
+  <section class="mb-10 max-w-3xl">
+    <div class="flex flex-wrap items-baseline gap-2 mb-1">
+      <span class="text-caption font-bold uppercase tracking-wider text-sky-400">Color 2</span>
+      <h3 class="text-sm font-semibold text-slate-100">Emerald + ring</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-3">Same green fill; stronger ring/border so “locked in” reads without leaving success color.</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/50 text-slate-200 border-slate-600/40">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/cin.png" alt="Cincinnati logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Cincinnati</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-violet-300">vs</span> <span class="text-slate-300">KC</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-lg shadow-emerald-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/nyj.png" alt="NY Jets logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">NY Jets</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">DEN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" disabled title="Game has already kicked off — lineup locked for this team" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border-2 w-full cursor-not-allowed bg-emerald-500/20 text-emerald-400 border-emerald-400 ring-2 ring-emerald-400/50 ring-offset-2 ring-offset-slate-950 shadow-lg shadow-emerald-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-emerald-700 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/kc.png" alt="Kansas City logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Kansas City</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">CIN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Started</div>
+      </button>
+      <button type="button" disabled class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/30 text-slate-500 border-slate-700/30 cursor-not-allowed opacity-60">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/det.png" alt="Detroit logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Detroit</span></div>
+        <div class="mt-1 text-caption font-medium text-slate-400 text-center leading-none">(bye week)</div>
+      </button>
+    </div>
+  </section>
+
+  <!-- Color 3: Muted emerald -->
+  <section class="mb-10 max-w-3xl">
+    <div class="flex flex-wrap items-baseline gap-2 mb-1">
+      <span class="text-caption font-bold uppercase tracking-wider text-sky-400">Color 3</span>
+      <h3 class="text-sm font-semibold text-slate-100">Muted emerald</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-3">Dimmer green (<code class="text-slate-300">/10</code> fill, softer border) — “confirmed / settled,” not urgent.</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/50 text-slate-200 border-slate-600/40">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/cin.png" alt="Cincinnati logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Cincinnati</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-violet-300">vs</span> <span class="text-slate-300">KC</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-lg shadow-emerald-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/nyj.png" alt="NY Jets logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">NY Jets</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">DEN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" disabled title="Game has already kicked off — lineup locked for this team" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full cursor-not-allowed bg-emerald-500/10 text-emerald-400/80 border-emerald-500/25 opacity-80">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-emerald-800/90 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/kc.png" alt="Kansas City logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Kansas City</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300/80">@</span> <span class="text-slate-400">CIN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400/90">Started</div>
+      </button>
+      <button type="button" disabled class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/30 text-slate-500 border-slate-700/30 cursor-not-allowed opacity-60">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/det.png" alt="Detroit logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Detroit</span></div>
+        <div class="mt-1 text-caption font-medium text-slate-400 text-center leading-none">(bye week)</div>
+      </button>
+    </div>
+  </section>
+
+  <!-- Color 4: Slate + emerald pip -->
+  <section class="mb-10 max-w-3xl">
+    <div class="flex flex-wrap items-baseline gap-2 mb-1">
+      <span class="text-caption font-bold uppercase tracking-wider text-sky-400">Color 4</span>
+      <h3 class="text-sm font-semibold text-slate-100">Slate + emerald pip</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-3">Neutral locked shell. Tiny emerald pip = still in lineup; lock = can’t edit.</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/50 text-slate-200 border-slate-600/40">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/cin.png" alt="Cincinnati logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Cincinnati</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-violet-300">vs</span> <span class="text-slate-300">KC</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-lg shadow-emerald-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/nyj.png" alt="NY Jets logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">NY Jets</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">DEN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" disabled title="Game has already kicked off — lineup locked for this team" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full cursor-not-allowed bg-slate-800/40 text-slate-200 border-slate-600/50">
+        <div class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2">
+          <span class="block w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-400 shadow shadow-emerald-500/40" title="In lineup"></span>
+        </div>
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-slate-600 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/kc.png" alt="Kansas City logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Kansas City</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">CIN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Started</div>
+      </button>
+      <button type="button" disabled class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/30 text-slate-500 border-slate-700/30 cursor-not-allowed opacity-60">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/det.png" alt="Detroit logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Detroit</span></div>
+        <div class="mt-1 text-caption font-medium text-slate-400 text-center leading-none">(bye week)</div>
+      </button>
+    </div>
+  </section>
+
+  <!-- Color 5: Primary blue locked -->
+  <section class="mb-10 max-w-3xl">
+    <div class="flex flex-wrap items-baseline gap-2 mb-1">
+      <span class="text-caption font-bold uppercase tracking-wider text-sky-400">Color 5</span>
+      <h3 class="text-sm font-semibold text-slate-100">Primary blue locked</h3>
+    </div>
+    <p class="text-sm text-slate-400 mb-3">Brand blue for freeze — separate from selected (emerald) and warning (orange/amber).</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/50 text-slate-200 border-slate-600/40">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/cin.png" alt="Cincinnati logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Cincinnati</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-violet-300">vs</span> <span class="text-slate-300">KC</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-lg shadow-emerald-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/nyj.png" alt="NY Jets logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">NY Jets</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">DEN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Locks in 2h 14m</div>
+      </button>
+      <button type="button" disabled title="Game has already kicked off — lineup locked for this team" class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full cursor-not-allowed bg-blue-500/20 text-blue-400 border-blue-500/40 shadow-lg shadow-blue-500/10">
+        <div class="absolute top-1.5 right-1.5 sm:top-2 sm:right-2"><div class="bg-blue-600 rounded-full p-0.5 sm:p-1 shadow-lg"><svg class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg></div></div>
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/kc.png" alt="Kansas City logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Kansas City</span></div>
+        <div class="mt-1 text-caption font-semibold text-center leading-none"><span class="text-sky-300">@</span> <span class="text-slate-300">CIN</span></div>
+        <div class="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">Started</div>
+      </button>
+      <button type="button" disabled class="relative aspect-square rounded-xl transition-all duration-200 flex flex-col items-center justify-center p-2 sm:p-3 border w-full bg-slate-800/30 text-slate-500 border-slate-700/30 cursor-not-allowed opacity-60">
+        <div class="flex-shrink-0 mb-1 flex items-center justify-center"><img src="../public/logos/det.png" alt="Detroit logo" class="team-logo" /></div>
+        <div class="h-6 sm:h-7 flex items-center justify-center overflow-hidden"><span class="text-xs sm:text-sm font-semibold text-center leading-tight truncate px-1">Detroit</span></div>
+        <div class="mt-1 text-caption font-medium text-slate-400 text-center leading-none">(bye week)</div>
+      </button>
+    </div>
+  </section>
+
+  <footer class="max-w-3xl text-caption text-slate-500 border-t border-slate-800 pt-6 mt-4">
+    Logos load from <code class="text-slate-400">../public/logos/</code> (file open / repo static serve).
+    If that 404s (Vite), they fall back to <code class="text-slate-400">/logos/</code> — same path
+    <code class="text-slate-400">TeamLogo</code> / <code class="text-slate-400">getTeamLogo</code> use in the app.
+    Compare the 3rd card in each Color row.
+  </footer>
+
+  <script>
+    // Prefer repo-relative public/ for file://; fall back to Vite /logos/ mount.
+    document.querySelectorAll('img.team-logo').forEach((img) => {
+      img.addEventListener('error', () => {
+        const src = img.getAttribute('src') || '';
+        if (src.includes('../public/logos/')) {
+          img.src = src.replace('../public/logos/', '/logos/');
+        }
+      }, { once: true });
+    });
+  </script>
+</body>
+</html>
