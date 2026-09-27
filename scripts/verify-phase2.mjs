@@ -5,9 +5,10 @@
 // the schedule/invite gates.
 //
 // Run: node scripts/verify-phase2.mjs
-// Invite and bot-team seeding goes through psql (docker compose exec) because
-// league_invitations and fantasy_teams only have SELECT policies for the app
-// user — writes are restricted to SECURITY DEFINER RPCs or superuser paths.
+// Join-code seeding and bot-team seeding go through psql (docker compose exec)
+// because leagues.join_code writes and fantasy_teams inserts are restricted for
+// the app user — writes are SECURITY DEFINER RPCs, owner Express routes, or
+// superuser paths.
 
 import { execSync } from 'node:child_process';
 
@@ -76,11 +77,12 @@ const { data: leagueId, error: leagueErr } = await rpc(
 );
 check('setup: create_league', !leagueErr && !!leagueId, leagueErr?.message);
 
-// league_invitations has SELECT-only RLS for app_user; seed via psql.
-function createInvite(code) {
+// league_invitations is inert for product joins; seed multi-use join_code on leagues.
+function setJoinCode(code) {
   psql(`
-    INSERT INTO league_invitations (code, league_id, expires_at, is_active)
-    VALUES ('${code}', '${leagueId}', NOW() + INTERVAL '1 day', true);
+    UPDATE leagues
+    SET join_code = '${code}', join_code_expires_at = NOW() + INTERVAL '1 day'
+    WHERE id = '${leagueId}';
   `);
 }
 
@@ -89,8 +91,8 @@ const randomCode = () =>
 
 const inviteCodeB = randomCode();
 {
-  createInvite(inviteCodeB);
-  check('setup: create invite for manager B', true);
+  setJoinCode(inviteCodeB);
+  check('setup: set join code for manager B', true);
 }
 {
   const { error } = await rpc(
@@ -101,11 +103,10 @@ const inviteCodeB = randomCode();
   check('setup: manager B joins via invite', !error, error?.message);
 }
 
-// Second invite created pre-draft, redeemed post-start to test the gate
-const inviteCodeLate = randomCode();
+// Same multi-use code stays on the league; redeem post-start tests the draft gate
+const inviteCodeLate = inviteCodeB;
 {
-  createInvite(inviteCodeLate);
-  check('setup: create second invite (for gate test)', true);
+  check('setup: keep join code for post-draft gate test', true);
 }
 
 // fantasy_teams has SELECT-only RLS for app_user; seed bot teams via psql.

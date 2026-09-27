@@ -49,21 +49,23 @@ SELECT EXISTS (
 
 ## How to Use the Invite System
 
+> **2026-09-27:** Joining uses one multi-use `leagues.join_code` per league (`/invite/{CODE}`). Codes are not one-time; `league_invitations` rows are no longer the live path. Generate / rotate / revoke from League Admin → Join code.
+
 ### For League Owners (Creating Invites)
 
 1. **Navigate to League Admin**
    - Go to your league: `/leagues/{league-id}`
    - Click "Admin" in the header (owners only)
 
-2. **Generate Invite Codes**
-   - Scroll to "Invitation Management" section
-   - Click "Generate Code" button
-   - Code appears in the "Active Codes" section
+2. **Generate a Join Code**
+   - Scroll to the **Join code** panel
+   - Click **Generate** (or **Rotate** to replace an existing code)
+   - Copy the invite link
 
-3. **Share Invite Links**
-   - Click "Copy Link" next to any active code
-   - Share the copied link with friends
+3. **Share the Invite Link**
+   - Paste into group chat once
    - Link format: `{your-domain}/invite/{CODE}`
+   - **Revoke** clears the code until you generate again
 
 ### For Players (Joining Leagues)
 
@@ -72,11 +74,12 @@ SELECT EXISTS (
    - Or go to `/invite` and enter the 8-character code manually
 
 2. **Sign In** (if not already signed in)
-   - Uses existing auth system
+   - Uses existing auth system (account password only — no league password)
 
 3. **Choose Team Name**
    - Enter a unique team name (3+ characters)
    - Submit to join the league
+   - The same code works for every joiner until revoked, expired, draft started, or the league is full
 
 4. **Access League**
    - Automatically redirected to league dashboard

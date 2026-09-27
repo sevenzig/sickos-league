@@ -166,9 +166,17 @@ export interface LeagueJoinInfo {
   name: string
   season: number
   has_password: boolean
+  has_join_code?: boolean
   draft_status: 'pending' | 'in_progress' | 'complete' | string
   seats_remaining: number
   already_member: boolean
+}
+
+export interface LeagueJoinCodeInfo {
+  code: string | null
+  expires_at: string | null
+  status: 'active' | 'none' | 'expired'
+  invite_path: string | null
 }
 
 export interface FantasyTeamInfo {
@@ -302,20 +310,16 @@ export class MultiLeagueApi {
     return data
   }
 
-  // Invitation system for code-based league joining (legacy; password join is primary)
+  // Orphaned one-time invite helpers (InviteManager only). Prefer generateJoinCode.
   static async generateInviteCode(leagueId: string): Promise<string> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
-    // Generate a simple 8-character code
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
     for (let i = 0; i < 8; i++) {
       code += characters.charAt(Math.floor(Math.random() * characters.length));
     }
-
-    // Set expiration to 30 days from now
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30);
-
     const { data, error } = await db
       .from('league_invitations')
       .insert({
@@ -326,7 +330,6 @@ export class MultiLeagueApi {
       })
       .select('code')
       .single();
-
     if (error) throw new Error(error.message);
     return data.code;
   }
@@ -347,9 +350,7 @@ export class MultiLeagueApi {
       .eq('league_id', fullLeagueId)
       .eq('is_active', true)
       .order('created_at', { ascending: false });
-
     if (error) throw new Error(error.message);
-
     return (data || []).map((invite: any) => ({
       code: invite.code,
       league_id: invite.league_id,
@@ -361,7 +362,7 @@ export class MultiLeagueApi {
     }));
   }
 
-  /** Public: preview invite for join/invite landing (no auth). Returns null if not found. */
+  /** Public: preview multi-use join code (no auth). Returns null if not found. */
   static async previewInviteCode(code: string): Promise<Invitation | null> {
     const { status, json } = await apiFetch(`/invites/${encodeURIComponent(code.toUpperCase())}`, {
       method: 'GET',
@@ -388,23 +389,43 @@ export class MultiLeagueApi {
       p_invite_code: code.toUpperCase(),
       p_team_name: teamName
     });
-
     if (error) throw new Error(error.message);
-    return data; // Returns the league_id
+    return data;
   }
 
-  /** Owner: set or rotate the shared join password (bcrypt on server). */
-  static async setLeagueJoinPassword(leagueId: string, password: string): Promise<void> {
-    const { status, json } = await apiFetch(`/leagues/${leagueId}/join-password`, {
-      method: 'PUT',
-      body: { password },
+  /** Owner: current multi-use join code (never returned on public join-info). */
+  static async getLeagueJoinCode(leagueId: string): Promise<LeagueJoinCodeInfo> {
+    const { status, json } = await apiFetch(`/leagues/${leagueId}/join-code`, {
+      method: 'GET',
     });
     if (status >= 400 || json.error) {
-      throw new Error(json.error?.message || 'Failed to set join password');
+      throw new Error(json.error?.message || 'Failed to load join code');
+    }
+    return json as LeagueJoinCodeInfo;
+  }
+
+  /** Owner: generate or rotate the multi-use join code (30-day expiry). */
+  static async generateJoinCode(leagueId: string): Promise<LeagueJoinCodeInfo> {
+    const { status, json } = await apiFetch(`/leagues/${leagueId}/join-code`, {
+      method: 'POST',
+    });
+    if (status >= 400 || json.error) {
+      throw new Error(json.error?.message || 'Failed to generate join code');
+    }
+    return json as LeagueJoinCodeInfo;
+  }
+
+  /** Owner: clear join_code (joining off until generate again). */
+  static async revokeJoinCode(leagueId: string): Promise<void> {
+    const { status, json } = await apiFetch(`/leagues/${leagueId}/join-code`, {
+      method: 'DELETE',
+    });
+    if (status >= 400 || json.error) {
+      throw new Error(json.error?.message || 'Failed to revoke join code');
     }
   }
 
-  /** Join page metadata (guest-readable; never includes the hash). */
+  /** Join page metadata (guest-readable; never includes the join code). */
   static async getLeagueJoinInfo(leagueId: string): Promise<LeagueJoinInfo> {
     const { status, json } = await apiFetch(`/leagues/${leagueId}/join-info`, {
       method: 'GET',
@@ -413,22 +434,6 @@ export class MultiLeagueApi {
       throw new Error(json.error?.message || 'Failed to load join info');
     }
     return json as LeagueJoinInfo;
-  }
-
-  /** Signed-in: verify password and join; returns league UUID. */
-  static async joinLeagueWithPassword(
-    leagueId: string,
-    password: string,
-    teamName: string
-  ): Promise<string> {
-    const { status, json } = await apiFetch(`/leagues/${leagueId}/join`, {
-      method: 'POST',
-      body: { password, team_name: teamName },
-    });
-    if (status >= 400 || json.error) {
-      throw new Error(json.error?.message || 'Failed to join league');
-    }
-    return json.league_id as string;
   }
 
   // Schedule management

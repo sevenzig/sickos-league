@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { adminPool } from './db.js';
 
+const MAX_TEAMS = 8;
+
 /** Public invite preview (no auth). Redeem stays on authenticated RPC. */
 export const invitesRouter = Router();
 
@@ -15,10 +17,15 @@ invitesRouter.get('/:code', async (req, res) => {
 
   try {
     const { rows } = await adminPool.query(
-      `SELECT i.code, i.league_id, i.expires_at, i.is_active, i.used_at, l.name AS league_name
-       FROM league_invitations i
-       JOIN leagues l ON l.id = i.league_id
-       WHERE i.code = $1`,
+      `SELECT
+         l.id AS league_id,
+         l.name AS league_name,
+         l.join_code AS code,
+         l.join_code_expires_at AS expires_at,
+         l.draft_status,
+         (SELECT COUNT(*)::int FROM fantasy_teams ft WHERE ft.league_id = l.id) AS team_count
+       FROM leagues l
+       WHERE l.join_code = $1`,
       [code]
     );
     const row = rows[0];
@@ -27,10 +34,13 @@ invitesRouter.get('/:code', async (req, res) => {
       return;
     }
 
+    const notExpired =
+      row.expires_at == null || new Date(row.expires_at) > new Date();
+    const seatsRemaining = Math.max(0, MAX_TEAMS - (row.team_count ?? 0));
     const isValid =
-      row.is_active === true &&
-      !row.used_at &&
-      new Date(row.expires_at) > new Date();
+      notExpired &&
+      row.draft_status === 'pending' &&
+      seatsRemaining > 0;
 
     res.json({
       code: row.code,

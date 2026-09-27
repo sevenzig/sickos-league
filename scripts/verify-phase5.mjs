@@ -67,8 +67,9 @@ const randomCode = () =>
 async function inviteAndJoin(leagueId, _ownerToken, joiner, teamName) {
   const code = randomCode();
   psql(`
-    INSERT INTO league_invitations (code, league_id, expires_at, is_active)
-    VALUES ('${code}', '${leagueId}', NOW() + INTERVAL '1 day', true);
+    UPDATE leagues
+    SET join_code = '${code}', join_code_expires_at = NOW() + INTERVAL '1 day'
+    WHERE id = '${leagueId}';
   `);
   const { error } = await rpc('redeem_invite_code', { p_invite_code: code, p_team_name: teamName }, joiner.token);
   if (error) throw new Error(`join: ${error.message}`);

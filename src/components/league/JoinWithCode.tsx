@@ -38,7 +38,7 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
           return;
         }
         if (!validInvitation.is_valid) {
-          setError('This invite code has already been used or has expired');
+          setError('This invite code is no longer valid (expired, draft started, or league full)');
           setStep('code');
           return;
         }
@@ -80,7 +80,7 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
       }
 
       if (!validInvitation.is_valid) {
-        setError('This invite code has already been used or has expired');
+        setError('This invite code is no longer valid (expired, draft started, or league full)');
         return;
       }
 

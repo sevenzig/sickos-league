@@ -32,7 +32,7 @@ const InviteRedeem: React.FC = () => {
         }
         setPreview(data);
         if (!data.is_valid) {
-          setPreviewError('This invite code has already been used or has expired.');
+          setPreviewError('This invite code is no longer valid (expired, draft started, or league full).');
         }
       } catch (err) {
         if (!cancelled) {

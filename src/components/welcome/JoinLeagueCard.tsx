@@ -24,27 +24,27 @@ const JoinLeagueCard: React.FC = () => {
         </div>
         <h3 className="text-heading text-white mb-3">Join a League</h3>
         <p className="text-body text-slate-400 leading-relaxed">
-          Have a join link from your commissioner? Open it, enter the league password once, and you&apos;re in.
+          Have an invite link from your commissioner? Open it, sign in or register, pick a team name, and you&apos;re in.
         </p>
       </div>
 
       <div className="space-y-4 mb-6">
         <div className="flex items-start gap-3 text-slate-400">
           <div className="w-1 h-1 bg-slate-500 rounded-full mt-2 flex-shrink-0" />
-          <span className="text-label">Open the league join link they shared</span>
+          <span className="text-label">Open the invite link they shared</span>
         </div>
         <div className="flex items-start gap-3 text-slate-400">
           <div className="w-1 h-1 bg-slate-500 rounded-full mt-2 flex-shrink-0" />
-          <span className="text-label">Enter the league password and pick a team name</span>
+          <span className="text-label">Sign in or create an account</span>
         </div>
         <div className="flex items-start gap-3 text-slate-400">
           <div className="w-1 h-1 bg-slate-500 rounded-full mt-2 flex-shrink-0" />
-          <span className="text-label">Still have an old invite code? Redeem it below</span>
+          <span className="text-label">Choose a team name and join</span>
         </div>
       </div>
 
       <Button asChild variant="secondary" className="w-full">
-        <Link to="/invite">Join with Legacy Code</Link>
+        <Link to="/invite">Join with Invite Code</Link>
       </Button>
     </Panel>
   );

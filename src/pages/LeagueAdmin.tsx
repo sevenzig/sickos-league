@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MultiLeagueApi, FantasyTeam, LeagueMatchup } from '../utils/multiLeagueApi';
+import { MultiLeagueApi, FantasyTeam, LeagueMatchup, LeagueJoinCodeInfo } from '../utils/multiLeagueApi';
 import { seasonMaxWeek } from '../utils/season';
-import { getLeagueUrl, getLeagueJoinUrl } from '../utils/urlUtils';
+import { getLeagueUrl, getInviteUrl } from '../utils/urlUtils';
 import TeamManagement from '../components/league/TeamManagement';
 import CommissionerLineups from '../components/league/CommissionerLineups';
 import DraftControls from '../components/league/DraftControls';
@@ -61,11 +61,9 @@ const LeagueAdmin: React.FC = () => {
   const [generatingSchedule, setGeneratingSchedule] = useState(false);
   const [scheduleGenerated, setScheduleGenerated] = useState(false);
   const [deletingLeague, setDeletingLeague] = useState(false);
-  const [hasJoinPassword, setHasJoinPassword] = useState(false);
-  const [newJoinPassword, setNewJoinPassword] = useState('');
-  const [confirmJoinPassword, setConfirmJoinPassword] = useState('');
-  const [savingPassword, setSavingPassword] = useState(false);
-  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [joinCodeInfo, setJoinCodeInfo] = useState<LeagueJoinCodeInfo | null>(null);
+  const [savingJoinCode, setSavingJoinCode] = useState(false);
+  const [joinCodeMessage, setJoinCodeMessage] = useState<string | null>(null);
   const [copiedJoinLink, setCopiedJoinLink] = useState(false);
   const [playoffTeams, setPlayoffTeams] = useState<4 | 5 | 6 | 8>(4);
   const [tiebreaker, setTiebreaker] = useState<'record_then_points' | 'points_then_record'>('record_then_points');
@@ -108,10 +106,10 @@ const LeagueAdmin: React.FC = () => {
       }
 
       try {
-        const joinInfo = await MultiLeagueApi.getLeagueJoinInfo(leagueId);
-        setHasJoinPassword(joinInfo.has_password);
+        const codeInfo = await MultiLeagueApi.getLeagueJoinCode(leagueId);
+        setJoinCodeInfo(codeInfo);
       } catch {
-        // join-info may fail on older DBs; ignore
+        // join-code may fail on older DBs; ignore
       }
 
       try {
@@ -132,9 +130,10 @@ const LeagueAdmin: React.FC = () => {
     }
   };
 
-  const joinLinkAbsolute = league
-    ? `${window.location.origin}${getLeagueJoinUrl(league.id)}`
-    : '';
+  const joinLinkAbsolute =
+    joinCodeInfo?.code != null
+      ? `${window.location.origin}${getInviteUrl(joinCodeInfo.code)}`
+      : '';
 
   const copyJoinLink = () => {
     if (!joinLinkAbsolute) return;
@@ -144,29 +143,34 @@ const LeagueAdmin: React.FC = () => {
     });
   };
 
-  const handleRotatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerateOrRotateJoinCode = async () => {
     if (!leagueId) return;
-    if (newJoinPassword.length < 6) {
-      setPasswordMessage('Password must be at least 6 characters');
-      return;
-    }
-    if (newJoinPassword !== confirmJoinPassword) {
-      setPasswordMessage('Passwords do not match');
-      return;
-    }
+    const hadCode = Boolean(joinCodeInfo?.code);
     try {
-      setSavingPassword(true);
-      setPasswordMessage(null);
-      await MultiLeagueApi.setLeagueJoinPassword(leagueId, newJoinPassword);
-      setHasJoinPassword(true);
-      setNewJoinPassword('');
-      setConfirmJoinPassword('');
-      setPasswordMessage('Join password updated');
+      setSavingJoinCode(true);
+      setJoinCodeMessage(null);
+      const info = await MultiLeagueApi.generateJoinCode(leagueId);
+      setJoinCodeInfo(info);
+      setJoinCodeMessage(hadCode ? 'Join code rotated' : 'Join code generated');
     } catch (err) {
-      setPasswordMessage(err instanceof Error ? err.message : 'Failed to update password');
+      setJoinCodeMessage(err instanceof Error ? err.message : 'Failed to update join code');
     } finally {
-      setSavingPassword(false);
+      setSavingJoinCode(false);
+    }
+  };
+
+  const handleRevokeJoinCode = async () => {
+    if (!leagueId) return;
+    try {
+      setSavingJoinCode(true);
+      setJoinCodeMessage(null);
+      await MultiLeagueApi.revokeJoinCode(leagueId);
+      setJoinCodeInfo({ code: null, expires_at: null, status: 'none', invite_path: null });
+      setJoinCodeMessage('Join code revoked');
+    } catch (err) {
+      setJoinCodeMessage(err instanceof Error ? err.message : 'Failed to revoke join code');
+    } finally {
+      setSavingJoinCode(false);
     }
   };
 
@@ -611,67 +615,84 @@ const LeagueAdmin: React.FC = () => {
           <div className="border-t border-slate-700/30 pt-6 space-y-6">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <h3 className="text-heading text-slate-100">Join Link & Password</h3>
-                <Badge variant={hasJoinPassword ? 'success' : 'warning'}>
-                  {hasJoinPassword ? 'Password set' : 'No password'}
+                <h3 className="text-heading text-slate-100">Join code</h3>
+                <Badge
+                  variant={
+                    joinCodeInfo?.status === 'active'
+                      ? 'success'
+                      : joinCodeInfo?.status === 'expired'
+                        ? 'warning'
+                        : 'warning'
+                  }
+                >
+                  {joinCodeInfo?.status === 'active'
+                    ? 'Active'
+                    : joinCodeInfo?.status === 'expired'
+                      ? 'Expired'
+                      : 'None'}
                 </Badge>
               </div>
               <p className="text-label text-slate-400 mb-4">
-                Share this link and the join password. Players enter the password once; rotating it does not remove existing members.
+                Share one invite link. Anyone with the link can join until you revoke it, the draft starts, or the league is full.
               </p>
-              <div className="flex flex-col sm:flex-row gap-2 mb-4">
-                <Input
-                  type="text"
-                  value={joinLinkAbsolute}
-                  readOnly
-                  className="font-mono text-sm"
-                />
-                <Button type="button" variant="secondary" onClick={copyJoinLink}>
-                  {copiedJoinLink ? 'Copied' : 'Copy Link'}
+              {joinCodeInfo?.code && (
+                <>
+                  <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                    <Input
+                      type="text"
+                      value={joinLinkAbsolute}
+                      readOnly
+                      className="font-mono text-sm"
+                    />
+                    <Button type="button" variant="secondary" onClick={copyJoinLink}>
+                      {copiedJoinLink ? 'Copied' : 'Copy Link'}
+                    </Button>
+                  </div>
+                  <p className="text-caption text-slate-500 mb-4 font-mono tracking-wider">
+                    Code: {joinCodeInfo.code}
+                    {joinCodeInfo.expires_at && (
+                      <span className="text-slate-600 ml-2">
+                        · expires {new Date(joinCodeInfo.expires_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </p>
+                </>
+              )}
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  onClick={handleGenerateOrRotateJoinCode}
+                  disabled={savingJoinCode}
+                >
+                  {savingJoinCode
+                    ? 'Saving...'
+                    : joinCodeInfo?.code
+                      ? 'Rotate'
+                      : 'Generate'}
                 </Button>
-              </div>
-            </div>
-
-            <form onSubmit={handleRotatePassword} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="adminJoinPassword" className="text-label font-medium text-slate-300">
-                  {hasJoinPassword ? 'New Password' : 'Set Password'}
-                </label>
-                <Input
-                  type="password"
-                  id="adminJoinPassword"
-                  value={newJoinPassword}
-                  onChange={(e) => setNewJoinPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  minLength={6}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="adminJoinPasswordConfirm" className="text-label font-medium text-slate-300">
-                  Confirm Password
-                </label>
-                <Input
-                  type="password"
-                  id="adminJoinPasswordConfirm"
-                  value={confirmJoinPassword}
-                  onChange={(e) => setConfirmJoinPassword(e.target.value)}
-                  placeholder="Re-enter password"
-                  minLength={6}
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="md:col-span-2 flex items-center gap-4">
-                <Button type="submit" disabled={savingPassword || !newJoinPassword}>
-                  {savingPassword ? 'Saving...' : hasJoinPassword ? 'Rotate Password' : 'Set Password'}
-                </Button>
-                {passwordMessage && (
-                  <p className={`text-caption ${passwordMessage.includes('updated') || passwordMessage.includes('set') ? 'text-green-400' : 'text-red-400'}`}>
-                    {passwordMessage}
+                {joinCodeInfo?.code && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleRevokeJoinCode}
+                    disabled={savingJoinCode}
+                  >
+                    Revoke
+                  </Button>
+                )}
+                {joinCodeMessage && (
+                  <p
+                    className={`text-caption ${
+                      joinCodeMessage.toLowerCase().includes('fail')
+                        ? 'text-red-400'
+                        : 'text-green-400'
+                    }`}
+                  >
+                    {joinCodeMessage}
                   </p>
                 )}
               </div>
-            </form>
+            </div>
           </div>
         </Panel>
 

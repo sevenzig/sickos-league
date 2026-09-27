@@ -74,9 +74,14 @@ export function getLeagueUrl(leagueId: string, path: string = ''): string {
   return path ? `${basePath}/${path}` : basePath;
 }
 
-/** Join page URL: /leagues/{short}/join (or /dev/leagues/{id}/join). */
+/** Soft-retired join page URL: /leagues/{short}/join (or /dev/leagues/{id}/join). */
 export function getLeagueJoinUrl(leagueId: string): string {
   return getLeagueUrl(leagueId, 'join');
+}
+
+/** Multi-use invite URL path: /invite/{CODE}. */
+export function getInviteUrl(code: string): string {
+  return `/invite/${code.toUpperCase()}`;
 }
 
 /** Explicit /dev/leagues URL (full UUID preferred). Use from sandbox launchers. */

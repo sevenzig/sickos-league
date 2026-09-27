@@ -12,7 +12,7 @@ import DraftSetupFields, {
   PickSeconds,
   fromDatetimeLocalValue,
 } from '../components/league/DraftSetupFields';
-import { Panel, Button, Input, Select } from '@/components/ui';
+import { Panel, Button, Select } from '@/components/ui';
 
 const CreateLeague: React.FC = () => {
   const navigate = useNavigate();
@@ -24,13 +24,10 @@ const CreateLeague: React.FC = () => {
   const [draftPickSeconds, setDraftPickSeconds] = useState<PickSeconds>(90);
   const [playoffTeams, setPlayoffTeams] = useState<4 | 5 | 6 | 8>(4);
   const [standingsTiebreaker, setStandingsTiebreaker] = useState<'record_then_points' | 'points_then_record'>('record_then_points');
-  const [joinPassword, setJoinPassword] = useState('');
-  const [joinPasswordConfirm, setJoinPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [draftAtError, setDraftAtError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const validateForm = () => {
     let ok = true;
@@ -56,16 +53,6 @@ const CreateLeague: React.FC = () => {
       }
     } else {
       setDraftAtError(null);
-    }
-
-    if (joinPassword.length < 6) {
-      setPasswordError('Join password must be at least 6 characters');
-      ok = false;
-    } else if (joinPassword !== joinPasswordConfirm) {
-      setPasswordError('Passwords do not match');
-      ok = false;
-    } else {
-      setPasswordError(null);
     }
 
     return ok;
@@ -96,7 +83,6 @@ const CreateLeague: React.FC = () => {
         }
       );
 
-      await MultiLeagueApi.setLeagueJoinPassword(leagueId, joinPassword);
       navigate(getLeagueUrl(leagueId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create league');
@@ -127,8 +113,7 @@ const CreateLeague: React.FC = () => {
             Create Your League
           </h1>
           <p className="text-body text-slate-400 max-w-2xl mx-auto">
-            Set up your Bad QB League with custom settings and share a join link
-            and password with your friends.
+            Set up your Bad QB League with custom settings. After creating, generate a join code in League Admin and share one invite link.
           </p>
         </div>
 
@@ -202,54 +187,6 @@ const CreateLeague: React.FC = () => {
                 </Select>
               </div>
             </div>
-          </Panel>
-
-          <Panel size="md">
-            <h2 className="text-heading text-slate-50 mb-2">Join Password</h2>
-            <p className="text-label text-slate-400 mb-4">
-              Friends use this password once on your join link. You can rotate it later in League Admin.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label htmlFor="joinPassword" className="text-label font-medium text-slate-300">
-                  Password
-                </label>
-                <Input
-                  type="password"
-                  id="joinPassword"
-                  value={joinPassword}
-                  onChange={(e) => {
-                    setJoinPassword(e.target.value);
-                    if (passwordError) setPasswordError(null);
-                  }}
-                  placeholder="At least 6 characters"
-                  minLength={6}
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="joinPasswordConfirm" className="text-label font-medium text-slate-300">
-                  Confirm Password
-                </label>
-                <Input
-                  type="password"
-                  id="joinPasswordConfirm"
-                  value={joinPasswordConfirm}
-                  onChange={(e) => {
-                    setJoinPasswordConfirm(e.target.value);
-                    if (passwordError) setPasswordError(null);
-                  }}
-                  placeholder="Re-enter password"
-                  minLength={6}
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-            {passwordError && (
-              <p className="text-caption text-red-400 mt-2">{passwordError}</p>
-            )}
           </Panel>
 
           <div className="flex items-center justify-between pt-4">
