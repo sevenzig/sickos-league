@@ -205,7 +205,7 @@ const opponentId =
     : mgrMatchup.fantasy_team1_id;
 
 // ---------------------------------------------------------------------------
-// 2. Manager path: set + lock; opponent hidden pre-lock
+// 2. Manager path: save lineup; opponent hidden until week finalize
 // ---------------------------------------------------------------------------
 {
   const { data, error } = await rpc(
@@ -214,14 +214,6 @@ const opponentId =
     managerToken
   );
   check('AC2: manager saves week-1 lineup', !error && data === true, error?.message);
-}
-{
-  const { data, error } = await rpc(
-    'lock_fantasy_lineup',
-    { p_fantasy_team_id: myTeam.id, p_week: WEEK },
-    managerToken
-  );
-  check('AC2: manager locks week-1 lineup', !error && data === true, error?.message);
 }
 
 // Give opponent a complete lineup so visibility can be tested once week locks

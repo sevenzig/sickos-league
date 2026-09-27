@@ -38,7 +38,8 @@ Notes:
 | get_user_leagues / get_league_details / get_league_fantasy_teams | R | - | R | R |
 | redeem_invite_code | W | W | W | W |
 | start_draft / make_draft_pick_for / generate_league_schedule | - | - | W | -† |
-| make_draft_pick / set_fantasy_lineup / lock_fantasy_lineup | W (own turn/team) | - | W (own or override) | -† |
+| make_draft_pick / set_fantasy_lineup | W (own turn/team) | - | W (own or override) | -† |
+| lock_fantasy_lineup | disabled (raises; voluntary lock removed) | - | disabled | - |
 | finalize_week_lineups / set_week_lock / toggle_week_lock | - | - | W | -† |
 | finalize_week_scores | - | - | - | W |
 | remove_league_member / transfer_commissioner / delete_league | - | - | W | -† |

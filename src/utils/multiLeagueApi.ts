@@ -672,19 +672,6 @@ export class MultiLeagueApi {
     return data
   }
 
-  static async lockFantasyLineup(
-    fantasyTeamId: string,
-    week: number
-  ): Promise<boolean> {
-    const { data, error } = await db.rpc('lock_fantasy_lineup', {
-      p_fantasy_team_id: fantasyTeamId,
-      p_week: week,
-    })
-
-    if (error) throw new Error(error.message)
-    return data
-  }
-
   // Commissioner: auto-fill missing lineups, lock all lineups + the week.
   // Returns the number of auto-filled lineups.
   static async finalizeWeekLineups(

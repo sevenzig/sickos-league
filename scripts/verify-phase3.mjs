@@ -355,22 +355,23 @@ const team3Roster = rosterOf(team3.id);
   check('3.1: owner sees all lineups pre-lock', others?.active_nfl_teams?.length === 2);
 }
 
-// Lock own lineup, then edits must fail (manager) but owner override works
+// Lock own lineup is disabled (voluntary lock removed); manager may re-edit until week finalize / kickoff
 {
-  const { data, error } = await rpc(
+  const { error } = await rpc(
     'lock_fantasy_lineup',
     { p_fantasy_team_id: myTeam.id, p_week: 1 },
     managerToken
   );
-  check('3.1: manager locks own lineup', !error && data === true, error?.message);
+  check('3.1: voluntary lock_fantasy_lineup fails', !!error, error?.message);
 }
 {
-  const { error } = await rpc(
+  const altLineup = [myRoster[2].nfl_team_id, myRoster[3].nfl_team_id];
+  const { data, error } = await rpc(
     'set_fantasy_lineup',
-    { p_fantasy_team_id: myTeam.id, p_week: 1, p_active_nfl_teams: [myRoster[2].nfl_team_id, myRoster[3].nfl_team_id] },
+    { p_fantasy_team_id: myTeam.id, p_week: 1, p_active_nfl_teams: altLineup },
     managerToken
   );
-  check('3.1: locked lineup rejects manager edits', !!error, error?.message);
+  check('3.1: manager can re-edit lineup after save', !error && data === true, error?.message);
 }
 {
   const { data, error } = await rpc(
@@ -378,9 +379,7 @@ const team3Roster = rosterOf(team3.id);
     { p_fantasy_team_id: myTeam.id, p_week: 1, p_active_nfl_teams: myLineup },
     ownerToken
   );
-  check('3.1: owner override on locked lineup succeeds', !error && data === true, error?.message);
-  const { data: after } = await rpc('get_fantasy_lineups_for_week', { p_league_id: leagueId, p_week: 1 }, ownerToken);
-  check('3.1: lineup stays locked after owner override', after?.find((l) => l.fantasy_team_id === myTeam.id)?.is_locked === true);
+  check('3.1: owner may set manager lineup while week unlocked', !error && data === true, error?.message);
 }
 
 // --- 3.2 / 3.3: finalize week (owner-only, auto-fill, full lock) -------------

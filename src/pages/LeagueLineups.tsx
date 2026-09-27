@@ -18,8 +18,8 @@ interface LeagueInfo {
 }
 
 // Self-serve weekly lineup page (Phase 3.1): the caller's own rostered NFL
-// teams, pick exactly teams_started_per_week, save + lock. Opponent's lineup
-// is only revealed by the server once the week locks.
+// teams, pick exactly teams_started_per_week, save. Edits freeze at kickoff
+// and week finalize. Opponent's lineup is only revealed once the week locks.
 const LeagueLineups: React.FC = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
   const { user } = useAuth();
@@ -37,7 +37,6 @@ const LeagueLineups: React.FC = () => {
   // Per-week state
   const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
   const [weekLocked, setWeekLocked] = useState(false);
-  const [myLineupLocked, setMyLineupLocked] = useState(false);
   const [opponentLineup, setOpponentLineup] = useState<FantasyLineup | null>(null);
   const [opponentName, setOpponentName] = useState<string | null>(null);
   // kickoffTimes: nfl_team_id -> ISO kickoff (playing only); byeTeams when week seeded
@@ -48,7 +47,6 @@ const LeagueLineups: React.FC = () => {
     Record<string, { opponentName: string; isHome: boolean }>
   >({});
   const [saving, setSaving] = useState(false);
-  const [locking, setLocking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   // Initial load: league, my team, my roster, full schedule
@@ -96,7 +94,7 @@ const LeagueLineups: React.FC = () => {
     load();
   }, [leagueId, user]);
 
-  // Per-week load: my saved lineup, lock state, opponent, kickoff/bye status
+  // Per-week load: my saved lineup, week lock, opponent, kickoff/bye status
   const loadWeek = useCallback(async (week: number) => {
     if (!league || !myTeam) return;
     setStatusMessage(null);
@@ -130,7 +128,6 @@ const LeagueLineups: React.FC = () => {
 
       const mine = lineups.find(l => l.fantasy_team_id === myTeam.id) || null;
       setSelectedTeams(mine?.active_nfl_teams ?? []);
-      setMyLineupLocked(mine?.is_locked ?? false);
 
       const matchup = schedule.find(
         m => m.week === week &&
@@ -160,7 +157,7 @@ const LeagueLineups: React.FC = () => {
   const hasGameThisWeek = schedule.length === 0 || !myTeam || schedule.some(
     m => m.week === selectedWeek && (m.fantasy_team1_id === myTeam.id || m.fantasy_team2_id === myTeam.id)
   );
-  const canEdit = hasGameThisWeek && !weekLocked && !myLineupLocked;
+  const canEdit = hasGameThisWeek && !weekLocked;
   const isComplete = selectedTeams.length === startersNeeded;
 
   const isBye = useCallback(
@@ -186,7 +183,7 @@ const LeagueLineups: React.FC = () => {
       if (diff <= 0) return 'Started';
       const mins = Math.floor(diff / 60000);
       const hrs = Math.floor(mins / 60);
-      return hrs > 0 ? `Locks in ${hrs}h ${mins % 60}m` : `Locks in ${mins}m`;
+      return hrs > 0 ? `Starts in ${hrs}h ${mins % 60}m` : `Starts in ${mins}m`;
     },
     [kickoffTimes]
   );
@@ -216,23 +213,6 @@ const LeagueLineups: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Failed to save lineup');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const lockLineup = async () => {
-    if (!myTeam || !isComplete) return;
-    if (!window.confirm(`Lock your Week ${selectedWeek} lineup? You won't be able to change it.`)) return;
-    try {
-      setLocking(true);
-      setError(null);
-      await MultiLeagueApi.setFantasyLineup(myTeam.id, selectedWeek, selectedTeams);
-      await MultiLeagueApi.lockFantasyLineup(myTeam.id, selectedWeek);
-      setMyLineupLocked(true);
-      setStatusMessage('Lineup locked in');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to lock lineup');
-    } finally {
-      setLocking(false);
     }
   };
 
@@ -312,12 +292,12 @@ const LeagueLineups: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            {weekLocked || myLineupLocked ? (
+            {weekLocked ? (
               <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 text-xs font-bold uppercase tracking-wider">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                 </svg>
-                {weekLocked ? 'Week Locked' : 'Lineup Locked'}
+                Week Locked
               </span>
             ) : (
               <span className={`text-xs px-2 py-1 rounded-lg font-bold tabular-nums ${
@@ -327,24 +307,14 @@ const LeagueLineups: React.FC = () => {
               </span>
             )}
             {canEdit && (
-              <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={saveLineup}
-                  disabled={!isComplete || saving}
-                >
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={lockLineup}
-                  disabled={!isComplete || locking}
-                >
-                  {locking ? 'Locking...' : 'Lock Lineup'}
-                </Button>
-              </>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={saveLineup}
+                disabled={!isComplete || saving}
+              >
+                {saving ? 'Saving...' : 'Save Lineup'}
+              </Button>
             )}
           </div>
         </div>
@@ -489,11 +459,6 @@ const LeagueLineups: React.FC = () => {
             <h3 className="text-lg font-bold text-slate-50">
               Week {selectedWeek} Opponent: <span className="text-blue-400">{opponentName}</span>
             </h3>
-            {opponentLineup?.is_locked && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
-                Locked
-              </span>
-            )}
           </div>
           {weekLocked && opponentLineup && opponentLineup.active_nfl_team_names.length > 0 ? (
             <div className="flex flex-wrap gap-3">

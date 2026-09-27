@@ -62,7 +62,7 @@ Then sign out/in so the JWT picks up the flag.
 
 1. **Wednesday ~9pm America/New_York** — platform admin: ESPN kickoff sync for weeks `N`, `N+1`, `N+2` (`node scripts/sync-nfl-kickoffs-espn.mjs --year YYYY --weeks N,N+1,N+2`). Season start: `--all-season` (weeks 1–18). Confirm the current week is seeded before TNF; bye pills appear only after seed.
 2. **Thursday** — remind managers to set lineups (email when Resend is live; manual until then).
-3. **Lineup deadline** — managers set + lock via League Lineups; opponents stay hidden until the week is locked. Per-team locks at NFL kickoff; bye-week teams cannot be started.
+3. **Lineup deadline** — managers save lineups via League Lineups; per-team freeze at NFL kickoff; opponents stay hidden until week finalize. Bye-week teams cannot be started.
 4. **Finalize Week** — commissioner: Admin → Weekly Lineups → Finalize Week (auto-starts empty lineups from lowest draft picks, skipping NFL byes when seeded; locks the week).
 5. **Sunday/Monday** — platform admin uploads the week CSV at `/admin/import` (requires platform-admin grant above).
 6. **Confirm** — LeagueView scores, standings, WLT chart, matchup modal; re-running finalize is safe (idempotent).
