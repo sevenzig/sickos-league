@@ -19,23 +19,21 @@ const LeagueStandingsPage: React.FC = () => {
   }, [leagueId]);
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <LeagueHeader leagueId={leagueId!} active="standings" />
+    <div className="space-y-8">
+      <LeagueHeader leagueId={leagueId!} active="standings" />
 
-        {error && (
-          <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 mb-6">
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
+      {error && (
+        <div className="bg-red-900/20 border border-red-700 rounded-lg p-4 mb-6">
+          <p className="text-red-400">{error}</p>
+        </div>
+      )}
 
-        {fullLeagueId && (
-          <div className="space-y-6">
-            <StandingsTable leagueId={fullLeagueId} />
-            <RecordTable leagueId={fullLeagueId} />
-          </div>
-        )}
-      </div>
+      {fullLeagueId && (
+        <div className="space-y-6">
+          <StandingsTable leagueId={fullLeagueId} />
+          <RecordTable leagueId={fullLeagueId} />
+        </div>
+      )}
     </div>
   );
 };
