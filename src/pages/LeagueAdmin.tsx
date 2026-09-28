@@ -32,15 +32,15 @@ interface LeagueDetails {
 
 type ManualPair = { team1: string; team2: string };
 
-function blankManualGrid(): ManualPair[][] {
-  return Array.from({ length: 14 }, () =>
+function blankManualGrid(weeks = 7): ManualPair[][] {
+  return Array.from({ length: weeks }, () =>
     Array.from({ length: 4 }, () => ({ team1: '', team2: '' }))
   );
 }
 
-function gridFromSchedule(rows: LeagueMatchup[]): ManualPair[][] {
-  const grid = blankManualGrid();
-  for (let week = 1; week <= 14; week++) {
+function gridFromSchedule(rows: LeagueMatchup[], weeks = 7): ManualPair[][] {
+  const grid = blankManualGrid(weeks);
+  for (let week = 1; week <= weeks; week++) {
     const games = rows.filter(m => m.week === week && !m.is_playoff);
     games.slice(0, 4).forEach((game, i) => {
       grid[week - 1][i] = {
@@ -71,8 +71,7 @@ const LeagueAdmin: React.FC = () => {
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [fantasyTeams, setFantasyTeams] = useState<FantasyTeam[]>([]);
   const [scheduleRows, setScheduleRows] = useState<LeagueMatchup[]>([]);
-  const [manualGrid, setManualGrid] = useState<ManualPair[][]>(blankManualGrid);
-  const [showManual, setShowManual] = useState(false);
+  const [manualGrid, setManualGrid] = useState<ManualPair[][]>(() => blankManualGrid(7));
   const [savingManual, setSavingManual] = useState(false);
   const [generatingPlayoffs, setGeneratingPlayoffs] = useState(false);
 
@@ -119,7 +118,7 @@ const LeagueAdmin: React.FC = () => {
         ]);
         setFantasyTeams(teams);
         setScheduleRows(rows);
-        setManualGrid(gridFromSchedule(rows));
+        setManualGrid(gridFromSchedule(rows, 7));
       } catch {
         // Teams may not be readable yet; the schedule panel stays empty.
       }
@@ -188,7 +187,6 @@ const LeagueAdmin: React.FC = () => {
       setScheduleGenerated(true);
       const rows = await MultiLeagueApi.getLeagueSchedule(leagueId).catch(() => [] as LeagueMatchup[]);
       setScheduleRows(rows);
-      setManualGrid(gridFromSchedule(rows));
 
       setTimeout(() => {
         setScheduleGenerated(false);
@@ -246,7 +244,7 @@ const LeagueAdmin: React.FC = () => {
       setScheduleGenerated(true);
       const rows = await MultiLeagueApi.getLeagueSchedule(leagueId);
       setScheduleRows(rows);
-      setManualGrid(gridFromSchedule(rows));
+      setManualGrid(gridFromSchedule(rows, 7));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save schedule');
     } finally {
@@ -339,13 +337,15 @@ const LeagueAdmin: React.FC = () => {
     );
   }
 
-  // Server enforces: exactly 8 teams, pre-season only. Draft start also
-  // auto-generates if the commissioner skips this step.
+  // Server enforces: exactly 8 teams. Async/live: pre-season Randomize (also
+  // auto-generates on draft start). Offline: manual 7-week template only.
   // Number(): pg bigints can arrive as strings ("8" === 8 is false).
   const teamCount = Number(league.fantasy_teams_count);
-  const canGenerateSchedule = teamCount === 8;
-  const scheduleHint =
-    teamCount !== 8
+  const isOffline = league.draft_mode === 'offline';
+  const canSetSchedule = teamCount === 8;
+  const scheduleHint = isOffline
+    ? null
+    : teamCount !== 8
       ? 'Schedule generation requires 8 fantasy teams'
       : 'Randomizes weeks 1–14. If you skip this, the schedule is created when the draft starts.';
 
@@ -375,16 +375,18 @@ const LeagueAdmin: React.FC = () => {
               <Button asChild variant="secondary">
                 <Link to={getLeagueUrl(league.id)}>View League</Link>
               </Button>
-              <Button
-                onClick={handleGenerateSchedule}
-                disabled={!canGenerateSchedule || generatingSchedule}
-                title={scheduleHint}
-              >
-                {generatingSchedule && (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                )}
-                {generatingSchedule ? 'Randomizing...' : 'Randomize schedule'}
-              </Button>
+              {!isOffline && (
+                <Button
+                  onClick={handleGenerateSchedule}
+                  disabled={!canSetSchedule || generatingSchedule}
+                  title={scheduleHint ?? undefined}
+                >
+                  {generatingSchedule && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  )}
+                  {generatingSchedule ? 'Randomizing...' : 'Randomize schedule'}
+                </Button>
+              )}
             </div>
             {scheduleHint && (
               <p className={`text-caption ${teamCount !== 8 ? 'text-amber-400' : 'text-slate-400'}`}>
@@ -488,48 +490,56 @@ const LeagueAdmin: React.FC = () => {
 
         <Panel>
           <h2 className="text-title text-slate-50 mb-2">Regular season</h2>
-          <p className="text-label text-slate-400 mb-4">
-            Weeks 1–14, four games each week. Randomize, or assign every game yourself. Locked after a week is finalized or a score is recorded.
-          </p>
-          <Button type="button" variant="secondary" onClick={() => setShowManual(open => !open)} disabled={!canGenerateSchedule}>
-            {showManual ? 'Hide manual grid' : 'Assign manually'}
-          </Button>
-          {showManual && (
-            <div className="mt-6 space-y-4">
-              {manualGrid.map((pairs, weekIndex) => (
-                <div key={weekIndex} className="space-y-2">
-                  <div className="text-label font-medium text-slate-300">Week {weekIndex + 1}</div>
-                  {pairs.map((pair, pairIndex) => (
-                    <div key={pairIndex} className="flex items-center gap-2">
-                      <Select
-                        value={pair.team1}
-                        onChange={(e) => updatePair(weekIndex, pairIndex, 'team1', e.target.value)}
-                        className="flex-1"
-                      >
-                        <option value="">Team</option>
-                        {fantasyTeams.map(team => (
-                          <option key={team.id} value={team.id}>{team.team_name}</option>
-                        ))}
-                      </Select>
-                      <span className="text-caption text-slate-500 shrink-0">vs</span>
-                      <Select
-                        value={pair.team2}
-                        onChange={(e) => updatePair(weekIndex, pairIndex, 'team2', e.target.value)}
-                        className="flex-1"
-                      >
-                        <option value="">Team</option>
-                        {fantasyTeams.map(team => (
-                          <option key={team.id} value={team.id}>{team.team_name}</option>
-                        ))}
-                      </Select>
-                    </div>
-                  ))}
-                </div>
-              ))}
-              <Button type="button" onClick={handleSaveManual} disabled={savingManual || !canGenerateSchedule}>
-                {savingManual ? 'Saving...' : 'Save manual schedule'}
-              </Button>
-            </div>
+          {isOffline ? (
+            <>
+              <p className="text-label text-slate-400 mb-4">
+                Assign weeks 1–7 (four games each, every team once). Weeks 8–14 repeat the same pairings with home/away flipped. Saving replaces weeks 1–14, including weeks that already have scores.
+              </p>
+              {!canSetSchedule && (
+                <p className="text-caption text-amber-400 mb-4">
+                  Manual schedule requires 8 fantasy teams
+                </p>
+              )}
+              <div className="space-y-4">
+                {manualGrid.map((pairs, weekIndex) => (
+                  <div key={weekIndex} className="space-y-2">
+                    <div className="text-label font-medium text-slate-300">Week {weekIndex + 1}</div>
+                    {pairs.map((pair, pairIndex) => (
+                      <div key={pairIndex} className="flex items-center gap-2">
+                        <Select
+                          value={pair.team1}
+                          onChange={(e) => updatePair(weekIndex, pairIndex, 'team1', e.target.value)}
+                          className="flex-1"
+                        >
+                          <option value="">Team</option>
+                          {fantasyTeams.map(team => (
+                            <option key={team.id} value={team.id}>{team.team_name}</option>
+                          ))}
+                        </Select>
+                        <span className="text-caption text-slate-500 shrink-0">vs</span>
+                        <Select
+                          value={pair.team2}
+                          onChange={(e) => updatePair(weekIndex, pairIndex, 'team2', e.target.value)}
+                          className="flex-1"
+                        >
+                          <option value="">Team</option>
+                          {fantasyTeams.map(team => (
+                            <option key={team.id} value={team.id}>{team.team_name}</option>
+                          ))}
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                <Button type="button" onClick={handleSaveManual} disabled={savingManual || !canSetSchedule}>
+                  {savingManual ? 'Saving...' : 'Save schedule'}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-label text-slate-400 mb-4">
+              Weeks 1–14, four games each week. Use Randomize above, or let the schedule create when the draft starts. Locked after a week is finalized or a score is recorded.
+            </p>
           )}
           {canGeneratePlayoffs && (
             <div className="mt-6 border-t border-slate-700/30 pt-4">

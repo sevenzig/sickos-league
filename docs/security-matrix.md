@@ -37,7 +37,8 @@ Notes:
 | create_league | W (creates) | W | W | W |
 | get_user_leagues / get_league_details / get_league_fantasy_teams | R | - | R | R |
 | redeem_invite_code | W | W | W | W |
-| start_draft / make_draft_pick_for / generate_league_schedule | - | - | W | -† |
+| start_draft / make_draft_pick_for / generate_league_schedule | - | - | W‡ | -† |
+| set_league_schedule | - | - | W§ | -† |
 | make_draft_pick / set_fantasy_lineup | W (own turn/team) | - | W (own or override) | -† |
 | lock_fantasy_lineup | disabled (raises; voluntary lock removed) | - | disabled | - |
 | finalize_week_lineups / set_week_lock / toggle_week_lock | - | - | W | -† |
@@ -47,6 +48,8 @@ Notes:
 | update_fantasy_team_name | W (manager) | - | W | -† |
 
 † Platform admin is not automatically a commissioner; they must be a league member/owner to pass owner checks, unless calling platform-only RPCs.
+‡ `generate_league_schedule` refuses `draft_mode = offline` (manual path only). Async/live only; pre-season.
+§ Offline: owner may rewrite weeks 1–14 mid-season via a 7-week (28-game) template. Async/live: 56 games, pre-season only.
 
 ## Pen-test
 

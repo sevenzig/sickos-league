@@ -68,7 +68,8 @@ Then sign out/in so the JWT picks up the flag.
 6. **Confirm** — LeagueView scores, standings, WLT chart, matchup modal; re-running finalize is safe (idempotent).
 
 Dry-run verifier (compose up): `node scripts/verify-a3-weekly-ops.mjs`  
-Kickoff freeze / bye locks: `node scripts/verify-nfl-kickoff-locks.mjs`
+Kickoff freeze / bye locks: `node scripts/verify-nfl-kickoff-locks.mjs`  
+Offline manual schedule (7-week template / mid-season rewrite): `node scripts/verify-offline-schedule.mjs`
 
 ## Live draft ticker
 
