@@ -123,8 +123,9 @@ export interface CreateLeagueOptions {
   draftFormat?: 'snake' | 'linear'
   draftAt?: string | null
   draftPickSeconds?: 30 | 60 | 90
-  playoffTeams?: 4 | 5 | 6 | 8
+  playoffTeams?: 4 | 5 | 6
   standingsTiebreaker?: 'record_then_points' | 'points_then_record'
+  regularSeasonWeeks?: 14 | 15 | 16
 }
 
 export interface DraftSettingsUpdate {
@@ -246,6 +247,7 @@ export class MultiLeagueApi {
       p_draft_format: opts.draftFormat || 'snake',
       p_playoff_teams: opts.playoffTeams ?? 4,
       p_standings_tiebreaker: opts.standingsTiebreaker || 'record_then_points',
+      p_regular_season_weeks: opts.regularSeasonWeeks ?? 14,
     });
 
     if (error) throw new Error(error.message);
@@ -462,14 +464,16 @@ export class MultiLeagueApi {
 
   static async setLeagueSeasonSettings(
     leagueId: string,
-    playoffTeams: 4 | 5 | 6 | 8,
-    standingsTiebreaker: 'record_then_points' | 'points_then_record'
+    playoffTeams: 4 | 5 | 6,
+    standingsTiebreaker: 'record_then_points' | 'points_then_record',
+    regularSeasonWeeks: 14 | 15 | 16
   ): Promise<boolean> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('set_league_season_settings', {
       p_league_id: fullLeagueId,
       p_playoff_teams: playoffTeams,
       p_standings_tiebreaker: standingsTiebreaker,
+      p_regular_season_weeks: regularSeasonWeeks,
     })
     if (error) throw new Error(error.message)
     return data

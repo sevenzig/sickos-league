@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { MultiLeagueApi, FantasyTeam, LeagueMatchup, LeagueJoinCodeInfo } from '../utils/multiLeagueApi';
-import { seasonMaxWeek } from '../utils/season';
+import { seasonMaxWeek, playoffEndWeek, type PlayoffTeams, type RegularSeasonWeeks } from '../utils/season';
 import { getLeagueUrl, getInviteUrl } from '../utils/urlUtils';
 import TeamManagement from '../components/league/TeamManagement';
 import CommissionerLineups from '../components/league/CommissionerLineups';
@@ -28,6 +28,7 @@ interface LeagueDetails {
   draft_paused: boolean;
   playoff_teams: number;
   standings_tiebreaker: 'record_then_points' | 'points_then_record';
+  regular_season_weeks?: number;
 }
 
 type ManualPair = { team1: string; team2: string };
@@ -65,7 +66,8 @@ const LeagueAdmin: React.FC = () => {
   const [savingJoinCode, setSavingJoinCode] = useState(false);
   const [joinCodeMessage, setJoinCodeMessage] = useState<string | null>(null);
   const [copiedJoinLink, setCopiedJoinLink] = useState(false);
-  const [playoffTeams, setPlayoffTeams] = useState<4 | 5 | 6 | 8>(4);
+  const [playoffTeams, setPlayoffTeams] = useState<PlayoffTeams>(4);
+  const [regularSeasonWeeks, setRegularSeasonWeeks] = useState<RegularSeasonWeeks>(14);
   const [tiebreaker, setTiebreaker] = useState<'record_then_points' | 'points_then_record'>('record_then_points');
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
@@ -90,7 +92,9 @@ const LeagueAdmin: React.FC = () => {
       setLeague(leagueDetails);
       if (leagueDetails) {
         const size = leagueDetails.playoff_teams;
-        setPlayoffTeams(size === 5 || size === 6 || size === 8 ? size : 4);
+        setPlayoffTeams(size === 5 || size === 6 ? size : 4);
+        const rs = leagueDetails.regular_season_weeks;
+        setRegularSeasonWeeks(rs === 15 || rs === 16 ? rs : 14);
         setTiebreaker(
           leagueDetails.standings_tiebreaker === 'points_then_record'
             ? 'points_then_record'
@@ -201,16 +205,23 @@ const LeagueAdmin: React.FC = () => {
   };
 
   const bracketLocked = scheduleRows.some(m => m.is_playoff);
-  const finalWeek = playoffTeams === 4 ? 16 : 17;
-  const week14 = scheduleRows.filter(m => m.week === 14 && !m.is_playoff);
-  const week14Done = week14.length === 4 && week14.every(m => m.is_complete && m.team1_score != null);
+  const finalWeek = playoffEndWeek(regularSeasonWeeks, playoffTeams);
+  const lastRsWeek = scheduleRows.filter(m => m.week === regularSeasonWeeks && !m.is_playoff);
+  const lastRsDone = lastRsWeek.length === 4 && lastRsWeek.every(m => m.is_complete && m.team1_score != null);
   const playoffRows = scheduleRows.filter(m => m.is_playoff);
   const latestPlayoffWeek = playoffRows.reduce((max, m) => Math.max(max, m.week), 0);
   const latestPlayoffDone = latestPlayoffWeek > 0 && playoffRows
     .filter(m => m.week === latestPlayoffWeek)
     .every(m => m.is_complete && m.team1_score != null);
   const championshipExists = scheduleRows.some(m => m.is_playoff && m.week === finalWeek);
-  const canGeneratePlayoffs = week14Done && !championshipExists && (playoffRows.length === 0 || latestPlayoffDone);
+  const canGeneratePlayoffs = lastRsDone && !championshipExists && (playoffRows.length === 0 || latestPlayoffDone);
+
+  const handleRegularSeasonChange = (value: RegularSeasonWeeks) => {
+    setRegularSeasonWeeks(value);
+    if (value === 16 && playoffTeams !== 4) {
+      setPlayoffTeams(4);
+    }
+  };
 
   const handleSaveSettings = async () => {
     if (!leagueId) return;
@@ -218,7 +229,7 @@ const LeagueAdmin: React.FC = () => {
       setSavingSettings(true);
       setSettingsMessage(null);
       setError(null);
-      await MultiLeagueApi.setLeagueSeasonSettings(leagueId, playoffTeams, tiebreaker);
+      await MultiLeagueApi.setLeagueSeasonSettings(leagueId, playoffTeams, tiebreaker, regularSeasonWeeks);
       setSettingsMessage('Season settings saved');
       await loadLeagueData();
     } catch (err) {
@@ -347,7 +358,7 @@ const LeagueAdmin: React.FC = () => {
     ? null
     : teamCount !== 8
       ? 'Schedule generation requires 8 fantasy teams'
-      : 'Randomizes weeks 1–14. If you skip this, the schedule is created when the draft starts.';
+      : `Randomizes weeks 1–${regularSeasonWeeks}. If you skip this, the schedule is created when the draft starts.`;
 
   return (
     <div className="space-y-8">
@@ -485,7 +496,7 @@ const LeagueAdmin: React.FC = () => {
         <CommissionerLineups
           leagueId={league.id}
           startersPerWeek={league.teams_started_per_week}
-          maxWeek={seasonMaxWeek(playoffTeams, bracketLocked)}
+          maxWeek={seasonMaxWeek(regularSeasonWeeks, playoffTeams, bracketLocked)}
         />
 
         <Panel>
@@ -493,7 +504,10 @@ const LeagueAdmin: React.FC = () => {
           {isOffline ? (
             <>
               <p className="text-label text-slate-400 mb-4">
-                Assign weeks 1–7 (four games each, every team once). Weeks 8–14 repeat the same pairings with home/away flipped. Saving replaces weeks 1–14, including weeks that already have scores.
+                Assign weeks 1–7 (four games each, every team once). Weeks 8–14 repeat the same pairings with home/away flipped
+                {regularSeasonWeeks >= 15 ? '; week 15 repeats week 1' : ''}
+                {regularSeasonWeeks >= 16 ? '; week 16 repeats week 2' : ''}
+                . Saving replaces weeks 1–{regularSeasonWeeks}, including weeks that already have scores.
               </p>
               {!canSetSchedule && (
                 <p className="text-caption text-amber-400 mb-4">
@@ -538,13 +552,13 @@ const LeagueAdmin: React.FC = () => {
             </>
           ) : (
             <p className="text-label text-slate-400 mb-4">
-              Weeks 1–14, four games each week. Use Randomize above, or let the schedule create when the draft starts. Locked after a week is finalized or a score is recorded.
+              Weeks 1–{regularSeasonWeeks}, four games each week. Use Randomize above, or let the schedule create when the draft starts. Locked after a week is finalized or a score is recorded.
             </p>
           )}
           {canGeneratePlayoffs && (
             <div className="mt-6 border-t border-slate-700/30 pt-4">
               <p className="text-label text-slate-400 mb-3">
-                Week 14 is complete. Generate the next playoff round from the standings.
+                Week {regularSeasonWeeks} is complete. Generate the next playoff round from the standings.
               </p>
               <Button type="button" onClick={handleGeneratePlayoffs} disabled={generatingPlayoffs}>
                 {generatingPlayoffs ? 'Generating...' : 'Generate playoffs'}
@@ -580,6 +594,21 @@ const LeagueAdmin: React.FC = () => {
               <p className="text-caption text-slate-500">Cannot be changed after creation</p>
             </div>
             <div className="space-y-1.5">
+              <label htmlFor="adminRegularSeasonWeeks" className="text-label font-medium text-slate-300">
+                Regular season ends
+              </label>
+              <Select
+                id="adminRegularSeasonWeeks"
+                value={regularSeasonWeeks}
+                disabled={bracketLocked}
+                onChange={(e) => handleRegularSeasonChange(Number(e.target.value) as RegularSeasonWeeks)}
+              >
+                <option value={14}>Week 14</option>
+                <option value={15}>Week 15</option>
+                <option value={16}>Week 16</option>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <label htmlFor="adminPlayoffTeams" className="text-label font-medium text-slate-300">
                 Playoff teams
               </label>
@@ -587,13 +616,21 @@ const LeagueAdmin: React.FC = () => {
                 id="adminPlayoffTeams"
                 value={playoffTeams}
                 disabled={bracketLocked}
-                onChange={(e) => setPlayoffTeams(Number(e.target.value) as 4 | 5 | 6 | 8)}
+                onChange={(e) => setPlayoffTeams(Number(e.target.value) as PlayoffTeams)}
               >
-                <option value={4}>4 teams (ends week 16)</option>
-                <option value={5}>5 teams (ends week 17)</option>
-                <option value={6}>6 teams (ends week 17)</option>
-                <option value={8}>8 teams (ends week 17)</option>
+                <option value={4}>4 teams (ends week {playoffEndWeek(regularSeasonWeeks, 4)})</option>
+                {regularSeasonWeeks !== 16 && (
+                  <>
+                    <option value={5}>5 teams (ends week {playoffEndWeek(regularSeasonWeeks, 5)})</option>
+                    <option value={6}>6 teams (ends week {playoffEndWeek(regularSeasonWeeks, 6)})</option>
+                  </>
+                )}
               </Select>
+              {regularSeasonWeeks === 16 && (
+                <p className="text-caption text-slate-500">
+                  A 16-week regular season only supports a 4-team playoff (NFL ends at week 18).
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <label htmlFor="adminTiebreaker" className="text-label font-medium text-slate-300">

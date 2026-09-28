@@ -13,6 +13,7 @@ import DraftSetupFields, {
   fromDatetimeLocalValue,
 } from '../components/league/DraftSetupFields';
 import { Panel, Button, Select } from '@/components/ui';
+import { playoffEndWeek, type PlayoffTeams, type RegularSeasonWeeks } from '../utils/season';
 
 const CreateLeague: React.FC = () => {
   const navigate = useNavigate();
@@ -22,12 +23,20 @@ const CreateLeague: React.FC = () => {
   const [draftFormat, setDraftFormat] = useState<DraftFormat>('snake');
   const [draftAtLocal, setDraftAtLocal] = useState('');
   const [draftPickSeconds, setDraftPickSeconds] = useState<PickSeconds>(90);
-  const [playoffTeams, setPlayoffTeams] = useState<4 | 5 | 6 | 8>(4);
+  const [regularSeasonWeeks, setRegularSeasonWeeks] = useState<RegularSeasonWeeks>(14);
+  const [playoffTeams, setPlayoffTeams] = useState<PlayoffTeams>(4);
   const [standingsTiebreaker, setStandingsTiebreaker] = useState<'record_then_points' | 'points_then_record'>('record_then_points');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [draftAtError, setDraftAtError] = useState<string | null>(null);
+
+  const handleRegularSeasonChange = (value: RegularSeasonWeeks) => {
+    setRegularSeasonWeeks(value);
+    if (value === 16 && playoffTeams !== 4) {
+      setPlayoffTeams(4);
+    }
+  };
 
   const validateForm = () => {
     let ok = true;
@@ -80,6 +89,7 @@ const CreateLeague: React.FC = () => {
           draftPickSeconds,
           playoffTeams,
           standingsTiebreaker,
+          regularSeasonWeeks,
         }
       );
 
@@ -155,9 +165,23 @@ const CreateLeague: React.FC = () => {
           <Panel size="md">
             <h2 className="text-heading text-slate-50 mb-2">Season</h2>
             <p className="text-label text-slate-400 mb-4">
-              Weeks 1–14 are the regular season. Playoffs start in week 15. You can change these until the bracket is created.
+              Choose how long the regular season runs. Playoffs start the next week. You can change these until the bracket is created.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label htmlFor="regularSeasonWeeks" className="text-label font-medium text-slate-300">
+                  Regular season ends
+                </label>
+                <Select
+                  id="regularSeasonWeeks"
+                  value={regularSeasonWeeks}
+                  onChange={(e) => handleRegularSeasonChange(Number(e.target.value) as RegularSeasonWeeks)}
+                >
+                  <option value={14}>Week 14</option>
+                  <option value={15}>Week 15</option>
+                  <option value={16}>Week 16</option>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <label htmlFor="playoffTeams" className="text-label font-medium text-slate-300">
                   Playoff teams
@@ -165,15 +189,23 @@ const CreateLeague: React.FC = () => {
                 <Select
                   id="playoffTeams"
                   value={playoffTeams}
-                  onChange={(e) => setPlayoffTeams(Number(e.target.value) as 4 | 5 | 6 | 8)}
+                  onChange={(e) => setPlayoffTeams(Number(e.target.value) as PlayoffTeams)}
                 >
-                  <option value={4}>4 teams (ends week 16)</option>
-                  <option value={5}>5 teams (ends week 17)</option>
-                  <option value={6}>6 teams (ends week 17)</option>
-                  <option value={8}>8 teams (ends week 17)</option>
+                  <option value={4}>4 teams (ends week {playoffEndWeek(regularSeasonWeeks, 4)})</option>
+                  {regularSeasonWeeks !== 16 && (
+                    <>
+                      <option value={5}>5 teams (ends week {playoffEndWeek(regularSeasonWeeks, 5)})</option>
+                      <option value={6}>6 teams (ends week {playoffEndWeek(regularSeasonWeeks, 6)})</option>
+                    </>
+                  )}
                 </Select>
+                {regularSeasonWeeks === 16 && (
+                  <p className="text-caption text-slate-500">
+                    A 16-week regular season only supports a 4-team playoff (NFL ends at week 18).
+                  </p>
+                )}
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 md:col-span-2">
                 <label htmlFor="tiebreaker" className="text-label font-medium text-slate-300">
                   Standings tiebreaker
                 </label>

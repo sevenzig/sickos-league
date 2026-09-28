@@ -1,4 +1,4 @@
-// 14-week season and playoff brackets.
+// Configurable regular season (14/15/16) and playoff brackets (4/5/6).
 // Run: node scripts/verify-playoffs.mjs
 
 import { execSync } from 'node:child_process';
@@ -86,6 +86,41 @@ function seedByPoints(leagueId) {
   return rows.map((r) => r[0]);
 }
 
+function circleSchedule(teamIds, rsWeeks = 14) {
+  const games = [];
+  for (let week = 1; week <= rsWeeks; week++) {
+    const round = (week - 1) % 7;
+    const flip = Math.floor((week - 1) / 7) % 2 === 1;
+    for (let k = 0; k < 4; k++) {
+      let a;
+      let b;
+      if (k === 0) {
+        a = teamIds[round];
+        b = teamIds[7];
+      } else {
+        a = teamIds[(round + k) % 7];
+        b = teamIds[(round - k + 7) % 7];
+      }
+      if (flip) [a, b] = [b, a];
+      games.push({ week, fantasy_team1_id: a, fantasy_team2_id: b });
+    }
+  }
+  return games;
+}
+
+function weekPairsMatch(regular, weekA, weekB, flipped = false) {
+  const a = regular.filter((r) => r.week === weekA);
+  const b = regular.filter((r) => r.week === weekB);
+  if (a.length !== 4 || b.length !== 4) return false;
+  return a.every((game) =>
+    b.some((other) =>
+      flipped
+        ? other.t1 === game.t2 && other.t2 === game.t1
+        : other.t1 === game.t1 && other.t2 === game.t2
+    )
+  );
+}
+
 const owner = await signup('owner');
 const { data: leagueId, error: leagueErr } = await rpc(
   'create_league',
@@ -95,12 +130,54 @@ const { data: leagueId, error: leagueErr } = await rpc(
     teams_started_per_week: 1,
     owner_team_name: 'Owner Team',
     p_draft_mode: 'async',
-    p_playoff_teams: 8,
+    p_playoff_teams: 6,
     p_standings_tiebreaker: 'record_then_points',
+    p_regular_season_weeks: 14,
   },
   owner.token
 );
 check('setup: create league', !leagueErr && !!leagueId, leagueErr?.message);
+
+{
+  const { error } = await rpc(
+    'create_league',
+    {
+      league_name: `Bad RS16 ${Date.now()}`,
+      season: 2025,
+      teams_started_per_week: 1,
+      owner_team_name: 'Owner Team',
+      p_draft_mode: 'async',
+      p_playoff_teams: 6,
+      p_regular_season_weeks: 16,
+    },
+    owner.token
+  );
+  check(
+    'create: RS=16 + playoff 6 rejected',
+    !!error && /16-week|week 18/i.test(error.message),
+    error?.message
+  );
+}
+
+{
+  const { error } = await rpc(
+    'create_league',
+    {
+      league_name: `Bad Field8 ${Date.now()}`,
+      season: 2025,
+      teams_started_per_week: 1,
+      owner_team_name: 'Owner Team',
+      p_draft_mode: 'async',
+      p_playoff_teams: 8,
+    },
+    owner.token
+  );
+  check(
+    'create: playoff_teams=8 rejected',
+    !!error && /4, 5, or 6/.test(error.message),
+    error?.message
+  );
+}
 
 {
   const { error } = await rpc('fill_draft_bots', { p_league_id: leagueId }, owner.token);
@@ -127,28 +204,6 @@ check('setup: create league', !leagueErr && !!leagueId, leagueErr?.message);
 const teams = psql(
   `SELECT id FROM fantasy_teams WHERE league_id = '${leagueId}' ORDER BY team_name;`
 ).map((r) => r[0]);
-
-function circleSchedule(teamIds) {
-  const games = [];
-  for (let week = 1; week <= 14; week++) {
-    const round = (week - 1) % 7;
-    const flip = week >= 8 && week <= 14;
-    for (let k = 0; k < 4; k++) {
-      let a;
-      let b;
-      if (k === 0) {
-        a = teamIds[round];
-        b = teamIds[7];
-      } else {
-        a = teamIds[(round + k) % 7];
-        b = teamIds[(round - k + 7) % 7];
-      }
-      if (flip) [a, b] = [b, a];
-      games.push({ week, fantasy_team1_id: a, fantasy_team2_id: b });
-    }
-  }
-  return games;
-}
 
 {
   const bad = circleSchedule(teams);
@@ -182,6 +237,101 @@ function circleSchedule(teamIds) {
   check('manual: still 56 regular-season games', matchups(leagueId).length === 56);
 }
 
+// Settings: extend 14 → 16, then trim back; reject RS=16 + field 6
+{
+  const { error: badCombo } = await rpc(
+    'set_league_season_settings',
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 6,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 16,
+    },
+    owner.token
+  );
+  check(
+    'settings: RS=16 + playoff 6 rejected',
+    !!badCombo && /16-week|week 18/i.test(badCombo.message),
+    badCombo?.message
+  );
+  check('settings: reject left schedule at 56', matchups(leagueId).filter((r) => !r.isPlayoff).length === 56);
+
+  const before = matchups(leagueId).filter((r) => !r.isPlayoff);
+  const { error: extendErr } = await rpc(
+    'set_league_season_settings',
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 4,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 16,
+    },
+    owner.token
+  );
+  check('settings: 14→16 append succeeds', !extendErr, extendErr?.message);
+  const after16 = matchups(leagueId).filter((r) => !r.isPlayoff);
+  check('settings: 64 games after extend', after16.length === 64, String(after16.length));
+  check('settings: weeks 1–14 unchanged', before.every((g) =>
+    after16.some((r) => r.week === g.week && r.t1 === g.t1 && r.t2 === g.t2)
+  ));
+  check('settings: week 15 ≡ week 1', weekPairsMatch(after16, 15, 1, false));
+  check('settings: week 16 ≡ week 2', weekPairsMatch(after16, 16, 2, false));
+  check('settings: week 8 flipped vs week 1', weekPairsMatch(after16, 8, 1, true));
+
+  const { error: trimErr } = await rpc(
+    'set_league_season_settings',
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 6,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 14,
+    },
+    owner.token
+  );
+  check('settings: 16→14 trim succeeds', !trimErr, trimErr?.message);
+  const after14 = matchups(leagueId).filter((r) => !r.isPlayoff);
+  check('settings: 56 games after trim', after14.length === 56, String(after14.length));
+  check('settings: no weeks > 14', after14.every((r) => r.week <= 14));
+}
+
+// Auto-gen at RS=16
+{
+  const { error: set16 } = await rpc(
+    'set_league_season_settings',
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 4,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 16,
+    },
+    owner.token
+  );
+  check('setup RS=16 for regenerate', !set16, set16?.message);
+  const { error: gen16 } = await rpc('generate_league_schedule', { p_league_id: leagueId }, owner.token);
+  check('randomize RS=16 succeeds', !gen16, gen16?.message);
+  const regular = matchups(leagueId).filter((r) => !r.isPlayoff);
+  check('randomize RS=16: 64 games', regular.length === 64, String(regular.length));
+  check('randomize RS=16: week 15 ≡ week 1', weekPairsMatch(regular, 15, 1, false));
+  check('randomize RS=16: week 16 ≡ week 2', weekPairsMatch(regular, 16, 2, false));
+  check('randomize RS=16: week 8 flipped vs 1', weekPairsMatch(regular, 8, 1, true));
+
+  // Restore to RS=14 for bracket tests
+  await rpc(
+    'set_league_season_settings',
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 6,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 14,
+    },
+    owner.token
+  );
+  await rpc(
+    'set_league_schedule',
+    { p_league_id: leagueId, p_matchups: JSON.stringify(circleSchedule(teams, 14)) },
+    owner.token
+  );
+}
+
 psql(`UPDATE weeks SET is_locked = true WHERE league_id = '${leagueId}' AND week_number = 1;`);
 {
   const { error } = await rpc('generate_league_schedule', { p_league_id: leagueId }, owner.token);
@@ -189,29 +339,12 @@ psql(`UPDATE weeks SET is_locked = true WHERE league_id = '${leagueId}' AND week
 }
 psql(`UPDATE weeks SET is_locked = false WHERE league_id = '${leagueId}' AND week_number = 1;`);
 
-// One scored week. Winners are teams[0..3] with descending points, so seeds are teams[0]..teams[7].
-const week14 = matchups(leagueId).filter((m) => m.week === 14);
 const desired = [
   [teams[0], teams[7], 80, 10],
   [teams[1], teams[6], 70, 20],
   [teams[2], teams[5], 60, 30],
   [teams[3], teams[4], 50, 40],
 ];
-for (const [hi, lo, hs, ls] of desired) {
-  const game = week14.find((g) =>
-    (g.t1 === hi && g.t2 === lo) || (g.t1 === lo && g.t2 === hi)
-  );
-  if (!game) continue;
-  const t1Score = game.t1 === hi ? hs : ls;
-  const t2Score = game.t1 === hi ? ls : hs;
-  psql(
-    `UPDATE league_matchups SET is_complete = true, team1_score = ${t1Score}, team2_score = ${t2Score}
-     WHERE league_id = '${leagueId}' AND week = 14
-       AND fantasy_team1_id = '${game.t1}' AND fantasy_team2_id = '${game.t2}';`
-  );
-}
-
-// The real week-14 pairings may not be the desired pairs. Force the four games.
 psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}' AND week = 14;`);
 for (const [hi, lo, hs, ls] of desired) {
   psql(
@@ -234,29 +367,21 @@ function hasPair(week, a, b) {
   return pairs(week).includes(key);
 }
 
-async function freshBracket(n) {
+async function freshBracket(n, rs = 14) {
   psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}' AND is_playoff;`);
   const { error } = await rpc(
     'set_league_season_settings',
-    { p_league_id: leagueId, p_playoff_teams: n, p_standings_tiebreaker: 'record_then_points' },
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: n,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: rs,
+    },
     owner.token
   );
   if (error) return error.message;
   const { error: genErr } = await rpc('generate_playoffs', { p_league_id: leagueId }, owner.token);
   return genErr?.message || '';
-}
-
-{
-  const err = await freshBracket(8);
-  check('8-team: generate', err === '', err);
-  const games = matchups(leagueId).filter((m) => m.week === 15 && m.isPlayoff);
-  check('8-team: four quarterfinals', games.length === 4, String(games.length));
-  check('8-team: 1v8', hasPair(15, seeds[0], seeds[7]));
-  check('8-team: 2v7', hasPair(15, seeds[1], seeds[6]));
-  check('8-team: 3v6', hasPair(15, seeds[2], seeds[5]));
-  check('8-team: 4v5', hasPair(15, seeds[3], seeds[4]));
-  const ids = new Set(games.flatMap((g) => [g.t1, g.t2]));
-  check('8-team: every team plays', ids.size === 8);
 }
 
 {
@@ -282,13 +407,7 @@ async function freshBracket(n) {
   check('5-team: seed 1 has a bye', !ids.has(seeds[0]));
   check('5-team: non-qualifiers have no game', !ids.has(seeds[5]) && !ids.has(seeds[6]) && !ids.has(seeds[7]));
 
-  // 5 beats 2, 4 beats 3. Remaining: 1, 5, 4. Week 16 is 4 vs 5; seed 1 byes.
   for (const game of games) {
-    const lowWins = (game.t1 === seeds[4] || game.t2 === seeds[4] || game.t1 === seeds[3] || game.t2 === seeds[3]);
-    const winnerIsLower = game.t1 === seeds[4] || game.t1 === seeds[3];
-    const s1 = lowWins && winnerIsLower ? 10 : 1;
-    const s2 = lowWins && winnerIsLower ? 1 : 10;
-    // Prefer the worse seed (higher index) as winner when they are in the game.
     const worse = [game.t1, game.t2].sort((a, b) => seeds.indexOf(b) - seeds.indexOf(a))[0];
     const t1 = game.t1 === worse ? 9 : 3;
     const t2 = game.t2 === worse ? 9 : 3;
@@ -297,7 +416,6 @@ async function freshBracket(n) {
        WHERE league_id = '${leagueId}' AND week = 15
          AND fantasy_team1_id = '${game.t1}' AND fantasy_team2_id = '${game.t2}';`
     );
-    void s1; void s2;
   }
   const { error: advErr } = await rpc('generate_playoffs', { p_league_id: leagueId }, owner.token);
   check('5-team: advance to week 16', !advErr, advErr?.message);
@@ -320,12 +438,16 @@ async function freshBracket(n) {
 
   const { error: locked } = await rpc(
     'set_league_season_settings',
-    { p_league_id: leagueId, p_playoff_teams: 8, p_standings_tiebreaker: 'points_then_record' },
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 6,
+      p_standings_tiebreaker: 'points_then_record',
+      p_regular_season_weeks: 14,
+    },
     owner.token
   );
   check('settings lock after bracket rows exist', !!locked, locked?.message);
 
-  // Tie: seed 1 and seed 4 finish level. Better seed advances.
   const tie = games.find((g) =>
     (g.t1 === seeds[0] && g.t2 === seeds[3]) || (g.t1 === seeds[3] && g.t2 === seeds[0])
   );
@@ -348,11 +470,41 @@ async function freshBracket(n) {
   check('tied playoff game: better seed advances', champIds.has(seeds[0]) && !champIds.has(seeds[3]));
 }
 
+// RS=16 4-team: playoffs in weeks 17–18
+{
+  psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}' AND is_playoff;`);
+  // Need week 16 complete as last RS week — rebuild schedule at RS=16 then force week-16 scores
+  const { error: to16 } = await rpc(
+    'set_league_season_settings',
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 4,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 16,
+    },
+    owner.token
+  );
+  check('RS16 bracket: set RS=16', !to16, to16?.message);
+  // Append may have left weeks 15–16; ensure week 16 has scored games matching seed order
+  psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}' AND week = 16 AND COALESCE(is_playoff, false) = false;`);
+  for (const [hi, lo, hs, ls] of desired) {
+    psql(
+      `INSERT INTO league_matchups (league_id, week, fantasy_team1_id, fantasy_team2_id, is_playoff, is_complete, team1_score, team2_score)
+       VALUES ('${leagueId}', 16, '${hi}', '${lo}', false, true, ${hs}, ${ls});`
+    );
+  }
+  const { error: gen16po } = await rpc('generate_playoffs', { p_league_id: leagueId }, owner.token);
+  check('RS16 4-team: generate', !gen16po, gen16po?.message);
+  const w17 = matchups(leagueId).filter((m) => m.week === 17 && m.isPlayoff);
+  check('RS16 4-team: semis in week 17', w17.length === 2, String(w17.length));
+  check('RS16 4-team: 1v4', hasPair(17, seeds[0], seeds[3]));
+  check('RS16 4-team: 2v3', hasPair(17, seeds[1], seeds[2]));
+}
+
 // Tiebreaker flips order when wins and points disagree.
 {
   psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}' AND is_playoff;`);
   psql(`UPDATE league_matchups SET is_complete = false, team1_score = NULL, team2_score = NULL WHERE league_id = '${leagueId}';`);
-  // teams[0] beats teams[7] twice (2 wins, 10 points). teams[1] beats teams[6] once for 100.
   const weeks = [1, 2];
   for (const week of weeks) {
     psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}' AND week = ${week};`);
@@ -364,10 +516,14 @@ async function freshBracket(n) {
        ('${leagueId}', 2, '${teams[0]}', '${teams[6]}', true, 5, 0),
        ('${leagueId}', 1, '${teams[1]}', '${teams[5]}', true, 100, 0);`
   );
-  // week 1 now has two games only; standings still rank by the completed games.
   const { error } = await rpc(
     'set_league_season_settings',
-    { p_league_id: leagueId, p_playoff_teams: 4, p_standings_tiebreaker: 'record_then_points' },
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 4,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 14,
+    },
     owner.token
   );
   check('tiebreaker: can set record_then_points before a bracket', !error, error?.message);
@@ -376,7 +532,12 @@ async function freshBracket(n) {
 
   const { error: flipErr } = await rpc(
     'set_league_season_settings',
-    { p_league_id: leagueId, p_playoff_teams: 4, p_standings_tiebreaker: 'points_then_record' },
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 4,
+      p_standings_tiebreaker: 'points_then_record',
+      p_regular_season_weeks: 14,
+    },
     owner.token
   );
   check('tiebreaker: switch to points_then_record', !flipErr, flipErr?.message);

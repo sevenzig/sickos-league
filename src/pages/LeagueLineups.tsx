@@ -15,6 +15,7 @@ interface LeagueInfo {
   name: string;
   teams_started_per_week: number;
   playoff_teams?: number;
+  regular_season_weeks?: number;
 }
 
 // Self-serve weekly lineup page (Phase 3.1): the caller's own rostered NFL
@@ -258,7 +259,7 @@ const LeagueLineups: React.FC = () => {
         currentWeek={currentWeek}
         onWeekChange={setSelectedWeek}
         onGoToCurrentWeek={() => setSelectedWeek(currentWeek)}
-        maxWeek={seasonMaxWeek(league?.playoff_teams, schedule.some(m => m.is_playoff))}
+        maxWeek={seasonMaxWeek(league?.regular_season_weeks, league?.playoff_teams, schedule.some(m => m.is_playoff))}
       />
 
       {error && (

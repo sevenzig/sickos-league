@@ -33,6 +33,7 @@ const LeagueSchedule: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playoffTeams, setPlayoffTeams] = useState(4);
+  const [regularSeasonWeeks, setRegularSeasonWeeks] = useState(REGULAR_SEASON_WEEKS);
 
   const [selectedMatchup, setSelectedMatchup] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,7 +43,7 @@ const LeagueSchedule: React.FC = () => {
     [schedule]
   );
 
-  const maxWeek = seasonMaxWeek(playoffTeams, schedule.some(m => m.is_playoff));
+  const maxWeek = seasonMaxWeek(regularSeasonWeeks, playoffTeams, schedule.some(m => m.is_playoff));
 
   const currentWeek = useMemo(() => {
     const completedWeeks = schedule.filter(m => m.is_complete).map(m => m.week);
@@ -74,6 +75,7 @@ const LeagueSchedule: React.FC = () => {
           MultiLeagueApi.getLeagueDetails(fullLeagueId).catch(() => null),
         ]);
         if (details?.playoff_teams) setPlayoffTeams(details.playoff_teams);
+        if (details?.regular_season_weeks) setRegularSeasonWeeks(details.regular_season_weeks);
 
         if (nflTeamsResult.error) throw new Error(nflTeamsResult.error.message);
         const nameByUuid: Record<string, string> = {};
@@ -226,7 +228,7 @@ const LeagueSchedule: React.FC = () => {
             <Panel className="text-center text-slate-400">
               {schedule.length === 0
                 ? 'No schedule yet. The commissioner can generate it from League Admin once all 8 teams have joined, or it will be created when the draft starts.'
-                : selectedWeek > REGULAR_SEASON_WEEKS
+                : selectedWeek > regularSeasonWeeks
                   ? 'No playoff games this week. Byes and teams that missed the playoffs have no matchup.'
                   : `No matchups scheduled for Week ${selectedWeek}`}
             </Panel>

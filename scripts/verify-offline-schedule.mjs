@@ -279,5 +279,90 @@ psql(`
   check('regular season still 56 after rewrite with playoffs', regular.length === 56, String(regular.length));
 }
 
+// RS=15 offline expand: week 15 ≡ week 1
+{
+  psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}';`);
+  const { error: set15 } = await rpc(
+    'set_league_season_settings',
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 4,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 15,
+    },
+    owner.token
+  );
+  check('offline RS=15: settings', !set15, set15?.message);
+
+  const { error: save15 } = await rpc(
+    'set_league_schedule',
+    { p_league_id: leagueId, p_matchups: JSON.stringify(tmpl) },
+    owner.token
+  );
+  check('offline RS=15: save template', !save15, save15?.message);
+
+  const regular = matchups(leagueId).filter((r) => !r.isPlayoff);
+  check('offline RS=15: 60 games', regular.length === 60, String(regular.length));
+  let week15Ok = true;
+  for (const g of tmpl.filter((x) => x.week === 1)) {
+    const found = regular.some(
+      (r) => r.week === 15 && r.t1 === g.fantasy_team1_id && r.t2 === g.fantasy_team2_id
+    );
+    if (!found) week15Ok = false;
+  }
+  check('offline RS=15: week 15 ≡ week 1 (same sides)', week15Ok);
+
+  psql(`
+    INSERT INTO league_matchups (league_id, week, fantasy_team1_id, fantasy_team2_id, is_playoff)
+    VALUES ('${leagueId}', 16, '${teams[0]}', '${teams[1]}', true);
+  `);
+  const { error: rewrite15 } = await rpc(
+    'set_league_schedule',
+    { p_league_id: leagueId, p_matchups: JSON.stringify(tmpl) },
+    owner.token
+  );
+  check('offline RS=15: rewrite with playoff stub', !rewrite15, rewrite15?.message);
+  const playoffs = matchups(leagueId).filter((r) => r.isPlayoff);
+  check('offline RS=15: playoff stub untouched', playoffs.length === 1 && playoffs[0]?.week === 16);
+  check(
+    'offline RS=15: still 60 RS after rewrite',
+    matchups(leagueId).filter((r) => !r.isPlayoff).length === 60
+  );
+}
+
+// RS=16 offline expand: week 16 ≡ week 2
+{
+  psql(`DELETE FROM league_matchups WHERE league_id = '${leagueId}';`);
+  const { error: set16 } = await rpc(
+    'set_league_season_settings',
+    {
+      p_league_id: leagueId,
+      p_playoff_teams: 4,
+      p_standings_tiebreaker: 'record_then_points',
+      p_regular_season_weeks: 16,
+    },
+    owner.token
+  );
+  check('offline RS=16: settings', !set16, set16?.message);
+
+  const { error: save16 } = await rpc(
+    'set_league_schedule',
+    { p_league_id: leagueId, p_matchups: JSON.stringify(tmpl) },
+    owner.token
+  );
+  check('offline RS=16: save template', !save16, save16?.message);
+
+  const regular = matchups(leagueId).filter((r) => !r.isPlayoff);
+  check('offline RS=16: 64 games', regular.length === 64, String(regular.length));
+  let week16Ok = true;
+  for (const g of tmpl.filter((x) => x.week === 2)) {
+    const found = regular.some(
+      (r) => r.week === 16 && r.t1 === g.fantasy_team1_id && r.t2 === g.fantasy_team2_id
+    );
+    if (!found) week16Ok = false;
+  }
+  check('offline RS=16: week 16 ≡ week 2 (same sides)', week16Ok);
+}
+
 console.log(`\n${failures === 0 ? 'All checks passed' : `${failures} check(s) failed`}`);
 process.exit(failures === 0 ? 0 : 1);
