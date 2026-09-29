@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { importWeeklyCSV, getImportHistory, ImportResult } from '../services/csvImporter';
+import {
+  importWeeklyCSV,
+  getImportHistory,
+  platformFinalizeWeek,
+  ImportResult,
+} from '../services/csvImporter';
+import type { PlatformFinalizeWeekResult } from '../utils/multiLeagueApi';
 import {
   PageChrome,
   Panel,
@@ -21,11 +27,59 @@ interface ImportHistoryItem {
   importedAt: string;
 }
 
+const SEASON = 2025;
+
+function FinalizeSummary({
+  result,
+}: {
+  result: Pick<
+    ImportResult,
+    | 'matchupsFinalized'
+    | 'leaguesProcessed'
+    | 'leaguesFailed'
+    | 'autoFilled'
+    | 'leagueErrors'
+    | 'finalizeError'
+  >;
+}) {
+  return (
+    <>
+      {result.matchupsFinalized !== undefined && (
+        <p className="text-caption mt-1">
+          League matchups finalized: <strong>{result.matchupsFinalized}</strong>
+          {result.leaguesProcessed !== undefined && (
+            <> · leagues locked: <strong>{result.leaguesProcessed}</strong></>
+          )}
+          {result.autoFilled !== undefined && result.autoFilled > 0 && (
+            <> · lineups auto-filled: <strong>{result.autoFilled}</strong></>
+          )}
+        </p>
+      )}
+      {result.finalizeError && (
+        <p className="text-caption text-yellow-400 mt-1">{result.finalizeError}</p>
+      )}
+      {result.leagueErrors && result.leagueErrors.length > 0 && (
+        <ul className="list-disc list-inside mt-2 space-y-0.5 text-caption text-yellow-300">
+          {result.leagueErrors.map((e, i) => (
+            <li key={i}>
+              {e.league_id.slice(0, 8)}… — {e.error}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export default function AdminImport() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [finalizeWeek, setFinalizeWeek] = useState<number>(1);
   const [isImporting, setIsImporting] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [finalizeResult, setFinalizeResult] = useState<PlatformFinalizeWeekResult | null>(null);
+  const [finalizeError, setFinalizeError] = useState<string | null>(null);
   const [importHistory, setImportHistory] = useState<ImportHistoryItem[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
@@ -39,7 +93,9 @@ export default function AdminImport() {
         setHasLoadedHistory(true);
         if (history.length > 0) {
           const maxWeek = Math.max(...history.map((item) => item.week));
-          setSelectedWeek(Math.min(18, maxWeek + 1));
+          const next = Math.min(18, maxWeek + 1);
+          setSelectedWeek(next);
+          setFinalizeWeek(maxWeek);
           setShowHistory(true);
         }
       } catch {
@@ -62,9 +118,11 @@ export default function AdminImport() {
     if (!selectedFile) return;
     setIsImporting(true);
     setImportResult(null);
+    setFinalizeResult(null);
+    setFinalizeError(null);
     try {
       const csvData = await selectedFile.text();
-      const result = await importWeeklyCSV(csvData, selectedWeek);
+      const result = await importWeeklyCSV(csvData, selectedWeek, SEASON);
       setImportResult(result);
       if (result.success) {
         const history = await getImportHistory();
@@ -72,6 +130,7 @@ export default function AdminImport() {
         setSelectedFile(null);
         const fileInput = document.getElementById('csv-file') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
+        setFinalizeWeek(selectedWeek);
         setSelectedWeek(Math.min(18, selectedWeek + 1));
       }
     } catch (error) {
@@ -88,6 +147,20 @@ export default function AdminImport() {
     }
   };
 
+  const handleFinalize = async () => {
+    setIsFinalizing(true);
+    setFinalizeResult(null);
+    setFinalizeError(null);
+    try {
+      const result = await platformFinalizeWeek(finalizeWeek, SEASON);
+      setFinalizeResult(result);
+    } catch (error) {
+      setFinalizeError(error instanceof Error ? error.message : 'Finalize failed');
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
   const loadHistory = async () => {
     try {
       const history = await getImportHistory();
@@ -99,13 +172,17 @@ export default function AdminImport() {
     }
   };
 
-
   return (
     <div className="space-y-6">
       <PageChrome title="CSV Import" />
 
       <Panel>
-        <h2 className="text-heading text-slate-50 mb-5">Import Weekly Data</h2>
+        <h2 className="text-heading text-slate-50 mb-2">Import Weekly Data</h2>
+        <p className="text-caption text-slate-400 mb-5">
+          Uploading a CSV writes game stats and immediately locks lineups / persists
+          matchup scores for every league in season {SEASON}. Standings and the W/L/T
+          chart update from that finalize step.
+        </p>
         <div className="space-y-5">
           <div>
             <label
@@ -178,7 +255,7 @@ export default function AdminImport() {
                 Importing…
               </span>
             ) : (
-              'Import CSV'
+              'Import CSV & Finalize Week'
             )}
           </Button>
         </div>
@@ -194,16 +271,7 @@ export default function AdminImport() {
             <p className="text-caption">
               Records imported: <strong>{importResult.recordsImported}</strong>
             </p>
-            {importResult.matchupsFinalized !== undefined && (
-              <p className="text-caption mt-1">
-                League matchups finalized: {importResult.matchupsFinalized}
-              </p>
-            )}
-            {importResult.finalizeError && (
-              <p className="text-caption text-yellow-400 mt-1">
-                Matchup finalization failed: {importResult.finalizeError}
-              </p>
-            )}
+            <FinalizeSummary result={importResult} />
             {importResult.errors.length > 0 && (
               <ul className="list-disc list-inside mt-2 space-y-0.5 text-caption">
                 {importResult.errors.map((err, i) => (
@@ -211,6 +279,64 @@ export default function AdminImport() {
                 ))}
               </ul>
             )}
+          </Alert>
+        )}
+      </Panel>
+
+      <Panel>
+        <h2 className="text-heading text-slate-50 mb-2">Finalize Week</h2>
+        <p className="text-caption text-slate-400 mb-5">
+          Re-run lock + score persist for a week that already has CSV data (e.g. after
+          a prior import that did not finalize, or after fixing lineups). Idempotent.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <div className="flex-1">
+            <label
+              htmlFor="finalize-week-select"
+              className="block text-caption font-bold text-slate-400 uppercase tracking-wider mb-2"
+            >
+              Week
+            </label>
+            <select
+              id="finalize-week-select"
+              value={finalizeWeek}
+              onChange={(e) => setFinalizeWeek(parseInt(e.target.value))}
+              className="flex h-11 w-full rounded-md border border-slate-700 bg-slate-900/80 px-3 py-2 text-label text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
+              {Array.from({ length: 18 }, (_, i) => i + 1).map((week) => (
+                <option key={week} value={week} className="bg-slate-800">
+                  Week {week}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button onClick={handleFinalize} disabled={isFinalizing || isImporting}>
+            {isFinalizing ? 'Finalizing…' : `Finalize Week ${finalizeWeek}`}
+          </Button>
+        </div>
+
+        {finalizeError && (
+          <Alert variant="error" className="mt-5">
+            <p className="font-bold mb-1">Finalize Failed</p>
+            <p className="text-caption">{finalizeError}</p>
+          </Alert>
+        )}
+        {finalizeResult && !finalizeError && (
+          <Alert variant="success" className="mt-5">
+            <p className="font-bold mb-1">Week {finalizeResult.week} Finalized</p>
+            <FinalizeSummary
+              result={{
+                matchupsFinalized: finalizeResult.matchups_finalized,
+                leaguesProcessed: finalizeResult.leagues_processed,
+                leaguesFailed: finalizeResult.leagues_failed,
+                autoFilled: finalizeResult.auto_filled,
+                leagueErrors: finalizeResult.league_errors,
+                finalizeError:
+                  finalizeResult.leagues_failed > 0
+                    ? `${finalizeResult.leagues_failed} league(s) failed to lock lineups`
+                    : undefined,
+              }}
+            />
           </Alert>
         )}
       </Panel>

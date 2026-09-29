@@ -40,6 +40,7 @@ const RPC_ALLOWLIST = new Set([
   'toggle_week_lock',
   'get_week_status',
   'finalize_week_scores',
+  'platform_finalize_week',
   'get_user_profile_with_teams',
   'update_user_profile',
   'update_fantasy_team_name',

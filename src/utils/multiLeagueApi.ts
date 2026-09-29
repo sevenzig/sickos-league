@@ -87,6 +87,16 @@ export interface LeagueRosterEntry extends RosterEntry {
   fantasy_team_name: string
 }
 
+export interface PlatformFinalizeWeekResult {
+  week: number
+  season: number
+  leagues_processed: number
+  leagues_failed: number
+  auto_filled: number
+  matchups_finalized: number
+  league_errors: { league_id: string; error: string }[]
+}
+
 export interface DraftPick {
   pick_number: number
   round: number
@@ -537,6 +547,7 @@ export class MultiLeagueApi {
 
   // Persist matchup scores for a week across ALL leagues (Phase 4).
   // Idempotent; returns the number of matchups finalized.
+  // Prefer platformFinalizeWeek after CSV import (locks lineups first).
   static async finalizeWeekScores(week: number, season: number = 2025): Promise<number> {
     const { data, error } = await db.rpc('finalize_week_scores', {
       p_week: week,
@@ -545,6 +556,28 @@ export class MultiLeagueApi {
 
     if (error) throw new Error(error.message)
     return data ?? 0
+  }
+
+  /** Platform admin: lock all leagues for the week (auto-fill empties), then persist scores. */
+  static async platformFinalizeWeek(
+    week: number,
+    season: number = 2025
+  ): Promise<PlatformFinalizeWeekResult> {
+    const { data, error } = await db.rpc('platform_finalize_week', {
+      p_week: week,
+      p_season: season,
+    })
+
+    if (error) throw new Error(error.message)
+    return (data ?? {
+      week,
+      season,
+      leagues_processed: 0,
+      leagues_failed: 0,
+      auto_filled: 0,
+      matchups_finalized: 0,
+      league_errors: [],
+    }) as PlatformFinalizeWeekResult
   }
 
   static async setFantasyLineup(

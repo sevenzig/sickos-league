@@ -511,12 +511,13 @@ check('AC5: v_league_standings readable', !stErr && standings?.length === 8, stE
 console.log(`
 === Ops checklist (human season loop) ===
 1. Thursday: remind managers to set lineups (email when A4 live; manual until then).
-2. Lineup deadline: managers set+lock via League Lineups; opponents hidden until week lock.
-3. Finalize Week: commissioner opens Admin → Weekly Lineups → Finalize Week
-   (auto-starts empty lineups from lowest draft picks, locks week).
-4. Sunday/Monday: platform admin uploads week CSV at /admin/import
+2. Lineup deadline: managers save via League Lineups; opponents hidden until week lock.
+   Optional: commissioner Finalize Week earlier to lock/reveal before scores.
+3. Sunday/Monday: platform admin uploads week CSV at /admin/import
    (grant: UPDATE auth.users SET is_platform_admin = true; re-login).
-5. Confirm: LeagueView scores, Standings, WLT chart, matchup modal; re-finalize is safe.
+   Import runs platform_finalize_week (lock all leagues + persist scores).
+   Or use Admin → Finalize Week if stats already imported.
+4. Confirm: LeagueView scores, Standings, WLT chart, matchup modal; re-finalize is safe.
 Dry-run league: ${leagueId}
 `);
 check('AC7: ops checklist emitted for human runner', true);

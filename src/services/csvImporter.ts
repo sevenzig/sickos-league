@@ -1,5 +1,6 @@
 import { db } from '../utils/db'
 import { parseWeeklyCSV } from '../utils/csvParser'
+import type { PlatformFinalizeWeekResult } from '../utils/multiLeagueApi'
 
 export interface ImportResult {
   success: boolean
@@ -7,7 +8,33 @@ export interface ImportResult {
   errors: string[]
   week: number
   matchupsFinalized?: number
+  leaguesProcessed?: number
+  leaguesFailed?: number
+  autoFilled?: number
+  leagueErrors?: { league_id: string; error: string }[]
   finalizeError?: string
+}
+
+export async function platformFinalizeWeek(
+  week: number,
+  season: number = 2025
+): Promise<PlatformFinalizeWeekResult> {
+  const { data, error } = await db.rpc('platform_finalize_week', {
+    p_week: week,
+    p_season: season,
+  })
+
+  if (error) throw new Error(error.message)
+
+  return (data ?? {
+    week,
+    season,
+    leagues_processed: 0,
+    leagues_failed: 0,
+    auto_filled: 0,
+    matchups_finalized: 0,
+    league_errors: [],
+  }) as PlatformFinalizeWeekResult
 }
 
 export async function importWeeklyCSV(csvData: string, week: number, season: number = 2025): Promise<ImportResult> {
@@ -97,24 +124,29 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
     result.success = true
     result.recordsImported = insertedData?.length || 0
 
-    // Persist matchup scores across ALL multi-league leagues with this week
-    // locked (one site-wide upload serves every league). Non-fatal on error.
+    // Lock lineups + weeks across all leagues, then persist matchup scores.
+    // One site-wide upload closes scoring for every league (idempotent).
     try {
-      const { data: finalized, error: finalizeError } = await db.rpc('finalize_week_scores', {
-        p_week: week,
-        p_season: season
-      })
-
-      if (finalizeError) {
-        result.finalizeError = finalizeError.message
-        console.error('❌ finalize_week_scores failed:', finalizeError.message)
-      } else {
-        result.matchupsFinalized = finalized ?? 0
-        console.log(`✅ Finalized ${result.matchupsFinalized} league matchup(s) for week ${week}`)
+      const finalized = await platformFinalizeWeek(week, season)
+      result.matchupsFinalized = finalized.matchups_finalized
+      result.leaguesProcessed = finalized.leagues_processed
+      result.leaguesFailed = finalized.leagues_failed
+      result.autoFilled = finalized.auto_filled
+      result.leagueErrors = finalized.league_errors
+      console.log(
+        `✅ platform_finalize_week week ${week}: ` +
+          `${finalized.matchups_finalized} matchup(s), ` +
+          `${finalized.leagues_processed} league(s), ` +
+          `${finalized.auto_filled} auto-filled`
+      )
+      if (finalized.leagues_failed > 0) {
+        result.finalizeError =
+          `${finalized.leagues_failed} league(s) failed to lock lineups; ` +
+          `${finalized.matchups_finalized} matchup(s) still finalized`
       }
     } catch (error) {
       result.finalizeError = error instanceof Error ? error.message : 'Unknown error'
-      console.error('❌ finalize_week_scores failed:', error)
+      console.error('❌ platform_finalize_week failed:', error)
     }
 
     return result

@@ -43,6 +43,7 @@ Notes:
 | lock_fantasy_lineup | disabled (raises; voluntary lock removed) | - | disabled | - |
 | finalize_week_lineups / set_week_lock / toggle_week_lock | - | - | W | -† |
 | finalize_week_scores | - | - | - | W |
+| platform_finalize_week | - | - | - | W |
 | remove_league_member / transfer_commissioner / delete_league | - | - | W | -† |
 | update_user_profile | W (self) | W (self) | W (self) | W (self) |
 | update_fantasy_team_name | W (manager) | - | W | -† |
