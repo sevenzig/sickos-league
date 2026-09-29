@@ -15,7 +15,7 @@
 import { execSync } from 'node:child_process';
 
 const API = process.env.API_URL || 'http://localhost:3001/api';
-const SEASON = 2025;
+const SEASON = 2026;
 
 let failures = 0;
 function check(name, ok, detail = '') {

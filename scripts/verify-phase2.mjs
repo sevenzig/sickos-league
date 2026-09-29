@@ -69,7 +69,7 @@ const { data: leagueId, error: leagueErr } = await rpc(
   'create_league',
   {
     league_name: `Draft Verify ${Date.now()}`,
-    season: 2025,
+    season: 2026,
     teams_started_per_week: 2,
     owner_team_name: 'Owner Team',
   },
@@ -387,7 +387,7 @@ const draftOrder = [
     'create_league',
     {
       league_name: `Linear Draft Verify ${Date.now()}`,
-      season: 2025,
+      season: 2026,
       teams_started_per_week: 2,
       owner_team_name: 'Linear Owner',
       p_draft_format: 'linear',

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MultiLeagueApi, League } from '../utils/multiLeagueApi';
 import { getLeagueUrl } from '../utils/urlUtils';
 import { Panel, Badge, Button } from '@/components/ui';
+import { CURRENT_SEASON } from '../utils/currentSeason';
 
 const LeagueCard: React.FC<{ league: League }> = ({ league }) => (
   <Link
@@ -126,6 +127,7 @@ const MyLeagues: React.FC = () => {
   const [leagues, setLeagues] = useState<League[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPastSeasons, setShowPastSeasons] = useState(false);
 
   useEffect(() => {
     loadLeagues();
@@ -166,22 +168,46 @@ const MyLeagues: React.FC = () => {
     );
   }
 
-  const commissioned = leagues.filter((l) => l.user_role === 'owner');
-  const participating = leagues.filter((l) => l.user_role !== 'owner');
+  const visibleLeagues = useMemo(() => {
+    if (showPastSeasons) return leagues;
+    return leagues.filter((l) => l.season === CURRENT_SEASON);
+  }, [leagues, showPastSeasons]);
+
+  const pastCount = useMemo(
+    () => leagues.filter((l) => l.season < CURRENT_SEASON).length,
+    [leagues]
+  );
+
+  const commissioned = visibleLeagues.filter((l) => l.user_role === 'owner');
+  const participating = visibleLeagues.filter((l) => l.user_role !== 'owner');
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-display text-slate-50">My Leagues</h1>
           <p className="text-body text-slate-400 mt-1">
-            Manage your Bad QB League memberships
+            {CURRENT_SEASON} season leagues
+            {pastCount > 0 && !showPastSeasons && (
+              <> · {pastCount} past season{pastCount === 1 ? '' : 's'} hidden</>
+            )}
           </p>
         </div>
-        <Button asChild>
-          <Link to="/leagues/new">Create League</Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          {pastCount > 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowPastSeasons((v) => !v)}
+            >
+              {showPastSeasons ? 'Hide past seasons' : 'Past seasons'}
+            </Button>
+          )}
+          <Button asChild>
+            <Link to="/leagues/new">Create League</Link>
+          </Button>
+        </div>
       </div>
 
       {leagues.length === 0 ? (
@@ -212,6 +238,24 @@ const MyLeagues: React.FC = () => {
             </Button>
           </div>
         </div>
+      ) : visibleLeagues.length === 0 ? (
+        <Panel>
+          <p className="text-body text-slate-400">
+            No {CURRENT_SEASON} leagues yet.
+            {pastCount > 0 && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="text-blue-400 hover:underline"
+                  onClick={() => setShowPastSeasons(true)}
+                >
+                  Show past seasons
+                </button>
+              </>
+            )}
+          </p>
+        </Panel>
       ) : (
         <div className="space-y-10">
           <LeagueSection title="Leagues You Commission" leagues={commissioned} />

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { MultiLeagueApi } from '../../utils/multiLeagueApi';
 import { getDevLeagueUrl } from '../../utils/urlUtils';
+import { CURRENT_SEASON } from '../../utils/currentSeason';
 
 type Mode = 'async' | 'live';
 type Step = string;
@@ -34,7 +35,7 @@ const FeatDraftSandbox: React.FC = () => {
       // Live: draft_at in the past so lobby is open; sandbox starts immediately after bots.
       const draftAt = mode === 'live' ? new Date(Date.now() - 5_000).toISOString() : null;
 
-      const leagueId = await MultiLeagueApi.createLeague(name, 2025, 1, {
+      const leagueId = await MultiLeagueApi.createLeague(name, CURRENT_SEASON, 1, {
         ownerTeamName: 'You',
         draftMode: mode,
         draftAt,

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLeagueData } from '../context/LeagueContext';
 import { PageChrome, Panel, Button, Badge } from '../components/ui';
+import { CURRENT_SEASON } from '../utils/currentSeason';
 
 const AdminDashboard: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -148,7 +149,7 @@ const AdminDashboard: React.FC = () => {
                   League
                 </h3>
                 <div className="space-y-1 text-slate-300">
-                  <div>Season: 2025</div>
+                  <div>Season: {CURRENT_SEASON}</div>
                   <div>Current Week: {currentWeek}</div>
                   <div>Total Teams: {totalTeams}</div>
                 </div>

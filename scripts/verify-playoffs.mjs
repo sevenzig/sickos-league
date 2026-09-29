@@ -126,7 +126,7 @@ const { data: leagueId, error: leagueErr } = await rpc(
   'create_league',
   {
     league_name: `Playoff Verify ${Date.now()}`,
-    season: 2025,
+    season: 2026,
     teams_started_per_week: 1,
     owner_team_name: 'Owner Team',
     p_draft_mode: 'async',
@@ -143,7 +143,7 @@ check('setup: create league', !leagueErr && !!leagueId, leagueErr?.message);
     'create_league',
     {
       league_name: `Bad RS16 ${Date.now()}`,
-      season: 2025,
+      season: 2026,
       teams_started_per_week: 1,
       owner_team_name: 'Owner Team',
       p_draft_mode: 'async',
@@ -164,7 +164,7 @@ check('setup: create league', !leagueErr && !!leagueId, leagueErr?.message);
     'create_league',
     {
       league_name: `Bad Field8 ${Date.now()}`,
-      season: 2025,
+      season: 2026,
       teams_started_per_week: 1,
       owner_team_name: 'Owner Team',
       p_draft_mode: 'async',

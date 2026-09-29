@@ -4,6 +4,7 @@
 import { db } from './db'
 import { uploadPhoto, deletePhoto, uploadTeamPhoto, photoUrl, apiFetch } from './apiClient'
 import { generateLeagueId, isLeagueId, isValidLeagueId, isValidUUID, isShortId, isValidShortId } from './urlUtils'
+import { CURRENT_SEASON } from './currentSeason'
 
 // Types for proper multi-league system
 export interface League {
@@ -41,6 +42,7 @@ export interface Invitation {
   code: string
   league_id: string
   league_name: string
+  season?: number
   team_name?: string
   expires_at: string
   is_valid: boolean
@@ -238,7 +240,7 @@ export class MultiLeagueApi {
   // Create a new league
   static async createLeague(
     name: string,
-    season: number = 2025,
+    season: number = CURRENT_SEASON,
     teamsStartedPerWeek: number = 1,
     options?: CreateLeagueOptions | string
   ): Promise<string> {
@@ -387,6 +389,7 @@ export class MultiLeagueApi {
       code: json.code,
       league_id: json.league_id,
       league_name: json.league_name,
+      season: json.season != null ? Number(json.season) : undefined,
       expires_at: json.expires_at,
       is_valid: json.is_valid === true,
     };
@@ -548,7 +551,7 @@ export class MultiLeagueApi {
   // Persist matchup scores for a week across ALL leagues (Phase 4).
   // Idempotent; returns the number of matchups finalized.
   // Prefer platformFinalizeWeek after CSV import (locks lineups first).
-  static async finalizeWeekScores(week: number, season: number = 2025): Promise<number> {
+  static async finalizeWeekScores(week: number, season: number = CURRENT_SEASON): Promise<number> {
     const { data, error } = await db.rpc('finalize_week_scores', {
       p_week: week,
       p_season: season,
@@ -561,7 +564,7 @@ export class MultiLeagueApi {
   /** Platform admin: lock all leagues for the week (auto-fill empties), then persist scores. */
   static async platformFinalizeWeek(
     week: number,
-    season: number = 2025
+    season: number = CURRENT_SEASON
   ): Promise<PlatformFinalizeWeekResult> {
     const { data, error } = await db.rpc('platform_finalize_week', {
       p_week: week,

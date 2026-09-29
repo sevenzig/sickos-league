@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const API = process.env.API_URL || 'http://localhost:3001/api';
-const SEASON = 2025;
+const SEASON = 2026;
 const WEEK = 1;
 
 let failures = 0;

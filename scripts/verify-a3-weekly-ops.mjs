@@ -14,14 +14,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const API = process.env.API_URL || 'http://localhost:3001/api';
-const SEASON = 2025;
+const SEASON = 2026;
 const WEEK = 1;
 const repoRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const FIXTURE = path.join(
-  repoRoot,
-  'weekly-scoring-data',
-  'BQBL 2025 WEEK 01.xlsx - fdata_week01.csv'
-);
+const FIXTURE = path.join(repoRoot, 'scoring', '2026', 'BQBL-2026_WEEK-01.csv');
 
 let failures = 0;
 function check(name, ok, detail = '') {

@@ -69,7 +69,7 @@ const { data: leagueId, error: leagueErr } = await rpc(
   'create_league',
   {
     league_name: `Phase3 ${stamp}`,
-    season: 2025,
+    season: 2026,
     teams_started_per_week: 2,
     owner_team_name: 'Owner Team',
   },

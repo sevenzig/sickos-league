@@ -10,6 +10,7 @@ import { photosRouter, PHOTOS_DIR } from './photos.js';
 import { leagueJoinRouter } from './leagueJoin.js';
 import { invitesRouter } from './invites.js';
 import { startEmailWorkers } from './email.js';
+import { startNflKickoffSync } from './nflKickoffs.js';
 
 const PORT = Number(process.env.PORT || 3001);
 
@@ -77,6 +78,7 @@ async function main() {
   });
 
   startEmailWorkers();
+  startNflKickoffSync();
   app.listen(PORT, () => console.log(`API listening on :${PORT}`));
 }
 

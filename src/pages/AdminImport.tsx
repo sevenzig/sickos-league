@@ -6,6 +6,7 @@ import {
   ImportResult,
 } from '../services/csvImporter';
 import type { PlatformFinalizeWeekResult } from '../utils/multiLeagueApi';
+import { CURRENT_SEASON } from '../utils/currentSeason';
 import {
   PageChrome,
   Panel,
@@ -26,8 +27,6 @@ interface ImportHistoryItem {
   recordsCount: number;
   importedAt: string;
 }
-
-const SEASON = 2025;
 
 function FinalizeSummary({
   result,
@@ -74,6 +73,7 @@ function FinalizeSummary({
 export default function AdminImport() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [selectedSeason, setSelectedSeason] = useState<number>(CURRENT_SEASON);
   const [finalizeWeek, setFinalizeWeek] = useState<number>(1);
   const [isImporting, setIsImporting] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
@@ -122,7 +122,7 @@ export default function AdminImport() {
     setFinalizeError(null);
     try {
       const csvData = await selectedFile.text();
-      const result = await importWeeklyCSV(csvData, selectedWeek, SEASON);
+      const result = await importWeeklyCSV(csvData, selectedWeek, selectedSeason);
       setImportResult(result);
       if (result.success) {
         const history = await getImportHistory();
@@ -152,7 +152,7 @@ export default function AdminImport() {
     setFinalizeResult(null);
     setFinalizeError(null);
     try {
-      const result = await platformFinalizeWeek(finalizeWeek, SEASON);
+      const result = await platformFinalizeWeek(finalizeWeek, selectedSeason);
       setFinalizeResult(result);
     } catch (error) {
       setFinalizeError(error instanceof Error ? error.message : 'Finalize failed');
@@ -180,10 +180,29 @@ export default function AdminImport() {
         <h2 className="text-heading text-slate-50 mb-2">Import Weekly Data</h2>
         <p className="text-caption text-slate-400 mb-5">
           Uploading a CSV writes game stats and immediately locks lineups / persists
-          matchup scores for every league in season {SEASON}. Standings and the W/L/T
-          chart update from that finalize step.
+          matchup scores for every league in the selected season. CSV SeasonID must
+          match the season below or import aborts. Standings and the W/L/T chart
+          update from that finalize step.
         </p>
         <div className="space-y-5">
+          <div>
+            <label
+              htmlFor="season-input"
+              className="block text-caption font-bold text-slate-400 uppercase tracking-wider mb-2"
+            >
+              Season
+            </label>
+            <input
+              id="season-input"
+              type="number"
+              min={2020}
+              max={2100}
+              value={selectedSeason}
+              onChange={(e) => setSelectedSeason(parseInt(e.target.value, 10) || CURRENT_SEASON)}
+              className="flex h-11 w-full rounded-md border border-slate-700 bg-slate-900/80 px-3 py-2 text-label text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+
           <div>
             <label
               htmlFor="week-select"

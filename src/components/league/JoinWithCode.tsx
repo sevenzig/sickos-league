@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { MultiLeagueApi, type Invitation } from '../../utils/multiLeagueApi';
 import { getLeagueUrl } from '../../utils/urlUtils';
 import { Panel, Input, Button } from '@/components/ui';
+import { isArchivedSeason } from '../../utils/isArchivedSeason';
 
 interface JoinWithCodeProps {
   initialCode?: string;
@@ -39,6 +40,11 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
         }
         if (!validInvitation.is_valid) {
           setError('This invite code is no longer valid (expired, draft started, or league full)');
+          setStep('code');
+          return;
+        }
+        if (validInvitation.season != null && isArchivedSeason(validInvitation.season)) {
+          setError('This league is from an archived season and is no longer accepting new managers.');
           setStep('code');
           return;
         }
@@ -95,6 +101,11 @@ const JoinWithCode: React.FC<JoinWithCodeProps> = ({ initialCode = '' }) => {
 
   const handleJoinLeague = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (invitation?.season != null && isArchivedSeason(invitation.season)) {
+      setError('This league is from an archived season and is no longer accepting new managers.');
+      return;
+    }
 
     if (!teamName.trim()) {
       setError('Please enter a team name');

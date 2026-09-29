@@ -60,15 +60,30 @@ Then sign out/in so the JWT picks up the flag.
 
 ## Weekly season loop (checklist)
 
-1. **Wednesday ~9pm America/New_York** — platform admin: ESPN kickoff sync for weeks `N`, `N+1`, `N+2` (`node scripts/sync-nfl-kickoffs-espn.mjs --year YYYY --weeks N,N+1,N+2`). Season start: `--all-season` (weeks 1–18). Confirm the current week is seeded before TNF; bye pills appear only after seed.
+1. **NFL kickoffs (automatic on API)** — API boots seed `matchups.game_time` from ESPN (full weeks 1–18 if the table is empty; otherwise current week `N..N+2`). Wednesday **21:00 America/New_York** re-syncs `N..N+2`. Needs a platform-admin user (`is_platform_admin`). Disable with `NFL_KICKOFF_SYNC=0`; season year via `NFL_SEASON_YEAR` (default 2026). Manual fallback still works: `node scripts/sync-nfl-kickoffs-espn.mjs --year 2026 --weeks N,N+1,N+2` (or `--all-season`). Bye pills appear only after a week is seeded.
 2. **Thursday** — remind managers to set lineups (email when Resend is live; manual until then).
 3. **Lineup deadline** — managers save lineups via League Lineups; per-team freeze at NFL kickoff; saved starters are visible to league members on Home / Schedule / Lineups. Bye-week teams cannot be started. (Optional: commissioner **Finalize Week** in League Admin earlier in the week to lock lineups before scores land.)
-4. **Sunday/Monday** — platform admin uploads the week CSV at `/admin/import` (requires platform-admin grant above). Import writes `game_stats` and runs `platform_finalize_week`: auto-fills empty lineups, locks every league’s week, persists matchup scores (`is_complete`). Standings + W/L/T update from that step. Re-run with **Finalize Week** on the same page if a prior upload only wrote stats.
+4. **Sunday/Monday** — platform admin uploads the week CSV from `scoring/2026/BQBL-2026_WEEK-NN.csv` at `/admin/import` (requires platform-admin grant above). Season defaults to **2026**; CSV `SeasonID` must match or import aborts. Import writes `game_stats` and runs `platform_finalize_week`: auto-fills empty lineups, locks every league’s week, persists matchup scores (`is_complete`). Standings + W/L/T update from that step. Re-run with **Finalize Week** on the same page if a prior upload only wrote stats.
 5. **Confirm** — LeagueView scores, standings, WLT chart, matchup modal; re-running finalize is safe (idempotent).
 
 Dry-run verifier (compose up): `node scripts/verify-a3-weekly-ops.mjs`  
+Season cutover checks: `node scripts/verify-season-cutover.mjs`  
 Kickoff freeze / bye locks: `node scripts/verify-nfl-kickoff-locks.mjs`  
 Offline manual schedule (7-week template / mid-season rewrite): `node scripts/verify-offline-schedule.mjs`
+
+## Season year cutover (2025 test → 2026 beta)
+
+Platform current season is `CURRENT_SEASON = 2026` in `src/utils/currentSeason.ts`. Bump once per calendar year.
+
+**Prod data align** (human-gated; run inspect SQL on prod first):
+
+1. Short window — no overlapping CSV import / finalize.
+2. `UPDATE leagues SET season = 2026 WHERE id IN (/* keep ids from inspect */);`
+3. If stats were imported as 2025: `UPDATE game_stats SET season = 2026 WHERE season = 2025 AND week IN (…);` or re-import from `scoring/2026/` and finalize each week.
+4. Smoke League home WLT; kickoff sync `--year 2026`.
+5. After smoke: purge orphan `season = 2025` leagues/stats only.
+
+Template SQL (dry-run comments): `scripts/cutover-season-2026.sql`
 
 ## Live draft ticker
 

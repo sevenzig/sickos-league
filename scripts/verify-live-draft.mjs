@@ -172,7 +172,7 @@ const { data: leagueId, error: leagueErr } = await rpc(
   'create_league',
   {
     league_name: `Live Draft Verify ${Date.now()}`,
-    season: 2025,
+    season: 2026,
     teams_started_per_week: 1,
     owner_team_name: 'Owner Team',
     p_draft_mode: 'live',
@@ -345,7 +345,7 @@ const { data: asyncLeagueId, error: asyncLeagueErr } = await rpc(
   'create_league',
   {
     league_name: `Async Draft Verify ${Date.now()}`,
-    season: 2025,
+    season: 2026,
     teams_started_per_week: 1,
     owner_team_name: 'Owner Team',
     // p_draft_mode omitted -> defaults to 'async'

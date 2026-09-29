@@ -20,6 +20,7 @@ invitesRouter.get('/:code', async (req, res) => {
       `SELECT
          l.id AS league_id,
          l.name AS league_name,
+         l.season,
          l.join_code AS code,
          l.join_code_expires_at AS expires_at,
          l.draft_status,
@@ -46,6 +47,7 @@ invitesRouter.get('/:code', async (req, res) => {
       code: row.code,
       league_id: row.league_id,
       league_name: row.league_name,
+      season: row.season,
       expires_at: row.expires_at,
       is_valid: isValid,
     });

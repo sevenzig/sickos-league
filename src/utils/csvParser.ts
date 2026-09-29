@@ -77,11 +77,13 @@ export const teamNameMap: { [key: string]: string } = {
 
 export interface WeeklyScoringData {
   week: number;
+  season: number;
   qbPerformances: QBPerformance[];
 }
 
 /**
- * Parse CSV data for a specific week
+ * Parse CSV data for a specific week.
+ * SeasonID column is required and must be consistent across all data rows.
  */
 export function parseWeeklyCSV(csvData: string, week: number): WeeklyScoringData {
   const lines = csvData.trim().split('\n');
@@ -89,6 +91,7 @@ export function parseWeeklyCSV(csvData: string, week: number): WeeklyScoringData
   
   // Find column indices
   const teamIndex = headers.indexOf('TeamID');
+  const seasonIndex = headers.indexOf('SeasonID');
   const passCompletionsIndex = headers.indexOf('PComp');
   const passAttemptsIndex = headers.indexOf('PAtt');
   const passYardsIndex = headers.indexOf('PYds');
@@ -117,13 +120,30 @@ export function parseWeeklyCSV(csvData: string, week: number): WeeklyScoringData
   const completionScoreIndex = headers.indexOf('ZPComp');
   const turnoverScoreIndex = headers.indexOf('ZTTos');
   const eventScoreIndex = headers.indexOf('ZFinal');
+
+  if (seasonIndex < 0) {
+    throw new Error('CSV missing required SeasonID column');
+  }
   
   const qbPerformances: QBPerformance[] = [];
+  let parsedSeason: number | null = null;
   
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',');
     if (values.length < headers.length) continue;
     
+    const rowSeason = parseInt(values[seasonIndex], 10);
+    if (!Number.isFinite(rowSeason)) {
+      throw new Error(`Invalid SeasonID on CSV row ${i + 1}`);
+    }
+    if (parsedSeason === null) {
+      parsedSeason = rowSeason;
+    } else if (rowSeason !== parsedSeason) {
+      throw new Error(
+        `Inconsistent SeasonID in CSV: row ${i + 1} has ${rowSeason}, expected ${parsedSeason}`
+      );
+    }
+
     const team = values[teamIndex];
     const passCompletions = parseInt(values[passCompletionsIndex]) || 0;
     const passAttempts = parseInt(values[passAttemptsIndex]) || 0;
@@ -205,9 +225,14 @@ export function parseWeeklyCSV(csvData: string, week: number): WeeklyScoringData
       eventScore
     });
   }
+
+  if (parsedSeason === null) {
+    throw new Error('No data rows with SeasonID found in CSV');
+  }
   
   return {
     week,
+    season: parsedSeason,
     qbPerformances
   };
 }

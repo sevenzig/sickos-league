@@ -9,10 +9,13 @@ import LeagueHeader from '../components/league/LeagueHeader';
 import { Panel, Button } from '@/components/ui';
 import { seasonMaxWeek } from '../utils/season';
 import { getTeamAbbr } from '../utils/teamLogos';
+import { isArchivedSeason } from '../utils/isArchivedSeason';
+import ArchivedSeasonBanner from '../components/league/ArchivedSeasonBanner';
 
 interface LeagueInfo {
   id: string;
   name: string;
+  season: number;
   teams_started_per_week: number;
   playoff_teams?: number;
   regular_season_weeks?: number;
@@ -155,10 +158,11 @@ const LeagueLineups: React.FC = () => {
   }, [selectedWeek, loadWeek]);
 
   const startersNeeded = league?.teams_started_per_week ?? 1;
+  const archivedSeason = league ? isArchivedSeason(league.season) : false;
   const hasGameThisWeek = schedule.length === 0 || !myTeam || schedule.some(
     m => m.week === selectedWeek && (m.fantasy_team1_id === myTeam.id || m.fantasy_team2_id === myTeam.id)
   );
-  const canEdit = hasGameThisWeek && !weekLocked;
+  const canEdit = hasGameThisWeek && !weekLocked && !archivedSeason;
   const isComplete = selectedTeams.length === startersNeeded;
 
   const isBye = useCallback(
@@ -254,6 +258,8 @@ const LeagueLineups: React.FC = () => {
     <div className="space-y-8">
       <LeagueHeader leagueId={leagueId!} active="lineups" />
 
+      {archivedSeason && <ArchivedSeasonBanner />}
+
       <WeekNavigation
         selectedWeek={selectedWeek}
         currentWeek={currentWeek}
@@ -312,7 +318,7 @@ const LeagueLineups: React.FC = () => {
                 variant="primary"
                 size="sm"
                 onClick={saveLineup}
-                disabled={!isComplete || saving}
+                disabled={!isComplete || saving || archivedSeason}
               >
                 {saving ? 'Saving...' : 'Save Lineup'}
               </Button>

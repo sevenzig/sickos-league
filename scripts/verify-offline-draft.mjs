@@ -122,7 +122,7 @@ const { data: leagueId, error: leagueErr } = await rpc(
   'create_league',
   {
     league_name: `Offline Draft Verify ${Date.now()}`,
-    season: 2025,
+    season: 2026,
     teams_started_per_week: 1,
     owner_team_name: 'Owner Team',
     p_draft_mode: 'offline',
@@ -320,7 +320,7 @@ const asJson = (picks) => JSON.stringify(picks);
     'create_league',
     {
       league_name: `Offline Linear ${Date.now()}`,
-      season: 2025,
+      season: 2026,
       teams_started_per_week: 1,
       owner_team_name: 'Linear Owner',
       p_draft_mode: 'offline',

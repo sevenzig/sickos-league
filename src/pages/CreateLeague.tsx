@@ -14,6 +14,7 @@ import DraftSetupFields, {
 } from '../components/league/DraftSetupFields';
 import { Panel, Button, Select } from '@/components/ui';
 import { playoffEndWeek, type PlayoffTeams, type RegularSeasonWeeks } from '../utils/season';
+import { CURRENT_SEASON } from '../utils/currentSeason';
 
 const CreateLeague: React.FC = () => {
   const navigate = useNavigate();
@@ -80,7 +81,7 @@ const CreateLeague: React.FC = () => {
 
       const leagueId = await MultiLeagueApi.createLeague(
         leagueName.trim(),
-        2025,
+        CURRENT_SEASON,
         teamsPerWeek,
         {
           draftMode,

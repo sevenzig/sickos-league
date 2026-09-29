@@ -13,6 +13,7 @@ import StandingsTable from '../components/league/StandingsTable';
 import SeasonWLTChart from '../components/tables/SeasonWLTChart';
 import { Panel } from '@/components/ui';
 import { REGULAR_SEASON_WEEKS, seasonMaxWeek } from '../utils/season';
+import { CURRENT_SEASON } from '../utils/currentSeason';
 
 interface LineupRow {
   fantasy_team_id: string;
@@ -45,6 +46,7 @@ const LeagueView: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [playoffTeams, setPlayoffTeams] = useState<number>(4);
   const [regularSeasonWeeks, setRegularSeasonWeeks] = useState(REGULAR_SEASON_WEEKS);
+  const [leagueSeason, setLeagueSeason] = useState<number>(CURRENT_SEASON);
 
   // A week is locked when its weeks row is locked (surfaced per matchup by get_league_schedule)
   const isWeekLocked = useCallback(
@@ -97,6 +99,7 @@ const LeagueView: React.FC = () => {
         ]);
         if (details?.playoff_teams) setPlayoffTeams(details.playoff_teams);
         if (details?.regular_season_weeks) setRegularSeasonWeeks(details.regular_season_weeks);
+        if (details?.season) setLeagueSeason(details.season);
 
         if (nflTeamsResult.error) throw new Error(nflTeamsResult.error.message);
         const nameByUuid: Record<string, string> = {};
@@ -138,13 +141,13 @@ const LeagueView: React.FC = () => {
   useEffect(() => {
     if (!isDataLoaded) return;
     let cancelled = false;
-    getWeeklyQBPerformancesFromDb(selectedWeek).then(stats => {
+    getWeeklyQBPerformancesFromDb(selectedWeek, leagueSeason).then(stats => {
       if (!cancelled) setWeekStats(stats);
     });
     return () => {
       cancelled = true;
     };
-  }, [isDataLoaded, selectedWeek]);
+  }, [isDataLoaded, selectedWeek, leagueSeason]);
 
   const teams = useMemo(() => fantasyTeams.map(t => t.team_name), [fantasyTeams]);
 

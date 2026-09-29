@@ -77,7 +77,7 @@ const { data: leagueId, error: leagueErr } = await rpc(
   'create_league',
   {
     league_name: `Join Code Verify ${Date.now()}`,
-    season: 2025,
+    season: 2026,
     teams_started_per_week: 2,
     owner_team_name: 'Owner Team',
   },
@@ -177,7 +177,7 @@ const { data: league2, error: league2Err } = await rpc(
   'create_league',
   {
     league_name: `Join Code Rotate ${Date.now()}`,
-    season: 2025,
+    season: 2026,
     teams_started_per_week: 2,
     owner_team_name: 'Owner Two',
   },

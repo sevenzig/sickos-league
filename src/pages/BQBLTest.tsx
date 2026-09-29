@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { MultiLeagueApi, type League } from '../utils/multiLeagueApi';
 import { Panel, Button, Badge, Alert, EmptyState, LoadingBlock } from '../components/ui';
+import { CURRENT_SEASON } from '../utils/currentSeason';
 
 const BQBLTest: React.FC = () => {
   const { user } = useAuth();
@@ -35,7 +36,7 @@ const BQBLTest: React.FC = () => {
       setError('');
       const leagueId = await MultiLeagueApi.createLeague(
         `${user.email?.split('@')[0]}'s BQBL League`,
-        2025,
+        CURRENT_SEASON,
         1
       );
       await loadLeagues();

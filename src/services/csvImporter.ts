@@ -1,6 +1,7 @@
 import { db } from '../utils/db'
 import { parseWeeklyCSV } from '../utils/csvParser'
 import type { PlatformFinalizeWeekResult } from '../utils/multiLeagueApi'
+import { CURRENT_SEASON } from '../utils/currentSeason'
 
 export interface ImportResult {
   success: boolean
@@ -17,7 +18,7 @@ export interface ImportResult {
 
 export async function platformFinalizeWeek(
   week: number,
-  season: number = 2025
+  season: number = CURRENT_SEASON
 ): Promise<PlatformFinalizeWeekResult> {
   const { data, error } = await db.rpc('platform_finalize_week', {
     p_week: week,
@@ -37,7 +38,7 @@ export async function platformFinalizeWeek(
   }) as PlatformFinalizeWeekResult
 }
 
-export async function importWeeklyCSV(csvData: string, week: number, season: number = 2025): Promise<ImportResult> {
+export async function importWeeklyCSV(csvData: string, week: number, season: number = CURRENT_SEASON): Promise<ImportResult> {
   const result: ImportResult = {
     success: false,
     recordsImported: 0,
@@ -46,8 +47,15 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
   }
 
   try {
-    // Parse the CSV data
-    const { qbPerformances } = parseWeeklyCSV(csvData, week)
+    // Parse the CSV data (SeasonID required + consistent)
+    const { qbPerformances, season: csvSeason } = parseWeeklyCSV(csvData, week)
+
+    if (csvSeason !== season) {
+      result.errors.push(
+        `CSV SeasonID ${csvSeason} does not match selected season ${season}. Import aborted.`
+      )
+      return result
+    }
     
     if (qbPerformances.length === 0) {
       result.errors.push('No QB performance data found in CSV')
@@ -58,7 +66,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
     const gameStatsData = qbPerformances.map(qb => ({
       team_abbr: qb.team,
       week,
-      season,
+      season: csvSeason,
       opponent: '', // Would need to be extracted from CSV or determined separately
       pass_completions: qb.passCompletions,
       pass_attempts: qb.passAttempts,
@@ -89,7 +97,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
       .from('game_stats')
       .select('id')
       .eq('week', week)
-      .eq('season', season)
+      .eq('season', csvSeason)
 
     if (checkError) {
       result.errors.push(`Error checking existing data: ${checkError.message}`)
@@ -102,7 +110,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
         .from('game_stats')
         .delete()
         .eq('week', week)
-        .eq('season', season)
+        .eq('season', csvSeason)
 
       if (deleteError) {
         result.errors.push(`Error deleting existing data: ${deleteError.message}`)
@@ -127,7 +135,7 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
     // Lock lineups + weeks across all leagues, then persist matchup scores.
     // One site-wide upload closes scoring for every league (idempotent).
     try {
-      const finalized = await platformFinalizeWeek(week, season)
+      const finalized = await platformFinalizeWeek(week, csvSeason)
       result.matchupsFinalized = finalized.matchups_finalized
       result.leaguesProcessed = finalized.leagues_processed
       result.leaguesFailed = finalized.leagues_failed
@@ -187,7 +195,7 @@ export async function getImportHistory(): Promise<{ week: number; season: number
   return Object.values(weekGroups)
 }
 
-export async function deleteWeekData(week: number, season: number = 2025): Promise<boolean> {
+export async function deleteWeekData(week: number, season: number = CURRENT_SEASON): Promise<boolean> {
   try {
     const { error } = await db
       .from('game_stats')

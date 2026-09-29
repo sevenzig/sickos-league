@@ -9,6 +9,8 @@ import DraftControls from '../components/league/DraftControls';
 import DraftSettingsEditor from '../components/league/DraftSettingsEditor';
 import MemberManagement from '../components/league/MemberManagement';
 import { Panel, Button, Badge, Input, Select } from '@/components/ui';
+import { isArchivedSeason } from '../utils/isArchivedSeason';
+import ArchivedSeasonBanner from '../components/league/ArchivedSeasonBanner';
 
 interface LeagueDetails {
   id: string;
@@ -354,6 +356,7 @@ const LeagueAdmin: React.FC = () => {
   const teamCount = Number(league.fantasy_teams_count);
   const isOffline = league.draft_mode === 'offline';
   const canSetSchedule = teamCount === 8;
+  const archivedSeason = isArchivedSeason(league.season);
   const scheduleHint = isOffline
     ? null
     : teamCount !== 8
@@ -362,6 +365,8 @@ const LeagueAdmin: React.FC = () => {
 
   return (
     <div className="space-y-8">
+      {archivedSeason && <ArchivedSeasonBanner />}
+
       {/* Header */}
       <div>
         <nav className="flex items-center space-x-2 text-label text-slate-400 mb-4">
@@ -389,7 +394,7 @@ const LeagueAdmin: React.FC = () => {
               {!isOffline && (
                 <Button
                   onClick={handleGenerateSchedule}
-                  disabled={!canSetSchedule || generatingSchedule}
+                  disabled={!canSetSchedule || generatingSchedule || archivedSeason}
                   title={scheduleHint ?? undefined}
                 >
                   {generatingSchedule && (
@@ -545,7 +550,7 @@ const LeagueAdmin: React.FC = () => {
                     ))}
                   </div>
                 ))}
-                <Button type="button" onClick={handleSaveManual} disabled={savingManual || !canSetSchedule}>
+                <Button type="button" onClick={handleSaveManual} disabled={savingManual || !canSetSchedule || archivedSeason}>
                   {savingManual ? 'Saving...' : 'Save schedule'}
                 </Button>
               </div>
@@ -560,7 +565,7 @@ const LeagueAdmin: React.FC = () => {
               <p className="text-label text-slate-400 mb-3">
                 Week {regularSeasonWeeks} is complete. Generate the next playoff round from the standings.
               </p>
-              <Button type="button" onClick={handleGeneratePlayoffs} disabled={generatingPlayoffs}>
+              <Button type="button" onClick={handleGeneratePlayoffs} disabled={generatingPlayoffs || archivedSeason}>
                 {generatingPlayoffs ? 'Generating...' : 'Generate playoffs'}
               </Button>
             </div>
@@ -647,7 +652,7 @@ const LeagueAdmin: React.FC = () => {
               </Select>
             </div>
             <div className="md:col-span-2 flex items-center gap-4">
-              <Button type="button" onClick={handleSaveSettings} disabled={savingSettings || bracketLocked}>
+              <Button type="button" onClick={handleSaveSettings} disabled={savingSettings || bracketLocked || archivedSeason}>
                 {savingSettings ? 'Saving...' : 'Save season settings'}
               </Button>
               <p className="text-caption text-slate-500">
@@ -709,7 +714,7 @@ const LeagueAdmin: React.FC = () => {
                 <Button
                   type="button"
                   onClick={handleGenerateOrRotateJoinCode}
-                  disabled={savingJoinCode}
+                  disabled={savingJoinCode || archivedSeason}
                 >
                   {savingJoinCode
                     ? 'Saving...'
@@ -722,7 +727,7 @@ const LeagueAdmin: React.FC = () => {
                     type="button"
                     variant="secondary"
                     onClick={handleRevokeJoinCode}
-                    disabled={savingJoinCode}
+                    disabled={savingJoinCode || archivedSeason}
                   >
                     Revoke
                   </Button>

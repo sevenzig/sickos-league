@@ -10,6 +10,7 @@
 //   --all-season    # weeks 1..18
 //
 // Ops: season start --all-season; Wednesday ~9pm America/New_York re-sync N..N+2.
+// Prefer the API built-in sync (server/src/nflKickoffs.ts) on prod; this script is the manual fallback.
 // Bye pills appear only after a week has at least one seeded game_time.
 
 import process from 'node:process';

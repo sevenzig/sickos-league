@@ -10,6 +10,7 @@ import MatchupCard from '../components/matchup-cards/2-team/MatchupCard';
 import MatchupModal from '../components/matchup-modals/2-team/MatchupModal';
 import { Panel } from '@/components/ui';
 import { REGULAR_SEASON_WEEKS, seasonMaxWeek } from '../utils/season';
+import { CURRENT_SEASON } from '../utils/currentSeason';
 
 interface LineupRow {
   fantasy_team_id: string;
@@ -34,6 +35,7 @@ const LeagueSchedule: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [playoffTeams, setPlayoffTeams] = useState(4);
   const [regularSeasonWeeks, setRegularSeasonWeeks] = useState(REGULAR_SEASON_WEEKS);
+  const [leagueSeason, setLeagueSeason] = useState<number>(CURRENT_SEASON);
 
   const [selectedMatchup, setSelectedMatchup] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -76,6 +78,7 @@ const LeagueSchedule: React.FC = () => {
         ]);
         if (details?.playoff_teams) setPlayoffTeams(details.playoff_teams);
         if (details?.regular_season_weeks) setRegularSeasonWeeks(details.regular_season_weeks);
+        if (details?.season) setLeagueSeason(details.season);
 
         if (nflTeamsResult.error) throw new Error(nflTeamsResult.error.message);
         const nameByUuid: Record<string, string> = {};
@@ -113,13 +116,13 @@ const LeagueSchedule: React.FC = () => {
   useEffect(() => {
     if (!isDataLoaded) return;
     let cancelled = false;
-    getWeeklyQBPerformancesFromDb(selectedWeek).then(stats => {
+    getWeeklyQBPerformancesFromDb(selectedWeek, leagueSeason).then(stats => {
       if (!cancelled) setWeekStats(stats);
     });
     return () => {
       cancelled = true;
     };
-  }, [isDataLoaded, selectedWeek]);
+  }, [isDataLoaded, selectedWeek, leagueSeason]);
 
   const teams = useMemo(() => fantasyTeams.map(t => t.team_name), [fantasyTeams]);
 

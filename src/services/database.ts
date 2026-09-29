@@ -1,5 +1,6 @@
 import { db } from '../utils/db'
 import { Team, WeeklyLineup, Matchup, GameStats, LeagueData } from '../types'
+import { CURRENT_SEASON } from '../utils/currentSeason'
 
 // Database service layer for all API-backed database operations
 
@@ -126,16 +127,21 @@ export async function loadGameStats(week?: number): Promise<GameStats[]> {
 /**
  * Get QB performance data from the database for a specific week and team
  */
-export async function getQBPerformanceFromDb(week: number, teamAbbr: string): Promise<any | null> {
+export async function getQBPerformanceFromDb(
+  week: number,
+  teamAbbr: string,
+  season: number = CURRENT_SEASON
+): Promise<any | null> {
   const { data, error } = await db
     .from('game_stats')
     .select('*')
     .eq('week', week)
+    .eq('season', season)
     .eq('team_abbr', teamAbbr)
     .single()
 
   if (error) {
-    console.error(`Error loading QB performance for ${teamAbbr} week ${week}:`, error)
+    console.error(`Error loading QB performance for ${teamAbbr} week ${week} season ${season}:`, error)
     return null
   }
 
@@ -189,28 +195,37 @@ export async function getQBPerformanceFromDb(week: number, teamAbbr: string): Pr
 /**
  * Get all QB performances for a specific week from the database (with caching)
  */
-let qbPerformancesCache: { [week: number]: any[] } = {};
+let qbPerformancesCache: { [key: string]: any[] } = {};
 let cacheTimestamp: number = 0;
 const CACHE_DURATION = 30000; // 30 seconds
 
-export async function getWeeklyQBPerformancesFromDb(week: number): Promise<any[]> {
+function qbCacheKey(week: number, season: number): string {
+  return `${season}:${week}`;
+}
+
+export async function getWeeklyQBPerformancesFromDb(
+  week: number,
+  season: number = CURRENT_SEASON
+): Promise<any[]> {
   const now = Date.now();
+  const key = qbCacheKey(week, season);
   
   // Check if we have cached data that's still fresh
-  if (qbPerformancesCache[week] && (now - cacheTimestamp) < CACHE_DURATION) {
-    console.log(`Using cached QB performances for week ${week}`);
-    return qbPerformancesCache[week];
+  if (qbPerformancesCache[key] && (now - cacheTimestamp) < CACHE_DURATION) {
+    console.log(`Using cached QB performances for week ${week} season ${season}`);
+    return qbPerformancesCache[key];
   }
 
-  console.log(`Fetching QB performances for week ${week} from the database`);
+  console.log(`Fetching QB performances for week ${week} season ${season} from the database`);
   const { data, error } = await db
     .from('game_stats')
     .select('*')
     .eq('week', week)
+    .eq('season', season)
     .order('team_abbr')
 
   if (error) {
-    console.error(`Error loading QB performances for week ${week}:`, error)
+    console.error(`Error loading QB performances for week ${week} season ${season}:`, error)
     return []
   }
 
@@ -262,7 +277,7 @@ export async function getWeeklyQBPerformancesFromDb(week: number): Promise<any[]
   })
 
   // Cache the result
-  qbPerformancesCache[week] = performances;
+  qbPerformancesCache[key] = performances;
   cacheTimestamp = now;
 
   return performances
