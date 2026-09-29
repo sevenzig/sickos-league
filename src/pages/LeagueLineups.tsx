@@ -20,7 +20,7 @@ interface LeagueInfo {
 
 // Self-serve weekly lineup page (Phase 3.1): the caller's own rostered NFL
 // teams, pick exactly teams_started_per_week, save. Edits freeze at kickoff
-// and week finalize. Opponent's lineup is only revealed once the week locks.
+// and week finalize. Opponent starters show once they have saved a lineup.
 const LeagueLineups: React.FC = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
   const { user } = useAuth();
@@ -461,7 +461,7 @@ const LeagueLineups: React.FC = () => {
               Week {selectedWeek} Opponent: <span className="text-blue-400">{opponentName}</span>
             </h3>
           </div>
-          {weekLocked && opponentLineup && opponentLineup.active_nfl_team_names.length > 0 ? (
+          {opponentLineup && opponentLineup.active_nfl_team_names.length > 0 ? (
             <div className="flex flex-wrap gap-3">
               {opponentLineup.active_nfl_team_names.map(name => (
                 <div key={name} className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 border border-slate-600/40 rounded-lg">
@@ -474,7 +474,7 @@ const LeagueLineups: React.FC = () => {
             <p className="text-slate-400 text-sm">
               {weekLocked
                 ? 'Opponent has no lineup for this week.'
-                : "Opponent's lineup is hidden until the week locks."}
+                : 'Opponent has not set a lineup for this week yet.'}
             </p>
           )}
         </Panel>

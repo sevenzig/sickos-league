@@ -17,7 +17,7 @@ Follow `~/wiki/rules/writing_general.md` and coding behavior (project `.claude/s
 4. **Column stays.** `fantasy_lineups.is_locked` remains finalize-owned. Do not drop it. Do not backfill/clear historical rows unless a live league is stuck — prefer leave alone.
 5. **Disable `lock_fantasy_lineup` for managers** (revoke execute or replace body with a clear exception). Do not leave a dead button.
 6. **Save still requires a complete starter set.** No autosave in this pass.
-7. **Opponent visibility unchanged** — hidden until the week locks. No reveal-on-save.
+7. **Opponent visibility** — saved starters are visible to league members on Home / Schedule / Lineups (changed from hide-until-week-lock; see `20241031000043`).
 8. **Commissioner finalize stays** — auto-fill, lock lineups, lock week; owner override on `set_fantasy_lineup` stays.
 9. **Copy:** card countdown **Starts in …** / **Started**; reserve “locked” for week/finalize chrome. No card color redesign.
 10. **Legacy** `SetLineups` / `AdminLineups` / `LeagueContext.lockTeamLineup` stay out of scope unless a verify script still depends on them.

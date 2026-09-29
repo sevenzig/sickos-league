@@ -17,7 +17,7 @@ export function matchupScoreKey(team1: string, team2: string, week: number): str
 
 /**
  * Scores + per-QB breakdowns for a week.
- * Lineups only reveal once the week is locked; persisted scores win when finalized.
+ * Saved starters show as soon as a lineup exists; persisted scores win when finalized.
  */
 export function computeMatchupScores(
   schedule: LeagueMatchup[],
@@ -35,10 +35,9 @@ export function computeMatchupScores(
     .filter(m => m.week === week)
     .forEach(m => {
       const key = matchupScoreKey(m.fantasy_team1_name, m.fantasy_team2_name, m.week);
-      const locked = m.week_locked;
 
-      const team1Names = locked ? lineupNamesFor(m.fantasy_team1_id, m.week) : [];
-      const team2Names = locked ? lineupNamesFor(m.fantasy_team2_id, m.week) : [];
+      const team1Names = lineupNamesFor(m.fantasy_team1_id, m.week);
+      const team2Names = lineupNamesFor(m.fantasy_team2_id, m.week);
 
       const team1Breakdown = team1Names.map(name => ({ qb: name, breakdown: perfByTeam[name] ?? null }));
       const team2Breakdown = team2Names.map(name => ({ qb: name, breakdown: perfByTeam[name] ?? null }));

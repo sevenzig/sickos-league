@@ -205,7 +205,7 @@ const opponentId =
     : mgrMatchup.fantasy_team1_id;
 
 // ---------------------------------------------------------------------------
-// 2. Manager path: save lineup; opponent hidden until week finalize
+// 2. Manager path: save lineup; opponent picks visible once saved
 // ---------------------------------------------------------------------------
 {
   const { data, error } = await rpc(
@@ -216,7 +216,7 @@ const opponentId =
   check('AC2: manager saves week-1 lineup', !error && data === true, error?.message);
 }
 
-// Give opponent a complete lineup so visibility can be tested once week locks
+// Give opponent a complete lineup so visibility can be tested after save
 {
   const oppRoster = rosterOf(opponentId);
   await rpc(
@@ -237,12 +237,11 @@ const opponentId =
     managerToken
   );
   const opp = data?.find((l) => l.fantasy_team_id === opponentId);
-  const namesHidden =
-    !opp ||
-    !opp.active_nfl_team_names ||
-    opp.active_nfl_team_names.length === 0 ||
-    opp.active_nfl_team_names.every((n) => !n);
-  check('AC2: opponent lineup hidden pre-week-lock', namesHidden, JSON.stringify(opp?.active_nfl_team_names));
+  check(
+    'AC2: opponent lineup visible after save',
+    !!opp && Array.isArray(opp.active_nfl_teams) && opp.active_nfl_teams.length === 2,
+    JSON.stringify(opp?.active_nfl_teams)
+  );
 }
 
 // Leave Team 8 without a lineup so commissioner autostart is exercised.
@@ -511,7 +510,7 @@ check('AC5: v_league_standings readable', !stErr && standings?.length === 8, stE
 console.log(`
 === Ops checklist (human season loop) ===
 1. Thursday: remind managers to set lineups (email when A4 live; manual until then).
-2. Lineup deadline: managers save via League Lineups; opponents hidden until week lock.
+2. Lineup deadline: managers save via League Lineups; saved starters are visible to league members.
    Optional: commissioner Finalize Week earlier to lock/reveal before scores.
 3. Sunday/Monday: platform admin uploads week CSV at /admin/import
    (grant: UPDATE auth.users SET is_platform_admin = true; re-login).

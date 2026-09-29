@@ -347,7 +347,7 @@ const team3Roster = rosterOf(team3.id);
   const mine = data?.find((l) => l.fantasy_team_id === myTeam.id);
   const others = data?.find((l) => l.fantasy_team_id === team3.id);
   check('3.1: manager sees own lineup pre-lock', mine?.active_nfl_teams?.length === 2);
-  check('3.1: opponent lineup hidden pre-lock', others?.active_nfl_teams?.length === 0, JSON.stringify(others?.active_nfl_teams));
+  check('3.1: opponent lineup visible after save', others?.active_nfl_teams?.length === 2, JSON.stringify(others?.active_nfl_teams));
 }
 {
   const { data } = await rpc('get_fantasy_lineups_for_week', { p_league_id: leagueId, p_week: 1 }, ownerToken);
@@ -430,7 +430,7 @@ const team3Roster = rosterOf(team3.id);
 {
   const { data } = await rpc('get_fantasy_lineups_for_week', { p_league_id: leagueId, p_week: 1 }, managerToken);
   const others = data?.find((l) => l.fantasy_team_id === team3.id);
-  check('3.1: opponent lineup visible once week locked', others?.active_nfl_teams?.length === 2);
+  check('3.1: opponent lineup still visible after week lock', others?.active_nfl_teams?.length === 2);
 }
 
 console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
