@@ -743,6 +743,18 @@ export class MultiLeagueApi {
     return data || []
   }
 
+  /** Finalized regular-season start counts per rostered NFL team (unlocked / playoff weeks excluded). */
+  static async getFantasyTeamStartCounts(
+    fantasyTeamId: string
+  ): Promise<{ nfl_team_id: string; starts: number }[]> {
+    const { data, error } = await db.rpc('get_fantasy_team_start_counts', {
+      p_fantasy_team_id: fantasyTeamId,
+    })
+
+    if (error) throw new Error(error.message)
+    return data || []
+  }
+
   static async getLeagueRosters(leagueId: string): Promise<LeagueRosterEntry[]> {
     const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('get_league_rosters', {

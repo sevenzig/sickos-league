@@ -11,6 +11,7 @@ import { seasonMaxWeek } from '../utils/season';
 import { getTeamAbbr } from '../utils/teamLogos';
 import { isArchivedSeason } from '../utils/isArchivedSeason';
 import ArchivedSeasonBanner from '../components/league/ArchivedSeasonBanner';
+import { MIN_STARTS_PER_TEAM } from '../utils/minStarts';
 
 interface LeagueInfo {
   id: string;
@@ -31,6 +32,7 @@ const LeagueLineups: React.FC = () => {
   const [league, setLeague] = useState<LeagueInfo | null>(null);
   const [myTeam, setMyTeam] = useState<FantasyTeam | null>(null);
   const [roster, setRoster] = useState<RosterEntry[]>([]);
+  const [startCounts, setStartCounts] = useState<Record<string, number>>({});
   const [schedule, setSchedule] = useState<LeagueMatchup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +72,16 @@ const LeagueLineups: React.FC = () => {
         setMyTeam(mine);
 
         if (mine) {
-          const rosterEntries = await MultiLeagueApi.getTeamRoster(mine.id);
+          const [rosterEntries, counts] = await Promise.all([
+            MultiLeagueApi.getTeamRoster(mine.id),
+            MultiLeagueApi.getFantasyTeamStartCounts(mine.id),
+          ]);
           setRoster(rosterEntries);
+          const map: Record<string, number> = {};
+          counts.forEach(row => {
+            map[row.nfl_team_id] = row.starts;
+          });
+          setStartCounts(map);
         }
 
         let leagueSchedule: LeagueMatchup[] = [];
@@ -159,6 +169,11 @@ const LeagueLineups: React.FC = () => {
 
   const startersNeeded = league?.teams_started_per_week ?? 1;
   const archivedSeason = league ? isArchivedSeason(league.season) : false;
+  const rsWeeks = league?.regular_season_weeks ?? 14;
+  const lockedRsWeekCount = new Set(
+    schedule.filter(m => m.week >= 1 && m.week <= rsWeeks && m.week_locked).map(m => m.week)
+  ).size;
+  const remainingRsWeeks = Math.max(0, rsWeeks - lockedRsWeekCount);
   const hasGameThisWeek = schedule.length === 0 || !myTeam || schedule.some(
     m => m.week === selectedWeek && (m.fantasy_team1_id === myTeam.id || m.fantasy_team2_id === myTeam.id)
   );
@@ -339,6 +354,10 @@ const LeagueLineups: React.FC = () => {
               const startedSelected = isSelected && kicked;
               const label = onBye ? null : kickoffLabel(entry.nfl_team_id);
               const opp = opponentMeta[entry.nfl_team_id];
+              const starts = startCounts[entry.nfl_team_id] ?? 0;
+              const atRisk =
+                starts < MIN_STARTS_PER_TEAM &&
+                MIN_STARTS_PER_TEAM - starts > remainingRsWeeks;
               const canSelect =
                 !isSelected &&
                 selectedTeams.length < startersNeeded &&
@@ -415,6 +434,13 @@ const LeagueLineups: React.FC = () => {
                       {label}
                     </div>
                   )}
+                  <div
+                    className={`mt-1 text-caption tabular-nums font-semibold text-center leading-none ${
+                      atRisk ? 'text-amber-400' : 'text-slate-500'
+                    }`}
+                  >
+                    {starts}/{MIN_STARTS_PER_TEAM}
+                  </div>
                   {isSelected && !kicked && !onBye && (
                     <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2">
                       <div className="bg-emerald-500 rounded-full p-0.5 sm:p-1 shadow-lg">
