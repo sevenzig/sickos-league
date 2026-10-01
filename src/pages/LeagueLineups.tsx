@@ -13,6 +13,25 @@ import { isArchivedSeason } from '../utils/isArchivedSeason';
 import ArchivedSeasonBanner from '../components/league/ArchivedSeasonBanner';
 import { MIN_STARTS_PER_TEAM } from '../utils/minStarts';
 
+/** Local kickoff label, e.g. "1 pm Sunday, Sept. 28". */
+const MONTH_ABBR = [
+  'Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'June',
+  'July', 'Aug.', 'Sept.', 'Oct.', 'Nov.', 'Dec.',
+] as const;
+const WEEKDAY_LONG = [
+  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+] as const;
+
+function formatKickoffLocal(iso: string): string {
+  const d = new Date(iso);
+  let hours = d.getHours();
+  const mins = d.getMinutes();
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12 || 12;
+  const time = mins === 0 ? `${hours} ${ampm}` : `${hours}:${String(mins).padStart(2, '0')} ${ampm}`;
+  return `${time} ${WEEKDAY_LONG[d.getDay()]}, ${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
+}
+
 interface LeagueInfo {
   id: string;
   name: string;
@@ -210,16 +229,12 @@ const LeagueLineups: React.FC = () => {
     [kickoffTimes]
   );
 
-  // Formatted label: time until or elapsed since kickoff (playing teams only).
+  // Absolute local kickoff (playing teams only), e.g. "1 pm Sunday, Sept. 28".
   const kickoffLabel = useCallback(
     (nflTeamId: string): string | null => {
       const ko = kickoffTimes[nflTeamId];
       if (!ko) return null;
-      const diff = new Date(ko).getTime() - Date.now();
-      if (diff <= 0) return 'Started';
-      const mins = Math.floor(diff / 60000);
-      const hrs = Math.floor(mins / 60);
-      return hrs > 0 ? `Starts in ${hrs}h ${mins % 60}m` : `Starts in ${mins}m`;
+      return formatKickoffLocal(ko);
     },
     [kickoffTimes]
   );
@@ -446,7 +461,7 @@ const LeagueLineups: React.FC = () => {
                     </div>
                   )}
                   {label && (
-                    <div className="mt-1 text-caption font-bold uppercase tracking-wide text-center leading-none text-amber-400">
+                    <div className="mt-1 text-caption font-medium text-center leading-tight text-amber-400 px-0.5">
                       {label}
                     </div>
                   )}
