@@ -75,15 +75,16 @@ Offline manual schedule (7-week template / mid-season rewrite): `node scripts/ve
 
 Platform current season is `CURRENT_SEASON = 2026` in `src/utils/currentSeason.ts`. Bump once per calendar year.
 
-**Prod data align** (human-gated; run inspect SQL on prod first):
+Client soft-lock treats `league.season < CURRENT_SEASON` as archived (lineups / join / admin writes disabled). **Live leagues must be labeled 2026** or managers cannot Save Lineup.
 
-1. Short window — no overlapping CSV import / finalize.
-2. `UPDATE leagues SET season = 2026 WHERE id IN (/* keep ids from inspect */);`
-3. If stats were imported as 2025: `UPDATE game_stats SET season = 2026 WHERE season = 2025 AND week IN (…);` or re-import from `scoring/2026/` and finalize each week.
-4. Smoke League home WLT; kickoff sync `--year 2026`.
-5. After smoke: purge orphan `season = 2025` leagues/stats only.
+**Data align** (automatic on API boot via migration `20241031000046_align_season_to_2026.sql`):
 
-Template SQL (dry-run comments): `scripts/cutover-season-2026.sql`
+```sql
+UPDATE leagues SET season = 2026 WHERE season = 2025;
+UPDATE game_stats SET season = 2026 WHERE season = 2025;
+```
+
+Redeploy/restart `api` so migrate applies. Manual fallback: `scripts/cutover-season-2026.sql`. After align, smoke League home WLT and lineup Save.
 
 ## Live draft ticker
 
