@@ -54,6 +54,12 @@ const AuthForm: React.FC<AuthFormProps> = ({
     if (next === 'signup' && identifier.includes('@')) {
       setEmail(identifier.trim());
     }
+    if (next === 'signin') {
+      // Drop signup-only values so a collapsed username field cannot keep an
+      // autofilled email (pattern rejects @/.) and block sign-in submit.
+      setUsername('');
+      setPasswordConfirm('');
+    }
     // Keep password on flip; only clear error.
     setError(null);
     setMode(next);
@@ -118,6 +124,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
               placeholder="you@example.com"
               autoComplete="email"
               required={isSignup}
+              disabled={!isSignup}
               tabIndex={isSignup ? undefined : -1}
             />
           </div>
@@ -129,12 +136,13 @@ const AuthForm: React.FC<AuthFormProps> = ({
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="3–32 letters, numbers, or _"
-              autoComplete="username"
+              autoComplete={isSignup ? 'username' : 'off'}
               minLength={3}
               maxLength={32}
               pattern="[a-zA-Z0-9_]{3,32}"
               title="3–32 characters: letters, numbers, or underscore"
               required={isSignup}
+              disabled={!isSignup}
               tabIndex={isSignup ? undefined : -1}
             />
           </div>
@@ -187,6 +195,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
               placeholder="Re-enter your password"
               autoComplete="new-password"
               required={isSignup}
+              disabled={!isSignup}
               minLength={6}
               tabIndex={isSignup ? undefined : -1}
             />
