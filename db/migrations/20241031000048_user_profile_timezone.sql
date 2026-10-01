@@ -68,7 +68,11 @@ GRANT EXECUTE ON FUNCTION get_user_profile_with_teams TO authenticated;
 COMMENT ON FUNCTION get_user_profile_with_teams IS
   'Get user profile with fantasy teams and timezone preference';
 
-CREATE OR REPLACE FUNCTION update_user_profile(
+-- Old 4-arg signature cannot be CREATE OR REPLACE'd into 5-arg; drop both so GRANT is unique.
+DROP FUNCTION IF EXISTS update_user_profile(TEXT, TEXT, TEXT, JSONB);
+DROP FUNCTION IF EXISTS update_user_profile(TEXT, TEXT, TEXT, JSONB, TEXT);
+
+CREATE FUNCTION update_user_profile(
     p_first_name TEXT DEFAULT NULL,
     p_last_name TEXT DEFAULT NULL,
     p_profile_photo_url TEXT DEFAULT NULL,
@@ -119,7 +123,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION update_user_profile TO authenticated;
+GRANT EXECUTE ON FUNCTION update_user_profile(TEXT, TEXT, TEXT, JSONB, TEXT) TO authenticated;
 
-COMMENT ON FUNCTION update_user_profile IS
+COMMENT ON FUNCTION update_user_profile(TEXT, TEXT, TEXT, JSONB, TEXT) IS
   'Update user profile including optional IANA timezone (validated against pg_timezone_names)';
