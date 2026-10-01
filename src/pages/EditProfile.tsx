@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { MultiLeagueApi, UserProfile as UserProfileType, EmailPreferences } from '../utils/multiLeagueApi';
 import ProfilePhotoUpload from '../components/profile/ProfilePhotoUpload';
-import { Panel, Button, Input, Alert, LoadingBlock } from '@/components/ui';
+import { Panel, Button, Input, Alert, LoadingBlock, Select } from '@/components/ui';
+import { DEFAULT_TIMEZONE, PROFILE_TIMEZONES } from '../utils/formatKickoff';
 
 const EditProfile: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +17,7 @@ const EditProfile: React.FC = () => {
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [emailPreferences, setEmailPreferences] = useState<EmailPreferences>({
     marketing: false,
     league_updates: true,
@@ -36,6 +38,7 @@ const EditProfile: React.FC = () => {
           setProfile(profileData);
           setFirstName(profileData.first_name || '');
           setLastName(profileData.last_name || '');
+          setTimezone(profileData.timezone || DEFAULT_TIMEZONE);
           setEmailPreferences(profileData.email_preferences);
           const initialTeamNames: Record<string, string> = {};
           profileData.fantasy_teams.forEach(team => {
@@ -63,7 +66,8 @@ const EditProfile: React.FC = () => {
         first_name: firstName.trim() || undefined,
         last_name: lastName.trim() || undefined,
         profile_photo_url: pendingPhotoUrl !== null ? pendingPhotoUrl : undefined,
-        email_preferences: emailPreferences
+        email_preferences: emailPreferences,
+        timezone,
       });
       const teamUpdatePromises = Object.entries(teamNames).map(([teamId, teamName]) => {
         const originalTeam = profile?.fantasy_teams.find(t => t.team_id === teamId);
@@ -176,6 +180,25 @@ const EditProfile: React.FC = () => {
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Enter your last name"
                 />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="timezone" className="text-label font-medium text-slate-300">
+                  Timezone
+                </label>
+                <Select
+                  id="timezone"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                >
+                  {PROFILE_TIMEZONES.map((z) => (
+                    <option key={z.value} value={z.value}>
+                      {z.label}
+                    </option>
+                  ))}
+                </Select>
+                <p className="text-caption text-slate-500">
+                  Used for NFL kickoff times on your lineup cards
+                </p>
               </div>
             </div>
           </div>

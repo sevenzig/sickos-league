@@ -12,25 +12,7 @@ import { getTeamAbbr } from '../utils/teamLogos';
 import { isArchivedSeason } from '../utils/isArchivedSeason';
 import ArchivedSeasonBanner from '../components/league/ArchivedSeasonBanner';
 import { MIN_STARTS_PER_TEAM } from '../utils/minStarts';
-
-/** Local kickoff label, e.g. "1 pm Sunday, Sept. 28". */
-const MONTH_ABBR = [
-  'Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'June',
-  'July', 'Aug.', 'Sept.', 'Oct.', 'Nov.', 'Dec.',
-] as const;
-const WEEKDAY_LONG = [
-  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
-] as const;
-
-function formatKickoffLocal(iso: string): string {
-  const d = new Date(iso);
-  let hours = d.getHours();
-  const mins = d.getMinutes();
-  const ampm = hours >= 12 ? 'pm' : 'am';
-  hours = hours % 12 || 12;
-  const time = mins === 0 ? `${hours} ${ampm}` : `${hours}:${String(mins).padStart(2, '0')} ${ampm}`;
-  return `${time} ${WEEKDAY_LONG[d.getDay()]}, ${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
-}
+import { DEFAULT_TIMEZONE, formatKickoff } from '../utils/formatKickoff';
 
 interface LeagueInfo {
   id: string;
@@ -73,6 +55,23 @@ const LeagueLineups: React.FC = () => {
   >({});
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
+
+  // Load profile timezone for kickoff labels (default America/New_York)
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    MultiLeagueApi.getUserProfile()
+      .then((profile) => {
+        if (!cancelled && profile?.timezone) setTimezone(profile.timezone);
+      })
+      .catch(() => {
+        /* keep default */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   // Initial load: league, my team, my roster, full schedule
   useEffect(() => {
@@ -229,14 +228,14 @@ const LeagueLineups: React.FC = () => {
     [kickoffTimes]
   );
 
-  // Absolute local kickoff (playing teams only), e.g. "1 pm Sunday, Sept. 28".
+  // Absolute kickoff in the user's profile timezone, e.g. "1 pm Sunday, Sept. 28".
   const kickoffLabel = useCallback(
     (nflTeamId: string): string | null => {
       const ko = kickoffTimes[nflTeamId];
       if (!ko) return null;
-      return formatKickoffLocal(ko);
+      return formatKickoff(ko, timezone);
     },
-    [kickoffTimes]
+    [kickoffTimes, timezone]
   );
 
   const toggleTeam = (nflTeamId: string) => {

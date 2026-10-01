@@ -162,6 +162,7 @@ export interface UserProfile {
   last_name?: string | null
   profile_photo_url?: string | null
   email_preferences: EmailPreferences
+  timezone: string
   fantasy_teams: FantasyTeamInfo[]
   created_at: string
   updated_at: string
@@ -862,7 +863,12 @@ export class MultiLeagueApi {
     })
 
     if (error) throw new Error(error.message)
-    return data?.[0] || null
+    const row = data?.[0] || null
+    if (!row) return null
+    return {
+      ...row,
+      timezone: row.timezone || 'America/New_York',
+    }
   }
 
   static async updateUserProfile(profileData: {
@@ -870,12 +876,14 @@ export class MultiLeagueApi {
     last_name?: string
     profile_photo_url?: string
     email_preferences?: EmailPreferences
+    timezone?: string
   }): Promise<boolean> {
     const { data, error } = await db.rpc('update_user_profile', {
       p_first_name: profileData.first_name,
       p_last_name: profileData.last_name,
       p_profile_photo_url: profileData.profile_photo_url,
-      p_email_preferences: profileData.email_preferences
+      p_email_preferences: profileData.email_preferences,
+      p_timezone: profileData.timezone,
     })
 
     if (error) throw new Error(error.message)

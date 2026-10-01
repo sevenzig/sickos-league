@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { MultiLeagueApi, UserProfile as UserProfileType } from '../utils/multiLeagueApi';
 import { Panel, Button, Badge, Alert, LoadingBlock } from '@/components/ui';
+import { DEFAULT_TIMEZONE, timezoneLabel } from '../utils/formatKickoff';
 
 const UserProfile: React.FC = () => {
   const { user } = useAuth();
@@ -97,7 +98,10 @@ const UserProfile: React.FC = () => {
           </div>
           <div className="flex-1 text-center sm:text-left">
             <h2 className="text-title text-slate-100 mb-2">{getDisplayName()}</h2>
-            <p className="text-body text-slate-400 mb-4">{profile?.email}</p>
+            <p className="text-body text-slate-400 mb-2">{profile?.email}</p>
+            <p className="text-caption text-slate-500 mb-4">
+              Timezone: {timezoneLabel(profile?.timezone || DEFAULT_TIMEZONE)}
+            </p>
             <Badge variant={(profile?.first_name || profile?.last_name) ? 'success' : 'warning'}>
               {(profile?.first_name || profile?.last_name) ? 'Profile Complete' : 'Profile Incomplete'}
             </Badge>
