@@ -2,8 +2,14 @@
 -- (teams.name is VARCHAR(50); RETURNS TABLE declares TEXT[]). Same class of
 -- bug as 20241031000015_fix_manager_email_cast.sql. Also pin search_path
 -- on the SECURITY DEFINER function (mirror get_nfl_week_team_status).
+--
+-- DROP + CREATE required: CREATE OR REPLACE VIEW cannot change column type
+-- from character varying[] to text[].
 
-CREATE OR REPLACE VIEW v_fantasy_lineups AS
+DROP FUNCTION IF EXISTS get_fantasy_lineups_for_week(UUID, INTEGER);
+DROP VIEW IF EXISTS v_fantasy_lineups;
+
+CREATE VIEW v_fantasy_lineups AS
 SELECT
     fl.id,
     fl.fantasy_team_id,
@@ -33,7 +39,7 @@ LEFT JOIN weeks w ON w.league_id = ft.league_id AND w.week_number = fl.week;
 
 GRANT SELECT ON v_fantasy_lineups TO authenticated;
 
-CREATE OR REPLACE FUNCTION get_fantasy_lineups_for_week(
+CREATE FUNCTION get_fantasy_lineups_for_week(
     p_league_id UUID,
     p_week INTEGER
 )
