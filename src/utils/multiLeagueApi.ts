@@ -769,8 +769,9 @@ export class MultiLeagueApi {
     leagueId: string,
     week: number
   ): Promise<FantasyLineup[]> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('get_fantasy_lineups_for_week', {
-      p_league_id: leagueId,
+      p_league_id: fullLeagueId,
       p_week: week,
     })
 
@@ -831,8 +832,9 @@ export class MultiLeagueApi {
     leagueId: string,
     weekNumber: number
   ): Promise<WeekStatus | null> {
+    const fullLeagueId = await this.resolveLeagueId(leagueId);
     const { data, error } = await db.rpc('get_week_status', {
-      league_id: leagueId,
+      league_id: fullLeagueId,
       week_number: weekNumber,
     })
 

@@ -108,58 +108,74 @@ const LeagueLineups: React.FC = () => {
     load();
   }, [leagueId, user]);
 
-  // Per-week load: my saved lineup, week lock, opponent, kickoff/bye status
+  // Per-week load: my saved lineup, week lock, opponent, kickoff/bye status.
+  // NFL status is independent so a fantasy-lineups RPC failure still paints @/vs.
   const loadWeek = useCallback(async (week: number) => {
     if (!league || !myTeam) return;
     setStatusMessage(null);
+
+    const teamStatusPromise = MultiLeagueApi.getNflWeekTeamStatus(week).catch(() => []);
+
+    let lineups: FantasyLineup[] = [];
+    let weekStatusError: string | null = null;
     try {
-      const [status, lineups, teamStatus] = await Promise.all([
+      const [status, fantasyLineups] = await Promise.all([
         MultiLeagueApi.getWeekStatus(league.id, week),
         MultiLeagueApi.getFantasyLineups(league.id, week),
-        MultiLeagueApi.getNflWeekTeamStatus(week).catch(() => []),
       ]);
       setWeekLocked(status?.is_locked ?? false);
-
-      const koMap: Record<string, string> = {};
-      const byes = new Set<string>();
-      const oppMap: Record<string, { opponentName: string; isHome: boolean }> = {};
-      teamStatus.forEach(row => {
-        if (row.status === 'bye') {
-          byes.add(row.nfl_team_id);
-        } else if (row.game_time) {
-          koMap[row.nfl_team_id] = row.game_time;
-          if (row.opponent_name) {
-            oppMap[row.nfl_team_id] = {
-              opponentName: row.opponent_name,
-              isHome: row.is_home === true,
-            };
-          }
-        }
-      });
-      setKickoffTimes(koMap);
-      setByeTeams(byes);
-      setOpponentMeta(oppMap);
-
-      const mine = lineups.find(l => l.fantasy_team_id === myTeam.id) || null;
-      setSelectedTeams(mine?.active_nfl_teams ?? []);
-
-      const matchup = schedule.find(
-        m => m.week === week &&
-          (m.fantasy_team1_id === myTeam.id || m.fantasy_team2_id === myTeam.id)
-      );
-      if (matchup) {
-        const oppId = matchup.fantasy_team1_id === myTeam.id
-          ? matchup.fantasy_team2_id : matchup.fantasy_team1_id;
-        const oppName = matchup.fantasy_team1_id === myTeam.id
-          ? matchup.fantasy_team2_name : matchup.fantasy_team1_name;
-        setOpponentName(oppName);
-        setOpponentLineup(lineups.find(l => l.fantasy_team_id === oppId) || null);
-      } else {
-        setOpponentName(null);
-        setOpponentLineup(null);
-      }
+      lineups = fantasyLineups;
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load week data');
+      weekStatusError = err instanceof Error ? err.message : 'Failed to load week data';
+      setError(weekStatusError);
+    }
+
+    const teamStatus = await teamStatusPromise;
+    const koMap: Record<string, string> = {};
+    const byes = new Set<string>();
+    const oppMap: Record<string, { opponentName: string; isHome: boolean }> = {};
+    teamStatus.forEach(row => {
+      if (row.status === 'bye') {
+        byes.add(row.nfl_team_id);
+      } else if (row.game_time) {
+        koMap[row.nfl_team_id] = row.game_time;
+        if (row.opponent_name) {
+          oppMap[row.nfl_team_id] = {
+            opponentName: row.opponent_name,
+            isHome: row.is_home === true,
+          };
+        }
+      }
+    });
+    setKickoffTimes(koMap);
+    setByeTeams(byes);
+    setOpponentMeta(oppMap);
+
+    if (weekStatusError) {
+      setSelectedTeams([]);
+      setOpponentName(null);
+      setOpponentLineup(null);
+      return;
+    }
+
+    const mine = lineups.find(l => l.fantasy_team_id === myTeam.id) || null;
+    setSelectedTeams(mine?.active_nfl_teams ?? []);
+
+    const matchup = schedule.find(
+      m => m.week === week &&
+        (m.fantasy_team1_id === myTeam.id || m.fantasy_team2_id === myTeam.id)
+    );
+    if (matchup) {
+      const oppId = matchup.fantasy_team1_id === myTeam.id
+        ? matchup.fantasy_team2_id : matchup.fantasy_team1_id;
+      const oppName = matchup.fantasy_team1_id === myTeam.id
+        ? matchup.fantasy_team2_name : matchup.fantasy_team1_name;
+      setOpponentName(oppName);
+      setOpponentLineup(lineups.find(l => l.fantasy_team_id === oppId) || null);
+    } else {
+      setOpponentName(null);
+      setOpponentLineup(null);
     }
   }, [league, myTeam, schedule]);
 

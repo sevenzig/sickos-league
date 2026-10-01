@@ -307,8 +307,11 @@ export async function checkMigrationStatus(): Promise<{
     const matchupsCount = matchupsResult.count || 0
     const gameStatsCount = gameStatsResult.count || 0
 
+    // Teams already seeded (NFL / platform) ⇒ skip migrateHistoricalData.
+    // Multi-league prod has teams + kickoff matchups but empty legacy lineups;
+    // requiring lineups caused endless RLS insert noise on every page load.
     return {
-      isMigrated: teamsCount > 0 && lineupsCount > 0 && matchupsCount > 0,
+      isMigrated: teamsCount > 0,
       teamsCount,
       lineupsCount,
       matchupsCount,
