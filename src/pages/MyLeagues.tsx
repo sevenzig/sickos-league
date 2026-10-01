@@ -145,6 +145,20 @@ const MyLeagues: React.FC = () => {
     }
   };
 
+  // Hooks must run before any early return (React #310).
+  const visibleLeagues = useMemo(() => {
+    if (showPastSeasons) return leagues;
+    return leagues.filter((l) => l.season === CURRENT_SEASON);
+  }, [leagues, showPastSeasons]);
+
+  const pastCount = useMemo(
+    () => leagues.filter((l) => l.season < CURRENT_SEASON).length,
+    [leagues]
+  );
+
+  const commissioned = visibleLeagues.filter((l) => l.user_role === 'owner');
+  const participating = visibleLeagues.filter((l) => l.user_role !== 'owner');
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -167,19 +181,6 @@ const MyLeagues: React.FC = () => {
       </div>
     );
   }
-
-  const visibleLeagues = useMemo(() => {
-    if (showPastSeasons) return leagues;
-    return leagues.filter((l) => l.season === CURRENT_SEASON);
-  }, [leagues, showPastSeasons]);
-
-  const pastCount = useMemo(
-    () => leagues.filter((l) => l.season < CURRENT_SEASON).length,
-    [leagues]
-  );
-
-  const commissioned = visibleLeagues.filter((l) => l.user_role === 'owner');
-  const participating = visibleLeagues.filter((l) => l.user_role !== 'owner');
 
   return (
     <div className="space-y-8">
