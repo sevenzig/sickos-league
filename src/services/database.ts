@@ -116,7 +116,7 @@ export async function loadGameStats(week?: number): Promise<GameStats[]> {
       passYards: stat.pass_yards,
       touchdowns: stat.pass_tds,
       completionPercent: stat.completion_percent,
-      turnovers: stat.interceptions + stat.fumbles,
+      turnovers: stat.interceptions + (stat.fumbles_lost ?? 0),
       events: [] // Would need to be calculated from stats
     }
   })
@@ -159,7 +159,8 @@ export async function getQBPerformanceFromDb(
   if (data.defensive_td > 0) events.push('Defensive TD')
   if (data.safety > 0) events.push('Safety')
   if (data.game_ending_fumble > 0) events.push('Game-ending Fumble')
-  if (data.game_winning_drive > 0) events.push('Game-winning Drive')
+  if (Number(data.game_winning_drive) === 0.5) events.push('GWD by Field Goal')
+  else if (data.game_winning_drive > 0) events.push('Game-Winning Drive')
   if (data.benching > 0) events.push('Benching')
 
   return {
@@ -167,7 +168,7 @@ export async function getQBPerformanceFromDb(
     passYards: data.pass_yards,
     touchdowns: data.pass_tds,
     completionPercent: data.completion_percent,
-    turnovers: data.interceptions + data.fumbles,
+    turnovers: data.interceptions + (data.fumbles_lost ?? 0),
     events,
     finalScore: data.final_score,
     // Additional stats from the database
@@ -243,7 +244,8 @@ export async function getWeeklyQBPerformancesFromDb(
     if (stat.defensive_td > 0) events.push('Defensive TD')
     if (stat.safety > 0) events.push('Safety')
     if (stat.game_ending_fumble > 0) events.push('Game-ending Fumble')
-    if (stat.game_winning_drive > 0) events.push('Game-winning Drive')
+    if (Number(stat.game_winning_drive) === 0.5) events.push('GWD by Field Goal')
+    else if (stat.game_winning_drive > 0) events.push('Game-Winning Drive')
     if (stat.benching > 0) events.push('Benching')
 
     return {
@@ -251,7 +253,7 @@ export async function getWeeklyQBPerformancesFromDb(
       passYards: stat.pass_yards,
       touchdowns: stat.pass_tds,
       completionPercent: stat.completion_percent,
-      turnovers: stat.interceptions + stat.fumbles,
+      turnovers: stat.interceptions + (stat.fumbles_lost ?? 0),
       events,
       finalScore: stat.final_score,
       // Additional stats from the database

@@ -11,8 +11,13 @@ import {
   calculateMatchupScoreFromDb,
   getTeamWeekMatchupDetailsFromDb
 } from '../utils/dbStandingsCalculator';
-import { getDetailedScoringBreakdown } from '../utils/scoring';
+import { computeBqblScore } from '../utils/scoring';
 import { Panel, PageChrome, Button, Badge, LoadingBlock } from '../components/ui';
+
+function qbPts(breakdown: any): number | null {
+  if (!breakdown) return null;
+  return computeBqblScore(breakdown).total;
+}
 
 // Memoized MatchupCard component to prevent unnecessary re-renders
 const MatchupCard = React.memo(({
@@ -116,11 +121,9 @@ const MatchupCard = React.memo(({
                     <TeamLogo teamName={qb} size="xs" className="w-10 h-10 md:w-12 md:h-12" />
                   </div>
                   <div className={`text-sm font-bold tabular-nums ${
-                    breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' :
-                    breakdown && breakdown.finalScore < 0 ? 'text-rose-400' :
-                    'text-slate-400'
+                    (() => { const pts = qbPts(breakdown); return pts != null && pts > 0 ? 'text-emerald-400' : pts != null && pts < 0 ? 'text-rose-400' : 'text-slate-400'; })()
                   }`}>
-                    {breakdown ? breakdown.finalScore : '--'}
+                    {qbPts(breakdown) ?? '--'}
                   </div>
                 </div>
               ))
@@ -159,11 +162,9 @@ const MatchupCard = React.memo(({
                     <TeamLogo teamName={qb} size="xs" className="w-10 h-10 md:w-12 md:h-12" />
                   </div>
                   <div className={`text-sm font-bold tabular-nums ${
-                    breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' :
-                    breakdown && breakdown.finalScore < 0 ? 'text-rose-400' :
-                    'text-slate-400'
+                    (() => { const pts = qbPts(breakdown); return pts != null && pts > 0 ? 'text-emerald-400' : pts != null && pts < 0 ? 'text-rose-400' : 'text-slate-400'; })()
                   }`}>
-                    {breakdown ? breakdown.finalScore : '--'}
+                    {qbPts(breakdown) ?? '--'}
                   </div>
                 </div>
               ))

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { computeBqblScore } from '../utils/scoring';
 import type { LeagueMatchup } from '../utils/multiLeagueApi';
 
 export interface MatchupScoreEntry {
@@ -13,6 +14,12 @@ export type MatchupScoresMap = Record<string, MatchupScoreEntry>;
 /** Key used by MatchupCard / modal lookup. */
 export function matchupScoreKey(team1: string, team2: string, week: number): string {
   return `${team1}-${team2}-${week}`;
+}
+
+function qbFinal(breakdown: any): number {
+  if (!breakdown) return 0;
+  // Prefer live BQBL recompute so cards match modal chips; falls back to stored ZFinal.
+  return computeBqblScore(breakdown).total;
 }
 
 /**
@@ -43,7 +50,7 @@ export function computeMatchupScores(
       const team2Breakdown = team2Names.map(name => ({ qb: name, breakdown: perfByTeam[name] ?? null }));
 
       const liveSum = (breakdown: { breakdown: any }[]) =>
-        breakdown.reduce((sum, b) => sum + (b.breakdown?.finalScore ?? 0), 0);
+        breakdown.reduce((sum, b) => sum + qbFinal(b.breakdown), 0);
 
       scores[key] = {
         team1Score: m.is_complete && m.team1_score != null ? Number(m.team1_score) : liveSum(team1Breakdown),

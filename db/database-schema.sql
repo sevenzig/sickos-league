@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS game_stats (
   defensive_td INTEGER DEFAULT 0,
   safety INTEGER DEFAULT 0,
   game_ending_fumble INTEGER DEFAULT 0,
-  game_winning_drive INTEGER DEFAULT 0,
+  game_winning_drive NUMERIC DEFAULT 0,
   benching INTEGER DEFAULT 0,
   completion_percent DECIMAL(5,2) DEFAULT 0,
   net_pass_yards INTEGER DEFAULT 0,

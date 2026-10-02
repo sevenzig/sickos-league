@@ -161,7 +161,7 @@ export function parseWeeklyCSV(csvData: string, week: number): WeeklyScoringData
     const defensiveTD = parseInt(values[defensiveTDIndex]) || 0;
     const safety = parseInt(values[safetyIndex]) || 0;
     const gameEndingFumble = parseInt(values[gameEndingFumbleIndex]) || 0;
-    const gameWinningDrive = parseInt(values[gameWinningDriveIndex]) || 0;
+    const gameWinningDrive = parseFloat(values[gameWinningDriveIndex]) || 0;
     const benching = parseInt(values[benchingIndex]) || 0;
     const completionPercent = parseFloat(values[completionIndex]) || 0;
     const netPassYards = parseInt(values[netPassYardsIndex]) || 0;
@@ -187,7 +187,9 @@ export function parseWeeklyCSV(csvData: string, week: number): WeeklyScoringData
     if (defensiveTD > 0) events.push('Defensive TD');
     if (safety > 0) events.push('Safety');
     if (gameEndingFumble > 0) events.push('Game-ending Fumble');
-    if (gameWinningDrive > 0) events.push('Game-winning Drive');
+    // 0.5 = FG game-winning drive (−6); full GWD is 1 (−12). Match SCORING_EVENTS names.
+    if (gameWinningDrive === 0.5) events.push('GWD by Field Goal');
+    else if (gameWinningDrive > 0) events.push('Game-Winning Drive');
     if (benching > 0) events.push('Benching');
     
     qbPerformances.push({
@@ -195,7 +197,8 @@ export function parseWeeklyCSV(csvData: string, week: number): WeeklyScoringData
       passYards,
       touchdowns,
       completionPercent,
-      turnovers: interceptions + fumbles,
+      // Turnover bonus uses Ints + FumL (lost); per-fumble points still use Fumb.
+      turnovers: interceptions + fumblesLost,
       events,
       finalScore,
       // Additional stats

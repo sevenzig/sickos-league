@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import TeamLogo from '../../TeamLogo';
-import { getDetailedScoringBreakdown, SCORING_EVENTS } from '../../../utils/scoring';
+import { computeBqblScore, SCORING_EVENTS } from '../../../utils/scoring';
 
 // Type definition for QB stats display structure
 interface QBStatsDisplay {
@@ -119,30 +119,18 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
       };
     }
     
-    // Calculate net pass yards (pass yards - sack yards)
-    const netPassYards = breakdown.passYards + (breakdown.sackYards || 0);
-    
-    const scoringBreakdown = getDetailedScoringBreakdown({
-      passYards: netPassYards,
-      touchdowns: breakdown.touchdowns,
-      completionPercent: breakdown.completionPercent,
-      turnovers: breakdown.turnovers,
-      events: breakdown.events,
-      longestPlay: breakdown.longestPlay,
-      interceptions: breakdown.interceptions,
-      fumbles: breakdown.fumbles,
-      rushYards: breakdown.rushYards
-    });
+    // Single path: category chips + specials = final (matches CSV ZFinal)
+    const scored = computeBqblScore(breakdown);
 
     return {
-      netPassYards: { value: netPassYards, points: scoringBreakdown.passYards },
-      touchdowns: { value: breakdown.touchdowns, points: scoringBreakdown.touchdowns },
-      completionPercent: { value: `${breakdown.completionPercent}%`, points: scoringBreakdown.completionPercent },
-      turnovers: { value: breakdown.interceptions + breakdown.fumbles, points: scoringBreakdown.turnovers },
-      interceptions: { value: breakdown.interceptions, points: scoringBreakdown.interceptions },
-      fumbles: { value: breakdown.fumbles, points: scoringBreakdown.fumbles },
-      longestPlay: { value: breakdown.longestPlay, points: scoringBreakdown.longestPlay },
-      rushYards: { value: breakdown.rushYards, points: scoringBreakdown.rushYards }
+      netPassYards: { value: scored.display.netPassYards, points: scored.categories.passYards },
+      touchdowns: { value: scored.display.touchdowns, points: scored.categories.touchdowns },
+      completionPercent: { value: `${breakdown.completionPercent}%`, points: scored.categories.completionPercent },
+      turnovers: { value: scored.display.turnovers, points: scored.categories.turnovers },
+      interceptions: { value: breakdown.interceptions, points: scored.categories.interceptions },
+      fumbles: { value: breakdown.fumbles, points: scored.categories.fumbles },
+      longestPlay: { value: breakdown.longestPlay, points: scored.categories.longestPlay },
+      rushYards: { value: breakdown.rushYards, points: scored.categories.rushYards }
     };
   };
 
@@ -320,11 +308,11 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                           <TeamLogo teamName={qb} size="lg" />
                         </div>
                           <div className={`inline-flex items-center gap-1 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-bold ${
-                            breakdown && breakdown.finalScore > 0 
+                            breakdown && computeBqblScore(breakdown).total > 0 
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                               : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                           }`}>
-                            {breakdown ? breakdown.finalScore : 0} pts
+                            {breakdown ? computeBqblScore(breakdown).total : 0} pts
                           </div>
                         </div>
                       </th>
@@ -338,11 +326,11 @@ const MatchupModal: React.FC<MatchupModalProps> = ({ isOpen, onClose, matchupDat
                           <TeamLogo teamName={qb} size="lg" />
                         </div>
                           <div className={`inline-flex items-center gap-1 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm font-bold ${
-                            breakdown && breakdown.finalScore > 0 
+                            breakdown && computeBqblScore(breakdown).total > 0 
                               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                               : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
                           }`}>
-                            {breakdown ? breakdown.finalScore : 0} pts
+                            {breakdown ? computeBqblScore(breakdown).total : 0} pts
                           </div>
                         </div>
                       </th>

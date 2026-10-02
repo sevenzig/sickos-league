@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLeagueData } from '../context/LeagueContext';
-import { calculateScore, getDetailedScoringBreakdown, SCORING_EVENTS, QBStats } from '../utils/scoring';
+import { computeBqblScore, SCORING_EVENTS } from '../utils/scoring';
 import TeamLogo from '../components/TeamLogo';
 import { clearAndReloadData } from '../utils/storage';
 import { getWeeklyQBPerformancesFromDb, clearQBPerformancesCache } from '../services/database';
@@ -28,65 +28,40 @@ const EnterScores: React.FC = () => {
 
   // Helper function to calculate points for each category using the same logic as MatchupModal
   const calculateCategoryPoints = (team: any, category: string): number => {
-    const netPassYards = (team.passYards ?? 0) + (team.sackYards ?? 0);
-    const turnovers = (team.interceptions ?? 0) + (team.fumbles ?? 0);
-    const scoring = getDetailedScoringBreakdown({
-      passYards: netPassYards,
-      touchdowns: team.touchdowns ?? 0,
-      completionPercent: team.completionPercent ?? 0,
-      turnovers,
-      longestPlay: team.longestPlay ?? 0,
-      interceptions: team.interceptions ?? 0,
-      fumbles: team.fumbles ?? 0,
-      rushYards: team.rushYards ?? 0,
-      // special events are scored via SCORING_EVENTS below to mirror modal behavior
-      events: []
-    } as any);
+    const scored = computeBqblScore(team);
 
-    // Base mapped scores from detailed breakdown
     const map: { [key: string]: number } = {
-      passYards: scoring.passYards ?? 0,
-      touchdowns: scoring.touchdowns ?? 0,
-      completionPercent: scoring.completionPercent ?? 0,
-      turnovers: scoring.turnovers ?? 0,
-      interceptions: scoring.interceptions ?? 0,
-      fumbles: scoring.fumbles ?? 0,
-      longestPlay: scoring.longestPlay ?? 0,
-      rushYards: scoring.rushYards ?? 0,
-      // special event categories handled below
+      passYards: scored.categories.passYards,
+      touchdowns: scored.categories.touchdowns,
+      completionPercent: scored.categories.completionPercent,
+      turnovers: scored.categories.turnovers,
+      interceptions: scored.categories.interceptions,
+      fumbles: scored.categories.fumbles,
+      longestPlay: scored.categories.longestPlay,
+      rushYards: scored.categories.rushYards,
     };
 
     if (category in map) {
       return map[category];
     }
 
-    // Mirror modal special event scoring using SCORING_EVENTS
     const getEventPoints = (name: string) => (SCORING_EVENTS.find(e => e.name === name)?.points ?? 0);
 
     switch (category) {
-      case 'defensiveTD': {
-        const pts = getEventPoints('Defensive TD');
-        return (team.defensiveTD ?? 0) * pts;
-      }
-      case 'safety': {
-        const pts = getEventPoints('QB Safety');
-        return (team.safety ?? 0) * pts;
-      }
-      case 'gameEndingFumble': {
-        const pts = getEventPoints('Game-ending F Up');
-        return (team.gameEndingFumble ?? 0) * pts;
-      }
+      case 'defensiveTD':
+        return (team.defensiveTD ?? 0) * getEventPoints('Defensive TD');
+      case 'safety':
+        return (team.safety ?? 0) * getEventPoints('QB Safety');
+      case 'gameEndingFumble':
+        return (team.gameEndingFumble ?? 0) * getEventPoints('Game-ending F Up');
       case 'gameWinningDrive': {
-        const gwdPts = getEventPoints('Game-Winning Drive');
-        const gwdFgPts = getEventPoints('GWD by Field Goal');
-        const count = (team.gameWinningDrive ?? 0);
-        const fgCount = (team.gwdByFieldGoal ?? 0);
-        return count * gwdPts + fgCount * gwdFgPts;
+        const gwd = Number(team.gameWinningDrive ?? 0);
+        if (gwd === 0.5) return getEventPoints('GWD by Field Goal');
+        if (gwd > 0) return gwd * getEventPoints('Game-Winning Drive');
+        return 0;
       }
-      case 'benching': {
-        const pts = getEventPoints('Benching');
-        return (team.benching ?? 0) * pts;
-      }
+      case 'benching':
+        return (team.benching ?? 0) * getEventPoints('Benching');
       default:
         return 0;
     }
@@ -97,9 +72,9 @@ const EnterScores: React.FC = () => {
     const points = calculateCategoryPoints(team, category);
     const descriptions: { [key: string]: string } = {
       'passYards': 'Net Pass Yards',
-      'touchdowns': 'Passing Touchdowns',
+      'touchdowns': 'Total Touchdowns',
       'completionPercent': 'Completion Percentage',
-      'turnovers': 'Total Turnovers',
+      'turnovers': 'Turnovers (INT + Fumbles Lost)',
       'interceptions': 'Interceptions',
       'fumbles': 'Fumbles',
       'longestPlay': 'Longest Play',
@@ -115,20 +90,25 @@ const EnterScores: React.FC = () => {
 
   // Helper function to get final score breakdown
   const getFinalScoreBreakdown = (team: any): string => {
-    const breakdown = [
-      `Pass Yards: ${calculateCategoryPoints(team, 'passYards')}`,
-      `Pass TDs: ${calculateCategoryPoints(team, 'touchdowns')}`,
-      `Comp %: ${calculateCategoryPoints(team, 'completionPercent')}`,
-      `INTs: ${calculateCategoryPoints(team, 'interceptions')}`,
-      `Fumbles: ${calculateCategoryPoints(team, 'fumbles')}`,
+    const scored = computeBqblScore(team);
+    const lines = [
+      `Pass Yards: ${scored.categories.passYards}`,
+      `TDs: ${scored.categories.touchdowns}`,
+      `Comp %: ${scored.categories.completionPercent}`,
+      `Turnovers: ${scored.categories.turnovers}`,
+      `INTs: ${scored.categories.interceptions}`,
+      `Fumbles: ${scored.categories.fumbles}`,
+      `Long: ${scored.categories.longestPlay}`,
+      `Rush: ${scored.categories.rushYards}`,
       `Def TD: ${calculateCategoryPoints(team, 'defensiveTD')}`,
       `Safety: ${calculateCategoryPoints(team, 'safety')}`,
       `GEF: ${calculateCategoryPoints(team, 'gameEndingFumble')}`,
       `GWD: ${calculateCategoryPoints(team, 'gameWinningDrive')}`,
-      `Benching: ${calculateCategoryPoints(team, 'benching')}`
-    ].filter(item => !item.includes(': 0')).join('\n');
-    
-    return breakdown || 'No additional points';
+      `Benching: ${calculateCategoryPoints(team, 'benching')}`,
+      `Total: ${scored.total}`,
+    ].filter(item => !item.match(/: 0$/));
+
+    return lines.join('\n') || 'No additional points';
   };
 
   // Helper function to handle mouse enter with smart positioning
@@ -191,10 +171,10 @@ const EnterScores: React.FC = () => {
   // Define scoring categories to display (aligned with modal)
 	const scoringCategories = [
 	    { key: 'team', label: 'Team', type: 'text' },
-	    { key: 'passYards', label: 'pYD', type: 'number' },
-	    { key: 'touchdowns', label: 'pTDs', type: 'number' },
+	    { key: 'passYards', label: 'nYD', type: 'number', valueFrom: (t: any) => computeBqblScore(t).display.netPassYards },
+	    { key: 'touchdowns', label: 'TDs', type: 'number', valueFrom: (t: any) => computeBqblScore(t).display.touchdowns },
 	    { key: 'completionPercent', label: 'Comp %', type: 'number', format: (val: number) => `${val.toFixed(1)}%` },
-	    { key: 'turnovers', label: 'TO', type: 'number', valueFrom: (t: any) => (t.interceptions ?? 0) + (t.fumbles ?? 0) },
+	    { key: 'turnovers', label: 'TO', type: 'number', valueFrom: (t: any) => computeBqblScore(t).display.turnovers },
 	    { key: 'interceptions', label: 'INTs', type: 'number' },
 	    { key: 'fumbles', label: 'Fum', type: 'number' },
 	    { key: 'longestPlay', label: 'Long', type: 'number' },
@@ -204,7 +184,7 @@ const EnterScores: React.FC = () => {
 	    { key: 'gameEndingFumble', label: 'GEF', type: 'number' },
 	    { key: 'gameWinningDrive', label: 'GWD', type: 'number' },
 	    { key: 'benching', label: 'Benched', type: 'number' },
-	    { key: 'finalScore', label: 'Final Score', type: 'number', highlight: true }
+	    { key: 'finalScore', label: 'Final Score', type: 'number', highlight: true, valueFrom: (t: any) => computeBqblScore(t).total }
 	  ];
 
   // Points display components (mirroring matchup modal)
@@ -336,7 +316,7 @@ const EnterScores: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-700/30">
                 {scoringData
-                  .sort((a, b) => b.finalScore - a.finalScore) // Sort by final score descending
+                  .sort((a, b) => computeBqblScore(b).total - computeBqblScore(a).total)
                   .map((team, index) => {
                     return (
                       <tr 

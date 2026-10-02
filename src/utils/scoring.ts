@@ -28,6 +28,114 @@ export interface QBStats {
 }
 
 /**
+ * Map an imported/DB QB row to scoring inputs matching the BQBL CSV Z* formula:
+ * net pass yards (NetPYds), total TDs (TTds), turnover bonus from Ints+FumL.
+ */
+export function toQBStatsForScoring(p: {
+  netPassYards?: number | null;
+  passYards?: number | null;
+  sackYards?: number | null;
+  totalTouchdowns?: number | null;
+  touchdowns?: number | null;
+  completionPercent?: number | null;
+  interceptions?: number | null;
+  fumbles?: number | null;
+  fumblesLost?: number | null;
+  turnovers?: number | null;
+  longestPlay?: number | null;
+  rushYards?: number | null;
+  events?: string[] | null;
+}): QBStats {
+  const netPassYards =
+    p.netPassYards != null
+      ? Number(p.netPassYards)
+      : Number(p.passYards ?? 0) + Number(p.sackYards ?? 0);
+  const interceptions = Number(p.interceptions ?? 0);
+  const turnovers =
+    p.fumblesLost != null
+      ? interceptions + Number(p.fumblesLost)
+      : Number(p.turnovers ?? interceptions + Number(p.fumbles ?? 0));
+
+  return {
+    passYards: netPassYards,
+    touchdowns: Number(p.totalTouchdowns ?? p.touchdowns ?? 0),
+    completionPercent: Number(p.completionPercent ?? 0),
+    turnovers,
+    events: p.events ?? [],
+    longestPlay: p.longestPlay != null ? Number(p.longestPlay) : undefined,
+    interceptions: p.interceptions != null ? interceptions : undefined,
+    fumbles: p.fumbles != null ? Number(p.fumbles) : undefined,
+    rushYards: p.rushYards != null ? Number(p.rushYards) : undefined,
+  };
+}
+
+export type BqblPerformanceInput = {
+  netPassYards?: number | null;
+  passYards?: number | null;
+  sackYards?: number | null;
+  totalTouchdowns?: number | null;
+  touchdowns?: number | null;
+  completionPercent?: number | null;
+  interceptions?: number | null;
+  fumbles?: number | null;
+  fumblesLost?: number | null;
+  turnovers?: number | null;
+  longestPlay?: number | null;
+  rushYards?: number | null;
+  defensiveTD?: number | null;
+  safety?: number | null;
+  gameEndingFumble?: number | null;
+  gameWinningDrive?: number | null;
+  benching?: number | null;
+};
+
+export type BqblScoreResult = {
+  /** Full BQBL score (matches CSV ZFinal when inputs match the CSV). */
+  total: number;
+  categories: ReturnType<typeof getDetailedScoringBreakdown>;
+  specialEvents: number;
+  /** Values used for table display (net yards, total TDs, INT+FumL). */
+  display: {
+    netPassYards: number;
+    touchdowns: number;
+    turnovers: number;
+  };
+};
+
+function specialEventsPoints(p: BqblPerformanceInput): number {
+  const pts = (name: string) => SCORING_EVENTS.find(e => e.name === name)?.points ?? 0;
+  let score = 0;
+  score += Number(p.defensiveTD ?? 0) * pts('Defensive TD');
+  score += Number(p.safety ?? 0) * pts('QB Safety');
+  score += Number(p.gameEndingFumble ?? 0) * pts('Game-ending F Up');
+  const gwd = Number(p.gameWinningDrive ?? 0);
+  if (gwd === 0.5) score += pts('GWD by Field Goal');
+  else if (gwd > 0) score += gwd * pts('Game-Winning Drive');
+  score += Number(p.benching ?? 0) * pts('Benching');
+  return score;
+}
+
+/**
+ * Single source for displayed BQBL scoring: category chips + specials = total.
+ * Uses the same rules as the weekly CSV Z* columns.
+ */
+export function computeBqblScore(p: BqblPerformanceInput): BqblScoreResult {
+  const stats = toQBStatsForScoring({ ...p, events: [] });
+  const categories = getDetailedScoringBreakdown(stats);
+  const specialEvents = specialEventsPoints(p);
+  return {
+    total: categories.total + specialEvents,
+    categories,
+    specialEvents,
+    display: {
+      netPassYards: stats.passYards,
+      touchdowns: stats.touchdowns,
+      turnovers: stats.turnovers,
+    },
+  };
+}
+
+/**
  * Calculate score based on QB stats using the Bad QB League scoring system
  * Higher scores are better (poor performance = more points)
  */

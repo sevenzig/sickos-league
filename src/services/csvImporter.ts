@@ -1,5 +1,6 @@
 import { db } from '../utils/db'
 import { parseWeeklyCSV } from '../utils/csvParser'
+import { computeBqblScore } from '../utils/scoring'
 import type { PlatformFinalizeWeekResult } from '../utils/multiLeagueApi'
 import { CURRENT_SEASON } from '../utils/currentSeason'
 
@@ -62,8 +63,15 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
       return result
     }
 
-    // Prepare data for database insertion
-    const gameStatsData = qbPerformances.map(qb => ({
+    // Prepare data for database insertion; refuse rows where ZFinal ≠ engine total
+    const gameStatsData = qbPerformances.map(qb => {
+      const computed = computeBqblScore(qb)
+      if (computed.total !== qb.finalScore) {
+        throw new Error(
+          `CSV ZFinal mismatch for ${qb.team}: ZFinal=${qb.finalScore}, computed=${computed.total}`
+        )
+      }
+      return {
       team_abbr: qb.team,
       week,
       season: csvSeason,
@@ -90,7 +98,8 @@ export async function importWeeklyCSV(csvData: string, week: number, season: num
       net_pass_yards: qb.netPassYards,
       total_tds: qb.totalTouchdowns,
       final_score: qb.finalScore
-    }))
+    }
+    })
 
     // Check if data for this week already exists
     const { data: existingData, error: checkError } = await db

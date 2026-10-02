@@ -1,6 +1,12 @@
 import React from 'react';
 import TeamLogo from '../../TeamLogo';
 import { Panel } from '@/components/ui/panel';
+import { computeBqblScore } from '../../../utils/scoring';
+
+function qbPts(breakdown: any): number | null {
+  if (!breakdown) return null;
+  return computeBqblScore(breakdown).total;
+}
 
 interface MatchupCardProps {
   matchup: any;
@@ -116,11 +122,9 @@ const MatchupCard: React.FC<MatchupCardProps> = React.memo(({
                     <TeamLogo teamName={qb} size="xs" className="w-10 h-10 md:w-12 md:h-12" />
                   </div>
                   <div className={`text-sm font-bold tabular-nums ${
-                    breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' :
-                    breakdown && breakdown.finalScore < 0 ? 'text-rose-400' :
-                    'text-slate-400'
+                    (() => { const pts = qbPts(breakdown); return pts != null && pts > 0 ? 'text-emerald-400' : pts != null && pts < 0 ? 'text-rose-400' : 'text-slate-400'; })()
                   }`}>
-                    {breakdown ? breakdown.finalScore : '--'}
+                    {qbPts(breakdown) ?? '--'}
                   </div>
                 </div>
               ))
@@ -159,11 +163,9 @@ const MatchupCard: React.FC<MatchupCardProps> = React.memo(({
                     <TeamLogo teamName={qb} size="xs" className="w-10 h-10 md:w-12 md:h-12" />
                   </div>
                   <div className={`text-sm font-bold tabular-nums ${
-                    breakdown && breakdown.finalScore > 0 ? 'text-emerald-400' :
-                    breakdown && breakdown.finalScore < 0 ? 'text-rose-400' :
-                    'text-slate-400'
+                    (() => { const pts = qbPts(breakdown); return pts != null && pts > 0 ? 'text-emerald-400' : pts != null && pts < 0 ? 'text-rose-400' : 'text-slate-400'; })()
                   }`}>
-                    {breakdown ? breakdown.finalScore : '--'}
+                    {qbPts(breakdown) ?? '--'}
                   </div>
                 </div>
               ))
