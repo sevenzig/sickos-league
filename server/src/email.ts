@@ -61,6 +61,31 @@ async function resolveEmail(row: OutboxRow): Promise<string | null> {
   return rows[0]?.email ?? null;
 }
 
+/** Direct send. Does not write email_outbox. Dry-run logs and succeeds when no API key is set. */
+export async function sendTransactionalEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!resend) {
+    console.log(`[email] dry-run → ${to}: ${subject}\n${html}`);
+    return { ok: true };
+  }
+
+  const { error } = await resend.emails.send({
+    from: EMAIL_FROM,
+    to,
+    subject,
+    html,
+  });
+
+  if (error) {
+    console.error('[email] send failed:', error);
+    return { ok: false, error: error.message || String(error) };
+  }
+  return { ok: true };
+}
+
 async function sendOne(row: OutboxRow): Promise<void> {
   const to = await resolveEmail(row);
   if (!to) {

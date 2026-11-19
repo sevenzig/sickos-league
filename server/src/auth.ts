@@ -1,10 +1,16 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { adminPool } from './db.js';
+import { sendTransactionalEmail } from './email.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'local-dev-secret-change-me';
 const TOKEN_TTL = '30d';
+const RESET_TTL_MS = 60 * 60 * 1000;
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+const FORGOT_MESSAGE =
+  'If an account exists for that username or email, we sent a reset link.';
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
 
@@ -147,6 +153,123 @@ authRouter.post('/login', async (req, res) => {
     token: issueToken(user.id, user.email, user.is_platform_admin),
     user,
   });
+});
+
+function hashResetToken(raw: string): string {
+  return createHash('sha256').update(raw).digest('hex');
+}
+
+authRouter.post('/forgot-password', async (req, res) => {
+  const raw = typeof req.body?.identifier === 'string' ? req.body.identifier.trim() : '';
+  const loginId = raw.toLowerCase();
+  if (!loginId) {
+    res.json({ ok: true, message: FORGOT_MESSAGE });
+    return;
+  }
+
+  const byEmail = loginId.includes('@');
+  try {
+    const { rows } = await adminPool.query(
+      byEmail
+        ? `SELECT id, email FROM auth.users WHERE email = $1`
+        : `SELECT id, email FROM auth.users WHERE LOWER(username) = $1`,
+      [loginId]
+    );
+    const user = rows[0] as { id: string; email: string } | undefined;
+    if (user) {
+      const token = randomBytes(32).toString('base64url');
+      const tokenHash = hashResetToken(token);
+      const expiresAt = new Date(Date.now() + RESET_TTL_MS);
+      await adminPool.query(
+        `UPDATE password_reset_tokens
+         SET used_at = NOW()
+         WHERE user_id = $1 AND used_at IS NULL`,
+        [user.id]
+      );
+      await adminPool.query(
+        `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+         VALUES ($1, $2, $3)`,
+        [user.id, tokenHash, expiresAt]
+      );
+      const link = `${APP_BASE_URL}/reset-password?token=${encodeURIComponent(token)}`;
+      const sent = await sendTransactionalEmail(
+        user.email,
+        'Reset your BQBL password',
+        `<p>Use this link to set a new password. It expires in 60 minutes.</p>
+<p><a href="${link}">${link}</a></p>
+<p>If you did not ask for this, you can ignore this email.</p>`
+      );
+      if (!sent.ok) {
+        console.error('[auth] password reset email failed:', sent.error);
+      }
+    }
+  } catch (err) {
+    console.error('[auth] forgot-password failed:', err);
+  }
+
+  res.json({ ok: true, message: FORGOT_MESSAGE });
+});
+
+authRouter.post('/reset-password', async (req, res) => {
+  const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+  const password = req.body?.password;
+  if (!token) {
+    res.status(400).json({ error: { message: 'This reset link is invalid or has expired' } });
+    return;
+  }
+  if (typeof password !== 'string' || password.length < 6) {
+    res.status(400).json({ error: { message: 'Password must be at least 6 characters' } });
+    return;
+  }
+
+  const tokenHash = hashResetToken(token);
+  const client = await adminPool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT t.id AS token_id, t.expires_at, t.used_at,
+              u.id, u.email, u.username, u.created_at, u.is_platform_admin
+       FROM password_reset_tokens t
+       JOIN auth.users u ON u.id = t.user_id
+       WHERE t.token_hash = $1
+       FOR UPDATE OF t`,
+      [tokenHash]
+    );
+    const row = rows[0];
+    const expired = row && new Date(row.expires_at).getTime() <= Date.now();
+    if (!row || row.used_at || expired) {
+      await client.query('ROLLBACK');
+      res.status(400).json({ error: { message: 'This reset link is invalid or has expired' } });
+      return;
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await client.query(`UPDATE auth.users SET encrypted_password = $2 WHERE id = $1`, [
+      row.id,
+      hash,
+    ]);
+    const burned = await client.query(
+      `UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1 AND used_at IS NULL`,
+      [row.token_id]
+    );
+    if (burned.rowCount !== 1) {
+      await client.query('ROLLBACK');
+      res.status(400).json({ error: { message: 'This reset link is invalid or has expired' } });
+      return;
+    }
+    await client.query('COMMIT');
+
+    const user = publicUser(row);
+    res.json({
+      token: issueToken(user.id, user.email, user.is_platform_admin),
+      user,
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 authRouter.get('/me', async (req: AuthedRequest, res) => {

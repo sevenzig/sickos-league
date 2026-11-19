@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ interface AuthFormProps {
   className?: string;
   /** Called when mode changes so parents (e.g. modal title) can stay in sync. */
   onModeChange?: (mode: AuthFormMode) => void;
+  /** Close a parent modal before the forgot-password route renders. */
+  onForgotNavigate?: () => void;
 }
 
 const AuthForm: React.FC<AuthFormProps> = ({
@@ -22,6 +25,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
   stackedActions = false,
   className,
   onModeChange,
+  onForgotNavigate,
 }) => {
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<AuthFormMode>(initialMode);
@@ -202,6 +206,18 @@ const AuthForm: React.FC<AuthFormProps> = ({
           </div>
         </div>
       </div>
+
+      {!isSignup && (
+        <div className="text-right">
+          <Link
+            to="/forgot-password"
+            onClick={onForgotNavigate}
+            className="text-label text-slate-400 hover:text-white transition-colors"
+          >
+            Forgot password?
+          </Link>
+        </div>
+      )}
 
       {stackedActions ? (
         <div className="space-y-3 pt-2">

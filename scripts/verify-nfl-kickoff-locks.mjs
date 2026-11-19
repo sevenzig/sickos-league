@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Verify per-team kickoff freeze, bye locks, status RPC, and finalize skip-bye.
+// Verify per-team kickoff freeze, bye locks, short/empty bye relief, status RPC,
+// and finalize skip-bye / empty auto-fill.
 // Run: node scripts/verify-nfl-kickoff-locks.mjs
-// Requires: docker compose up (api :3001, db) with migration 000036 applied.
+// Requires: docker compose up (api :3001, db) with migration 000050 applied.
 
 import { execSync } from 'node:child_process';
 import path from 'node:path';
@@ -315,6 +316,111 @@ await rpc(
   check('bye: owner can start bye', !error && data === true, error?.message);
 }
 
+// Bye relief: 3 roster byes → start the 1 eligible; 4 byes → empty OK
+{
+  psql(`
+    DELETE FROM fantasy_lineups WHERE fantasy_team_id = '${myTeam.id}' AND week = ${WEEK};
+    DELETE FROM matchups m
+    USING teams t
+    WHERE m.week = ${WEEK}
+      AND t.uuid_id IN (
+        '${myRoster[0].nfl_team_id}',
+        '${myRoster[2].nfl_team_id}',
+        '${myRoster[3].nfl_team_id}'
+      )
+      AND (m.team1_id = t.id OR m.team2_id = t.id);
+  `);
+
+  {
+    const { data, error } = await rpc(
+      'set_fantasy_lineup',
+      {
+        p_fantasy_team_id: myTeam.id,
+        p_week: WEEK,
+        p_active_nfl_teams: [myRoster[1].nfl_team_id],
+      },
+      managerToken
+    );
+    check('bye-relief: 3 byes — manager starts 1 eligible', !error && data === true, error?.message);
+  }
+  {
+    const { error } = await rpc(
+      'set_fantasy_lineup',
+      { p_fantasy_team_id: myTeam.id, p_week: WEEK, p_active_nfl_teams: [] },
+      managerToken
+    );
+    check(
+      'bye-relief: 3 byes — empty rejected',
+      !!error && /exactly 1/i.test(error.message || ''),
+      error?.message
+    );
+  }
+  {
+    const { error } = await rpc(
+      'set_fantasy_lineup',
+      {
+        p_fantasy_team_id: myTeam.id,
+        p_week: WEEK,
+        p_active_nfl_teams: [myRoster[1].nfl_team_id, byeUuid],
+      },
+      managerToken
+    );
+    check(
+      'bye-relief: 3 byes — cannot pad with bye',
+      !!error && /bye/i.test(error.message || ''),
+      error?.message
+    );
+  }
+
+  // Remove last eligible game; keep week seeded via a filler matchup
+  psql(`
+    DELETE FROM fantasy_lineups WHERE fantasy_team_id = '${myTeam.id}' AND week = ${WEEK};
+    DELETE FROM matchups m
+    USING teams t
+    WHERE m.week = ${WEEK}
+      AND t.uuid_id = '${myRoster[1].nfl_team_id}'
+      AND (m.team1_id = t.id OR m.team2_id = t.id);
+  `);
+  {
+    const { error } = await rpc(
+      'upsert_nfl_kickoff_times',
+      {
+        p_week: WEEK,
+        p_games: JSON.stringify([{ team1: extras[0], team2: extras[2], game_time: futureIso }]),
+      },
+      ownerToken
+    );
+    check('bye-relief: filler keeps week seeded', !error, error?.message);
+  }
+  {
+    const { data, error } = await rpc(
+      'set_fantasy_lineup',
+      { p_fantasy_team_id: myTeam.id, p_week: WEEK, p_active_nfl_teams: [] },
+      managerToken
+    );
+    check('bye-relief: 4 byes — empty lineup OK', !error && data === true, error?.message);
+  }
+
+  // Restore original three games for later finalize checks
+  {
+    const { error } = await rpc(
+      'upsert_nfl_kickoff_times',
+      { p_week: WEEK, p_games: JSON.stringify(games) },
+      ownerToken
+    );
+    check('bye-relief: restore original kickoffs', !error, error?.message);
+  }
+  await rpc(
+    'set_fantasy_lineup',
+    {
+      p_fantasy_team_id: myTeam.id,
+      p_week: WEEK,
+      p_active_nfl_teams: [myRoster[1].nfl_team_id, myRoster[2].nfl_team_id],
+    },
+    ownerToken
+  );
+}
+
 // Finalize auto-fill must skip bye teams
 const team3 = fantasyTeams?.find((t) => t.team_name === 'Team 3');
 {
@@ -415,6 +521,51 @@ const team3 = fantasyTeams?.find((t) => t.team_name === 'Team 3');
     'finalize: auto-fill does not include bye team',
     !!lineupJson && !lineupJson.includes(byePick),
     `lineup=${lineupJson} bye=${byePick}`
+  );
+}
+
+// Finalize with 4 roster byes → empty lineup, no raise
+const team4 = fantasyTeams?.find((t) => t.team_name === 'Team 4');
+{
+  const t4Roster = rosterOf(team4.id);
+  check('finalize-empty setup: Team 4 has roster', t4Roster.length >= 4);
+
+  const t4Ids = t4Roster.map((r) => r.nfl_team_id);
+  psql(`
+    DELETE FROM fantasy_lineups WHERE fantasy_team_id = '${team4.id}' AND week = ${WEEK};
+    DELETE FROM matchups m
+    USING teams t
+    WHERE m.week = ${WEEK}
+      AND t.uuid_id IN ('${t4Ids.join("','")}')
+      AND (m.team1_id = t.id OR m.team2_id = t.id);
+  `);
+
+  const stillSeeded = Number(
+    psqlScalar(`SELECT COUNT(*) FROM matchups WHERE week = ${WEEK} AND game_time IS NOT NULL`)
+  );
+  check(
+    'finalize-empty setup: week still seeded',
+    stillSeeded > 0,
+    `n=${stillSeeded}`
+  );
+
+  const { error: finErr } = await rpc(
+    'finalize_week_lineups',
+    { p_league_id: leagueId, p_week: WEEK },
+    ownerToken
+  );
+  check('finalize-empty: runs with 4 byes', !finErr, finErr?.message);
+
+  const lineupJson = psqlScalar(
+    `SELECT active_nfl_teams::text FROM fantasy_lineups WHERE fantasy_team_id = '${team4.id}' AND week = ${WEEK}`
+  );
+  const locked = psqlScalar(
+    `SELECT is_locked::text FROM fantasy_lineups WHERE fantasy_team_id = '${team4.id}' AND week = ${WEEK}`
+  );
+  check(
+    'finalize-empty: locks empty lineup',
+    lineupJson === '{}' && locked === 'true',
+    `lineup=${lineupJson} locked=${locked}`
   );
 }
 

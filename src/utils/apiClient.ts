@@ -105,6 +105,26 @@ export function authSignOut(): void {
   clearToken()
 }
 
+/** Always succeeds at the HTTP layer when the account may or may not exist. */
+export async function authForgotPassword(
+  identifier: string
+): Promise<{ error: ApiError | null; message: string | null }> {
+  const { json } = await apiFetch('/auth/forgot-password', { body: { identifier } })
+  if (json.error) return { error: json.error, message: null }
+  return { error: null, message: typeof json.message === 'string' ? json.message : null }
+}
+
+/** Sets a new password from a reset link and stores the returned session token. */
+export async function authResetPassword(
+  token: string,
+  password: string
+): Promise<{ user: ApiUser | null; error: ApiError | null }> {
+  const { json } = await apiFetch('/auth/reset-password', { body: { token, password } })
+  if (json.error) return { user: null, error: json.error }
+  setToken(json.token)
+  return { user: json.user, error: null }
+}
+
 // ---------------------------------------------------------------------------
 // Query builder: from().select/insert/update/upsert/delete
 // with eq/in/order/limit/single/maybeSingle and { count, head }

@@ -57,6 +57,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
           initialMode={initialMode}
           onModeChange={handleModeChange}
           onSuccess={handleSuccess}
+          onForgotNavigate={onClose}
         />
       </DialogContent>
     </Dialog>

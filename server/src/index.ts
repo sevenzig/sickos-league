@@ -41,6 +41,13 @@ async function main() {
     legacyHeaders: false,
     message: { error: { message: 'Too many auth attempts, try again later' } },
   });
+  const resetLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: isProd ? 5 : 500,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: { message: 'Too many reset attempts, try again later' } },
+  });
   const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: isProd ? 300 : 2000,
@@ -59,6 +66,8 @@ async function main() {
   });
   app.get('/favicon.ico', (_req, res) => res.status(204).end());
   app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  app.use('/api/auth/forgot-password', resetLimiter);
+  app.use('/api/auth/reset-password', resetLimiter);
   app.use('/api/auth', authLimiter, authRouter);
   app.use('/api', apiLimiter);
   app.use('/api/rpc', rpcRouter);

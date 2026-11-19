@@ -15,6 +15,8 @@ import Welcome from './pages/Welcome';
 import MyLeagues from './pages/MyLeagues';
 import CreateLeague from './pages/CreateLeague';
 import InviteRedeem from './pages/InviteRedeem';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import JoinLeague from './pages/JoinLeague';
 import LeagueView from './pages/LeagueView';
 import LeagueAdmin from './pages/LeagueAdmin';
@@ -131,6 +133,8 @@ function App() {
                 </Layout>
               } />
 
+              <Route path="/forgot-password" element={<Layout><ForgotPassword /></Layout>} />
+              <Route path="/reset-password" element={<Layout><ResetPassword /></Layout>} />
               <Route path="/invite" element={<Layout><InviteRedeem /></Layout>} />
               <Route path="/invite/:code" element={<Layout><InviteRedeem /></Layout>} />
               <Route path="/my-leagues" element={

@@ -4,6 +4,7 @@ import {
   authSignIn,
   authSignUp,
   authSignOut,
+  authResetPassword,
   type ApiUser,
 } from '../utils/apiClient';
 
@@ -20,6 +21,8 @@ interface AuthContextType {
   /** Sign in with username or email + password. */
   signIn: (identifier: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, username: string, password: string) => Promise<{ error: any }>;
+  /** Store the session returned by a successful password reset. */
+  completeReset: (token: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
 }
@@ -97,6 +100,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const completeReset = async (token: string, password: string) => {
+    try {
+      setLoading(true);
+      const { user: resetUser, error } = await authResetPassword(token, password);
+      if (error) {
+        return { error };
+      }
+      setUser(resetUser);
+      return { error: null };
+    } catch (error) {
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     authSignOut();
     setUser(null);
@@ -111,6 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     signIn,
     signUp,
+    completeReset,
     signOut,
     isAdmin,
   };

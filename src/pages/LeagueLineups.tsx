@@ -24,8 +24,9 @@ interface LeagueInfo {
 }
 
 // Self-serve weekly lineup page (Phase 3.1): the caller's own rostered NFL
-// teams, pick exactly teams_started_per_week, save. Edits freeze at kickoff
-// and week finalize. Opponent starters show once they have saved a lineup.
+// teams, pick teams_started_per_week (or fewer when byes leave short eligible),
+// save. Edits freeze at kickoff and week finalize. Opponent starters show once
+// they have saved a lineup.
 const LeagueLineups: React.FC = () => {
   const { leagueId } = useParams<{ leagueId: string }>();
   const { user } = useAuth();
@@ -49,6 +50,8 @@ const LeagueLineups: React.FC = () => {
   // kickoffTimes: nfl_team_id -> ISO kickoff (playing only); byeTeams when week seeded
   const [kickoffTimes, setKickoffTimes] = useState<Record<string, string>>({});
   const [byeTeams, setByeTeams] = useState<Set<string>>(new Set());
+  // True when get_nfl_week_team_status returned rows (week has seeded kickoffs)
+  const [weekSeeded, setWeekSeeded] = useState(false);
   // opponentMeta: playing teams only — Option 5 @ / vs under the name
   const [opponentMeta, setOpponentMeta] = useState<
     Record<string, { opponentName: string; isHome: boolean }>
@@ -168,6 +171,7 @@ const LeagueLineups: React.FC = () => {
     });
     setKickoffTimes(koMap);
     setByeTeams(byes);
+    setWeekSeeded(teamStatus.length > 0);
     setOpponentMeta(oppMap);
 
     if (weekStatusError) {
@@ -201,7 +205,14 @@ const LeagueLineups: React.FC = () => {
     loadWeek(selectedWeek);
   }, [selectedWeek, loadWeek]);
 
-  const startersNeeded = league?.teams_started_per_week ?? 1;
+  const leagueStarters = league?.teams_started_per_week ?? 1;
+  // When seeded, require only eligible (non-bye) roster teams up to the league default.
+  const eligibleCount = weekSeeded
+    ? roster.filter(r => !byeTeams.has(r.nfl_team_id)).length
+    : roster.length;
+  const startersNeeded = weekSeeded
+    ? Math.min(leagueStarters, eligibleCount)
+    : leagueStarters;
   const archivedSeason = league ? isArchivedSeason(league.season) : false;
   const rsWeeks = league?.regular_season_weeks ?? 14;
   const lockedRsWeekCount = new Set(
@@ -213,6 +224,12 @@ const LeagueLineups: React.FC = () => {
   );
   const canEdit = hasGameThisWeek && !weekLocked && !archivedSeason;
   const isComplete = selectedTeams.length === startersNeeded;
+  const byeReliefCopy =
+    weekSeeded && startersNeeded < leagueStarters
+      ? startersNeeded === 0
+        ? 'All roster teams on bye — save an empty lineup'
+        : `Only ${startersNeeded} team${startersNeeded === 1 ? '' : 's'} play this week — start all eligible`
+      : null;
 
   const isBye = useCallback(
     (nflTeamId: string) => byeTeams.has(nflTeamId),
@@ -340,8 +357,13 @@ const LeagueLineups: React.FC = () => {
               onUpdated={changes => setMyTeam(prev => (prev ? { ...prev, ...changes } : prev))}
             />
             <p className="text-sm text-slate-400 mt-1">
-              Pick {startersNeeded} of your {roster.length} rostered teams to start
+              {startersNeeded === 0
+                ? 'No eligible starters this week'
+                : `Pick ${startersNeeded} of your ${roster.length} rostered teams to start`}
             </p>
+            {byeReliefCopy && (
+              <p className="text-sm text-amber-400/90 mt-1">{byeReliefCopy}</p>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {weekLocked ? (

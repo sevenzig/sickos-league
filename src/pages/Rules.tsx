@@ -132,7 +132,7 @@ const Rules: React.FC = () => {
           <div className="space-y-3 text-label text-slate-200">
             {[
               ['Teams', '8 teams, each with 4 NFL team QBs'],
-              ['Lineups', 'Each team starts exactly 2 QBs per week'],
+              ['Lineups', 'Each team starts exactly 2 QBs per week. If bye weeks leave fewer than 2 eligible, start all that play (or save an empty lineup if none play)'],
               ['Scoring', 'Team score = sum of both QB scores'],
               ['Matchups', 'Higher total score wins the matchup'],
               ['Regular season', 'Commissioner chooses 14, 15, or 16 weeks. Every team plays once each week'],

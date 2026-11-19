@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>League home UI test — 8 Oct 2026</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          },
+          fontSize: {
+            display: ['2.25rem', { lineHeight: '1.15', fontWeight: '700', letterSpacing: '-0.02em' }],
+            title: ['1.5rem', { lineHeight: '1.25', fontWeight: '700', letterSpacing: '-0.01em' }],
+            heading: ['1.125rem', { lineHeight: '1.4', fontWeight: '600' }],
+            body: ['1rem', { lineHeight: '1.5', fontWeight: '400' }],
+            label: ['0.875rem', { lineHeight: '1.4', fontWeight: '500' }],
+            caption: ['0.75rem', { lineHeight: '1.35', fontWeight: '500' }],
+          },
+          colors: {
+            background: 'hsl(222 47% 11%)',
+            foreground: 'hsl(210 40% 98%)',
+            primary: { DEFAULT: 'hsl(217 91% 60%)', foreground: 'hsl(210 40% 98%)' },
+            ring: 'hsl(217 91% 60%)',
+            success: 'hsl(142 71% 45%)',
+            warning: 'hsl(48 96% 53%)',
+            danger: 'hsl(0 72% 51%)',
+          },
+          borderRadius: { panel: '1rem' },
+          boxShadow: {
+            panel: '0 10px 30px -10px rgba(0,0,0,0.4)',
+            'panel-hover': '0 12px 40px -10px rgba(0,0,0,0.5)',
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif; }
+    .panel {
+      background: linear-gradient(to bottom right, rgb(30 41 59 / 0.95), rgb(15 23 42 / 0.95));
+      border: 1px solid rgb(51 65 85 / 0.5);
+      border-radius: 1rem;
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.4);
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      white-space: nowrap; border-radius: 0.375rem; font-weight: 500;
+      height: 2.75rem; padding: 0 1rem; gap: 0.5rem;
+    }
+    .btn:focus-visible, .tab:focus-visible, .card:focus-visible, .wlt:focus-visible, a:focus-visible {
+      outline: 2px solid hsl(217 91% 60%);
+      outline-offset: 2px;
+    }
+    .btn-secondary { border: 1px solid #475569; background: transparent; color: #e2e8f0; }
+    .btn-secondary:hover { background: #1e293b; color: white; }
+    .btn-ghost { color: #cbd5e1; background: transparent; height: 2rem; font-size: 0.75rem; }
+    .btn-ghost:hover { background: #1e293b; color: white; }
+    .btn:disabled { opacity: 0.5; pointer-events: none; }
+    /* Phone preview and real narrow viewports share one compact layout.
+       Rules are more specific than Tailwind sm:/md:/xl: utilities, so a
+       390px frame on a wide monitor does not keep the desktop chrome. */
+    .phone-frame {
+      width: 390px;
+      height: 844px;
+      overflow: auto;
+      margin: 16px auto 32px;
+      border: 8px solid #020617;
+      border-radius: 28px;
+      background: hsl(222 47% 11%);
+    }
+    .compact #league-home {
+      padding: 12px;
+    }
+    .compact #league-home > * + * {
+      margin-top: 12px;
+    }
+    .compact .league-title {
+      font-size: 1.75rem;
+      line-height: 1.15;
+    }
+    .compact nav[aria-label="League"] {
+      display: flex;
+      width: 100%;
+      overflow: hidden;
+    }
+    .compact nav[aria-label="League"] .tab {
+      flex: 1 1 0;
+      min-width: 0;
+      padding-left: 6px;
+      padding-right: 6px;
+      font-size: 11px;
+    }
+    .compact .title-row {
+      margin-bottom: 8px;
+    }
+    .compact header {
+      margin-bottom: 0;
+    }
+    .compact .week-mobile {
+      display: grid;
+    }
+    .compact .week-desktop {
+      display: none;
+    }
+    .compact .week-bar {
+      min-height: 0;
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    .compact .matchup-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+    .compact .bottom-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+    }
+    .compact .score-half {
+      padding: 8px 6px 6px;
+    }
+    .compact .team-name {
+      font-size: 13px;
+      line-height: 1.15;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-inline: 16px;
+    }
+    .compact .score {
+      font-size: 2rem;
+      line-height: 1;
+      margin-bottom: 0;
+    }
+    .compact .trophy {
+      font-size: 12px;
+      top: 4px;
+      right: 4px;
+    }
+    .compact .qb-row {
+      padding-top: 8px;
+      padding-bottom: 8px;
+    }
+    .compact .qb-side {
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+    .compact .qb-pair {
+      gap: 4px;
+    }
+    .compact .logo-box {
+      width: 28px;
+      height: 28px;
+      padding: 2px;
+    }
+    .compact .logo-box img {
+      width: 22px;
+      height: 22px;
+    }
+    .compact .qb-pts {
+      font-size: 11px;
+      line-height: 1.2;
+    }
+    .compact .vs-badge {
+      padding: 2px 6px;
+      font-size: 10px;
+    }
+    @media (max-width: 639px) {
+      #frame.compact {
+        width: 100%;
+        height: auto;
+        margin: 0;
+        border: 0;
+        border-radius: 0;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .spin { animation: none; }
+    }
+    dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+  </style>
+</head>
+<body class="bg-background text-foreground min-h-screen">
+  <a href="#league-home" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-slate-800 focus:text-white focus:px-3 focus:py-2 focus:rounded-md">Skip to league home</a>
+
+  <div class="border-b border-slate-800 bg-slate-950 px-4 py-4 sm:px-8">
+    <h1 class="text-title text-slate-50">League home UI test</h1>
+    <p class="text-caption text-slate-500 mt-1 max-w-3xl">
+      design-test/league-home-ui-test-261008.html · markup from
+      <code class="text-slate-400">LeagueView</code>, <code class="text-slate-400">LeagueHeader</code>,
+      <code class="text-slate-400">WeekNavigation</code>, <code class="text-slate-400">MatchupCard</code>,
+      <code class="text-slate-400">StandingsTable</code>, <code class="text-slate-400">SeasonWLTChart</code>.
+      Week 3 QB points are CSV <code class="text-slate-400">ZFinal</code> from
+      <code class="text-slate-400">scoring/2026/BQBL-2026_WEEK-03.csv</code>.
+      Weeks 1–2 and standings are sample data. Phone is a 390×844 frame with one column of compact score cards.
+    </p>
+    <div class="mt-3 flex flex-wrap gap-2" role="group" aria-label="Page state">
+      <button type="button" data-state="scored" class="state-btn btn btn-secondary text-caption h-8 px-3">Scored week</button>
+      <button type="button" data-state="empty" class="state-btn btn btn-secondary text-caption h-8 px-3">No schedule</button>
+      <button type="button" data-state="bye" class="state-btn btn btn-secondary text-caption h-8 px-3">Playoff bye</button>
+      <button type="button" data-state="loading" class="state-btn btn btn-secondary text-caption h-8 px-3">Loading</button>
+      <button type="button" data-state="error" class="state-btn btn btn-secondary text-caption h-8 px-3">Error</button>
+      <button type="button" id="frame-toggle" class="btn btn-secondary text-caption h-8 px-3" aria-pressed="false">Phone</button>
+    </div>
+  </div>
+
+  <div id="frame" class="mx-auto">
+    <main id="league-home" class="px-4 sm:px-8 py-6 space-y-8" tabindex="-1"></main>
+  </div>
+
+  <dialog id="matchup-dialog" class="panel text-slate-100 p-6 max-w-md w-[calc(100%-2rem)]" aria-labelledby="dialog-title">
+    <h2 id="dialog-title" class="text-heading text-slate-50">Week matchup</h2>
+    <p id="dialog-body" class="text-body text-slate-300 mt-2"></p>
+    <p class="text-caption text-slate-500 mt-3">Stub of MatchupModal. The live modal is the full scoring breakdown.</p>
+    <button type="button" id="dialog-close" class="btn btn-secondary mt-4 text-label">Close</button>
+  </dialog>
+
+  <script>
+    const LOGO = (abbr) => `../public/logos/${abbr}.png`;
+    const TEAMS = [
+      { name: 'Scott Thurston', id: 't1', email: 'scott', w: 2, l: 0, t: 0, pf: 86, streak: 'W2' },
+      { name: 'Max Athorn', id: 't2', email: 'max', w: 1, l: 1, t: 0, pf: 41, streak: 'W1' },
+      { name: 'Devin Jones', id: 't3', email: 'devin', w: 1, l: 1, t: 0, pf: 38, streak: 'L1' },
+      { name: 'Jacob Frush', id: 't4', email: 'jacob', w: 1, l: 1, t: 0, pf: 33, streak: 'W1' },
+      { name: 'Paul Nikstad', id: 't5', email: 'pauln', w: 1, l: 1, t: 0, pf: 29, streak: 'L1' },
+      { name: 'Anthony Meehl', id: 't6', email: 'anthony', w: 1, l: 0, t: 1, pf: 22, streak: 'T1' },
+      { name: 'Eric Johnson', id: 't7', email: 'eric', w: 0, l: 2, t: 0, pf: 11, streak: 'L2' },
+      { name: 'Paul Johnson', id: 't8', email: 'paulj', w: 0, l: 1, t: 1, pf: 8, streak: 'L1' },
+    ];
+
+    const qb = (name, abbr, pts) => ({ name, abbr, pts });
+
+    const WEEKS = {
+      1: {
+        current: false,
+        matchups: [
+          { a: 'Scott Thurston', b: 'Jacob Frush', as: 44, bs: 12, aQbs: [qb('Denver','den',28), qb('Buffalo','buf',16)], bQbs: [qb('Dallas','dal',6), qb('Miami','mia',6)] },
+          { a: 'Max Athorn', b: 'Devin Jones', as: 18, bs: 21, aQbs: [qb('Philadelphia','phi',9), qb('Chicago','chi',9)], bQbs: [qb('New England','ne',11), qb('Atlanta','atl',10)] },
+          { a: 'Anthony Meehl', b: 'Eric Johnson', as: 15, bs: 8, tie: false, aQbs: [qb('Kansas City','kc',6), qb('Green Bay','gb',9)], bQbs: [qb('Cincinnati','cin',4), qb('Detroit','det',4)] },
+          { a: 'Paul Nikstad', b: 'Paul Johnson', as: 19, bs: 19, tie: true, aQbs: [qb('LA Rams','lar',10), qb('Tennessee','ten',9)], bQbs: [qb('Minnesota','min',11), qb('Houston','hou',8)] },
+        ],
+      },
+      2: {
+        current: false,
+        matchups: [
+          { a: 'Scott Thurston', b: 'Anthony Meehl', as: 42, bs: 7, aQbs: [qb('Denver','den',22), qb('Buffalo','buf',20)], bQbs: [qb('Kansas City','kc',5), qb('Green Bay','gb',2)] },
+          { a: 'Max Athorn', b: 'Paul Johnson', as: 23, bs: -4, aQbs: [qb('Philadelphia','phi',14), qb('Chicago','chi',9)], bQbs: [qb('Minnesota','min',2), qb('Houston','hou',-6)] },
+          { a: 'Devin Jones', b: 'Jacob Frush', as: 17, bs: 31, aQbs: [qb('New England','ne',9), qb('Atlanta','atl',8)], bQbs: [qb('Dallas','dal',16), qb('Miami','mia',15)] },
+          { a: 'Paul Nikstad', b: 'Eric Johnson', as: 10, bs: 3, aQbs: [qb('LA Rams','lar',6), qb('Tennessee','ten',4)], bQbs: [qb('Cincinnati','cin',1), qb('Detroit','det',2)] },
+        ],
+      },
+      3: {
+        current: true,
+        matchups: [
+          { a: 'Scott Thurston', b: 'Paul Nikstad', as: 110, bs: -11, aQbs: [qb('New England','ne',75), qb('NY Giants','nyg',35)], bQbs: [qb('Denver','den',-1), qb('San Francisco','sf',-10)] },
+          { a: 'Max Athorn', b: 'Eric Johnson', as: 54, bs: -2, aQbs: [qb('Philadelphia','phi',22), qb('Buffalo','buf',32)], bQbs: [qb('Chicago','chi',-1), qb('Cincinnati','cin',-1)] },
+          { a: 'Devin Jones', b: 'Anthony Meehl', as: 35, bs: 10, aQbs: [qb('Jacksonville','jax',16), qb('Miami','mia',19)], bQbs: [qb('Atlanta','atl',5), qb('Kansas City','kc',5)] },
+          { a: 'Jacob Frush', b: 'Paul Johnson', as: 46, bs: 11, aQbs: [qb('Tampa Bay','tb',21), qb('New Orleans','no',25)], bQbs: [qb('Minnesota','min',11), qb('Dallas','dal',0)] },
+        ],
+      },
+    };
+
+    const RESULTS = {};
+    Object.entries(WEEKS).forEach(([week, data]) => {
+      if (Number(week) === 3) return;
+      data.matchups.forEach((m) => {
+        const aRes = m.tie ? 'T' : m.as > m.bs ? 'W' : 'L';
+        const bRes = m.tie ? 'T' : m.bs > m.as ? 'W' : 'L';
+        RESULTS[`${m.a}-${week}`] = aRes;
+        RESULTS[`${m.b}-${week}`] = bRes;
+      });
+    });
+
+    let pageState = 'scored';
+    let selectedWeek = 3;
+    const currentWeek = 3;
+    const maxWeek = 16;
+    let lastCard = null;
+
+    const scoreClass = (n, has) => {
+      if (!has) return 'text-slate-200';
+      if (n < 0) return 'text-rose-400';
+      if (n > 0) return 'text-emerald-400';
+      return 'text-slate-200';
+    };
+
+    function halfClass(wins, loses, has) {
+      if (!has) return 'bg-gradient-to-b from-slate-800/20 to-slate-800/10 border-t-2 border-slate-700/20';
+      if (wins) return 'bg-gradient-to-b from-emerald-500/15 to-emerald-500/7 border-t-2 border-emerald-500/35';
+      if (loses) return 'bg-gradient-to-b from-rose-500/15 to-rose-500/8 border-t-2 border-rose-500/30';
+      return 'bg-gradient-to-b from-slate-800/20 to-slate-800/10 border-t-2 border-slate-700/20';
+    }
+
+    function qbsHtml(qbs, scored) {
+      if (!qbs.length) {
+        return [0, 1].map(() => `
+          <div class="flex flex-col items-center gap-1.5">
+            <div class="w-12 h-12 md:w-16 md:h-16 bg-slate-600 rounded-md border-2 border-dashed border-slate-500 flex items-center justify-center">
+              <span class="text-caption text-slate-400">?</span>
+            </div>
+            <div class="text-caption text-slate-400">--</div>
+          </div>`).join('');
+      }
+      return qbs.map((q) => `
+        <div class="flex flex-col items-center gap-1">
+          <div class="logo-box w-12 h-12 md:w-16 md:h-16 bg-white/5 rounded-lg flex items-center justify-center overflow-hidden p-1.5">
+            <img src="${LOGO(q.abbr)}" alt="" class="w-10 h-10 md:w-12 md:h-12 object-contain" />
+          </div>
+          <div class="qb-pts text-sm font-bold tabular-nums ${scored ? scoreClass(q.pts, true) : 'text-slate-500'}">${scored ? q.pts : '--'}</div>
+        </div>`).join('');
+    }
+
+    function cardHtml(m, week, scored) {
+      const aWins = scored && !m.tie && m.as > m.bs;
+      const bWins = scored && !m.tie && m.bs > m.as;
+      const label = `Week ${week} matchup, ${m.a} ${scored ? m.as : 'no score'} versus ${m.b} ${scored ? m.bs : 'no score'}. View breakdown.`;
+      return `
+        <div class="card panel overflow-hidden cursor-pointer hover:shadow-panel-hover" role="button" tabindex="0"
+          data-a="${m.a}" data-b="${m.b}" data-as="${m.as}" data-bs="${m.bs}" data-week="${week}"
+          aria-label="${label}">
+          <div class="flex bg-black/20">
+            <div class="score-half flex-1 min-w-0 px-5 py-6 text-center relative ${halfClass(aWins, bWins, scored)}">
+              ${aWins ? '<div class="trophy absolute top-2 right-2 text-xl" aria-hidden="true">🏆</div><span class="sr-only">Winner</span>' : ''}
+              <div class="team-name text-slate-200 text-sm font-semibold mb-1">${m.a}</div>
+              <div class="score text-6xl font-black leading-none mb-3 tabular-nums ${scoreClass(m.as, scored)}">${scored ? m.as : 0}</div>
+            </div>
+            <div class="w-px bg-white/10"></div>
+            <div class="score-half flex-1 min-w-0 px-5 py-6 text-center relative ${halfClass(bWins, aWins, scored)}">
+              ${bWins ? '<div class="trophy absolute top-2 right-2 text-xl" aria-hidden="true">🏆</div><span class="sr-only">Winner</span>' : ''}
+              <div class="team-name text-slate-200 text-sm font-semibold mb-1">${m.b}</div>
+              <div class="score text-6xl font-black leading-none mb-3 tabular-nums ${scoreClass(m.bs, scored)}">${scored ? m.bs : 0}</div>
+            </div>
+          </div>
+          <div class="qb-row flex relative py-6">
+            <div class="absolute left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent"></div>
+            <div class="vs-badge absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-800 text-slate-400 px-4 py-1.5 rounded-lg text-xs font-bold z-10 border border-slate-700/50">VS</div>
+            <div class="qb-side flex-1 min-w-0 px-6 flex flex-col items-center"><div class="qb-pair flex gap-4 items-center">${qbsHtml(m.aQbs, scored)}</div></div>
+            <div class="qb-side flex-1 min-w-0 px-6 flex flex-col items-center"><div class="qb-pair flex gap-4 items-center">${qbsHtml(m.bQbs, scored)}</div></div>
+          </div>
+        </div>`;
+    }
+
+    function headerHtml() {
+      const tabs = ['Home', 'My Lineup', 'Schedule', 'Standings', 'Draft'];
+      return `
+        <header class="mb-6">
+          <p class="text-caption font-semibold uppercase tracking-widest text-blue-400 mb-2">Season 2026</p>
+          <div class="title-row flex items-end justify-between gap-4 flex-wrap mb-6">
+            <h1 class="league-title text-display sm:text-5xl font-bold tracking-tight text-white">Sickos League</h1>
+            <a href="#admin" class="text-slate-400 hover:text-white underline decoration-slate-600 underline-offset-4 text-label rounded-md">Admin Panel →</a>
+          </div>
+          <nav aria-label="League" class="inline-flex max-w-full items-center overflow-x-auto rounded-full bg-slate-700/35 p-1 gap-0.5">
+            ${tabs.map((t) => `<a href="#${t.toLowerCase().replace(' ', '-')}" class="tab inline-flex items-center justify-center whitespace-nowrap rounded-full px-4 py-1.5 text-label font-semibold ${t === 'Home' ? 'bg-primary text-primary-foreground' : 'text-slate-400 hover:text-white'}" ${t === 'Home' ? 'aria-current="page"' : ''}>${t}</a>`).join('')}
+          </nav>
+        </header>`;
+    }
+
+    function weekNavHtml() {
+      const isCurrent = selectedWeek === currentWeek;
+      const atStart = selectedWeek <= 1;
+      const atEnd = selectedWeek >= maxWeek;
+      return `
+        <section class="week-bar panel min-h-[74px] px-4 sm:px-8 flex items-center" aria-label="Week">
+          <div class="week-mobile grid grid-cols-[auto_1fr_auto] items-center gap-2 w-full sm:hidden">
+            <button type="button" class="btn btn-secondary" data-week="-1" aria-label="Previous week" ${atStart ? 'disabled' : ''}>‹</button>
+            <div class="flex flex-col items-center text-center min-w-0">
+              <h2 id="week-heading" class="text-xl font-bold text-slate-50 tracking-tight">Week ${selectedWeek}</h2>
+              ${isCurrent
+                ? '<span class="mt-1 inline-flex items-center rounded-full px-2 py-1 text-caption font-medium uppercase tracking-wider bg-success/15 text-success">Current Week</span>'
+                : '<button type="button" class="btn btn-ghost mt-0.5" data-week="current">Current</button>'}
+            </div>
+            <button type="button" class="btn btn-secondary" data-week="1" aria-label="Next week" ${atEnd ? 'disabled' : ''}>›</button>
+          </div>
+          <div class="week-desktop hidden sm:flex items-center justify-between w-full">
+            <div class="flex items-center gap-4 min-w-0">
+              <h2 class="text-2xl font-bold text-slate-50 tracking-tight">Week ${selectedWeek}</h2>
+              ${isCurrent
+                ? '<span class="inline-flex items-center rounded-full px-2 py-1 text-caption font-medium uppercase tracking-wider bg-success/15 text-success">Current Week</span>'
+                : '<button type="button" class="btn btn-ghost whitespace-nowrap" data-week="current">Go to Current Week</button>'}
+            </div>
+            <div class="flex gap-3">
+              <button type="button" class="btn btn-secondary text-label" data-week="-1" ${atStart ? 'disabled' : ''}>Previous</button>
+              <button type="button" class="btn btn-secondary text-label" data-week="1" ${atEnd ? 'disabled' : ''}>Next</button>
+            </div>
+          </div>
+        </section>`;
+    }
+
+    function standingsHtml() {
+      const rows = TEAMS.map((t, i) => {
+        const rank = i + 1;
+        const badge = rank === 1
+          ? 'bg-warning/15 text-warning'
+          : rank <= 4 ? 'bg-success/15 text-success' : 'bg-slate-700/80 text-slate-200';
+        const streakColor = t.streak.startsWith('W') ? 'text-green-400' : t.streak.startsWith('L') ? 'text-red-400' : 'text-slate-400';
+        const pct = Math.round((t.w / Math.max(1, t.w + t.l + t.t)) * 100);
+        return `
+          <tr class="border-b border-slate-700/50">
+            <td class="py-3 pr-2"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full text-caption font-bold ${badge}">${rank}</span></td>
+            <td class="py-3 pr-2">
+              <button type="button" class="text-left rounded-md" aria-label="View ${t.name} roster">
+                <div class="text-white font-medium text-label">${t.name}</div>
+                <div class="text-slate-400 text-caption">${t.email}</div>
+              </button>
+            </td>
+            <td class="py-3 px-1 text-center text-slate-300 text-label font-mono tabular-nums">${t.w}-${t.l}-${t.t}</td>
+            <td class="py-3 px-1 text-right text-slate-300 text-label font-mono tabular-nums">${t.pf}</td>
+            <td class="py-3 px-1 text-right text-slate-300 text-label font-mono tabular-nums">${pct}</td>
+            <td class="py-3 pl-1 text-right text-label font-mono tabular-nums ${streakColor}">${t.streak}</td>
+          </tr>`;
+      }).join('');
+      return `
+        <section class="panel p-6" aria-labelledby="standings-heading">
+          <h3 id="standings-heading" class="text-heading text-slate-50 mb-4">Standings</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[32rem]">
+              <thead>
+                <tr class="border-b border-slate-600">
+                  <th class="text-left py-2 pr-2 text-slate-400 text-caption uppercase tracking-wide">#</th>
+                  <th class="text-left py-2 pr-2 text-slate-400 text-caption uppercase tracking-wide">Team</th>
+                  <th class="text-center py-2 text-slate-400 text-caption uppercase tracking-wide">W-L-T</th>
+                  <th class="text-right py-2 text-slate-400 text-caption uppercase tracking-wide">PF</th>
+                  <th class="text-right py-2 text-slate-400 text-caption uppercase tracking-wide">%</th>
+                  <th class="text-right py-2 text-slate-400 text-caption uppercase tracking-wide">Streak</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </section>`;
+    }
+
+    function wltHtml() {
+      const weeks = Array.from({ length: 14 }, (_, i) => i + 1);
+      const cell = (name, week) => {
+        const result = RESULTS[`${name}-${week}`];
+        if (!result) return '<td class="px-1 py-2 text-center"></td>';
+        const color = result === 'W' ? 'bg-emerald-500 text-white' : result === 'L' ? 'bg-rose-500 text-white' : 'bg-yellow-500 text-black';
+        return `<td class="px-1 py-2 text-center">
+          <button type="button" class="wlt w-7 h-7 rounded-lg text-xs font-bold ${color}" data-jump="${week}" aria-label="${name}, week ${week}, ${result === 'W' ? 'win' : result === 'L' ? 'loss' : 'tie'}">${result}</button>
+        </td>`;
+      };
+      const body = TEAMS.map((t, i) => `
+        <tr class="${i % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}">
+          <th scope="row" class="px-3 py-2 text-left text-sm font-medium text-slate-200 sticky left-0 bg-slate-800 z-10">${t.name}</th>
+          ${weeks.map((w) => cell(t.name, w)).join('')}
+          <td class="px-3 py-2 text-center text-sm font-bold text-emerald-400 tabular-nums">${t.w}-${t.l}${t.t ? '-' + t.t : ''}</td>
+        </tr>`).join('');
+      return `
+        <section class="xl:col-span-2 space-y-6" aria-labelledby="wlt-heading">
+          <div class="flex flex-wrap justify-between items-center gap-3">
+            <h3 id="wlt-heading" class="text-heading font-bold text-slate-50">Season W/L/T Chart</h3>
+            <ul class="flex gap-6 text-sm list-none p-0">
+              <li class="flex items-center gap-2"><span class="w-4 h-4 bg-emerald-500 rounded-lg" aria-hidden="true"></span><span class="text-slate-300 font-medium">Win</span></li>
+              <li class="flex items-center gap-2"><span class="w-4 h-4 bg-rose-500 rounded-lg" aria-hidden="true"></span><span class="text-slate-300 font-medium">Loss</span></li>
+              <li class="flex items-center gap-2"><span class="w-4 h-4 bg-yellow-500 rounded-lg" aria-hidden="true"></span><span class="text-slate-300 font-medium">Tie</span></li>
+            </ul>
+          </div>
+          <div class="panel overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full min-w-max">
+                <thead class="bg-slate-800">
+                  <tr>
+                    <th class="px-3 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800 z-10">Team</th>
+                    ${weeks.map((w) => `<th class="px-2 py-3 text-center text-xs font-bold text-slate-400 uppercase w-8">${w}</th>`).join('')}
+                    <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase">Record</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700/30">${body}</tbody>
+              </table>
+            </div>
+          </div>
+        </section>`;
+    }
+
+    function render() {
+      const root = document.getElementById('league-home');
+      document.querySelectorAll('.state-btn').forEach((b) => {
+        const on = b.dataset.state === pageState;
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        b.classList.toggle('bg-primary', on);
+        b.classList.toggle('text-primary-foreground', on);
+        b.classList.toggle('border-transparent', on);
+      });
+
+      if (pageState === 'loading') {
+        root.innerHTML = `
+          <div class="min-h-[50vh] flex items-center justify-center" role="status">
+            <div class="text-center">
+              <div class="spin animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" aria-hidden="true"></div>
+              <p class="text-slate-400">Loading league data...</p>
+            </div>
+          </div>`;
+        return;
+      }
+
+      if (pageState === 'error') {
+        root.innerHTML = `
+          <div class="min-h-[50vh] flex items-center justify-center">
+            <div class="bg-red-900/20 border border-red-700 rounded-lg p-6 max-w-md text-center" role="alert">
+              <h2 class="text-red-400 font-medium mb-2">Error Loading League</h2>
+              <p class="text-slate-300">Failed to load league data</p>
+            </div>
+          </div>`;
+        return;
+      }
+
+      let matchups = '';
+      if (pageState === 'empty') {
+        matchups = `<div class="panel p-6 text-center text-slate-400">No schedule yet. The commissioner can generate it from League Admin once all 8 teams have joined, or it will be created when the draft starts.</div>`;
+      } else if (pageState === 'bye') {
+        matchups = `<div class="panel p-6 text-center text-slate-400">No playoff games this week. Byes and teams that missed the playoffs have no matchup.</div>`;
+      } else if (!WEEKS[selectedWeek]) {
+        matchups = `<div class="panel p-6 text-center text-slate-400">No matchups scheduled for Week ${selectedWeek}</div>`;
+      } else {
+        const week = WEEKS[selectedWeek];
+        const scored = true;
+        matchups = `<div class="matchup-grid grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">${week.matchups.map((m) => cardHtml(m, selectedWeek, scored)).join('')}</div>`;
+      }
+
+      const showTables = pageState === 'scored';
+      root.innerHTML = `
+        ${headerHtml()}
+        ${weekNavHtml()}
+        ${matchups}
+        ${showTables ? `<div class="bottom-grid grid grid-cols-1 xl:grid-cols-3 gap-8">${standingsHtml()}${wltHtml()}</div>` : ''}
+      `;
+    }
+
+    const dialog = document.getElementById('matchup-dialog');
+    document.getElementById('league-home').addEventListener('click', (e) => {
+      const weekBtn = e.target.closest('[data-week]');
+      if (weekBtn && !weekBtn.disabled) {
+        const v = weekBtn.dataset.week;
+        if (v === 'current') selectedWeek = currentWeek;
+        else selectedWeek = Math.min(maxWeek, Math.max(1, selectedWeek + Number(v)));
+        if (pageState !== 'scored') pageState = 'scored';
+        render();
+        document.getElementById('week-heading')?.focus();
+        return;
+      }
+      const jump = e.target.closest('[data-jump]');
+      if (jump) {
+        selectedWeek = Number(jump.dataset.jump);
+        pageState = 'scored';
+        render();
+        document.getElementById('week-heading')?.focus();
+        return;
+      }
+      const card = e.target.closest('.card');
+      if (card) {
+        lastCard = card;
+        document.getElementById('dialog-title').textContent = `Week ${card.dataset.week} matchup`;
+        document.getElementById('dialog-body').textContent = `${card.dataset.a} ${card.dataset.as}, ${card.dataset.b} ${card.dataset.bs}`;
+        dialog.showModal();
+      }
+    });
+    document.getElementById('league-home').addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('card')) {
+        e.preventDefault();
+        e.target.click();
+      }
+    });
+    document.getElementById('dialog-close').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => lastCard?.focus());
+
+    document.querySelectorAll('.state-btn').forEach((b) => {
+      b.addEventListener('click', () => {
+        pageState = b.dataset.state;
+        if (pageState === 'scored') selectedWeek = 3;
+        if (pageState === 'bye') selectedWeek = 15;
+        render();
+      });
+    });
+    const frame = document.getElementById('frame');
+    const frameToggle = document.getElementById('frame-toggle');
+    const narrowViewport = window.matchMedia('(max-width: 639px)');
+
+    function syncFrame() {
+      const preview = frameToggle.getAttribute('aria-pressed') === 'true';
+      const narrow = narrowViewport.matches;
+      frame.classList.toggle('compact', preview || narrow);
+      frame.classList.toggle('phone-frame', preview && !narrow);
+    }
+
+    frameToggle.addEventListener('click', () => {
+      const on = frameToggle.getAttribute('aria-pressed') !== 'true';
+      frameToggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+      syncFrame();
+    });
+    narrowViewport.addEventListener('change', syncFrame);
+    syncFrame();
+
+    render();
+  </script>
+</body>
+</html>
