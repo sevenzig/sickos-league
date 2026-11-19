@@ -182,7 +182,9 @@ const LeagueLineups: React.FC = () => {
     }
 
     const mine = lineups.find(l => l.fantasy_team_id === myTeam.id) || null;
-    setSelectedTeams(mine?.active_nfl_teams ?? []);
+    const saved = mine?.active_nfl_teams ?? [];
+    // A stale bye in a saved lineup must not occupy the only starter slot.
+    setSelectedTeams(teamStatus.length > 0 ? saved.filter(id => !byes.has(id)) : saved);
 
     const matchup = schedule.find(
       m => m.week === week &&
@@ -223,7 +225,10 @@ const LeagueLineups: React.FC = () => {
     m => m.week === selectedWeek && (m.fantasy_team1_id === myTeam.id || m.fantasy_team2_id === myTeam.id)
   );
   const canEdit = hasGameThisWeek && !weekLocked && !archivedSeason;
-  const isComplete = selectedTeams.length === startersNeeded;
+  const activeSelected = weekSeeded
+    ? selectedTeams.filter(id => !byeTeams.has(id))
+    : selectedTeams;
+  const isComplete = activeSelected.length === startersNeeded;
   const byeReliefCopy =
     weekSeeded && startersNeeded < leagueStarters
       ? startersNeeded === 0
@@ -259,13 +264,13 @@ const LeagueLineups: React.FC = () => {
     if (!canEdit) return;
     if (hasKickedOff(nflTeamId)) return;
     setSelectedTeams(prev => {
-      if (prev.includes(nflTeamId)) {
-        // Allow deselect of bye so stale lineups can be fixed
-        return prev.filter(id => id !== nflTeamId);
+      const base = weekSeeded ? prev.filter(id => !byeTeams.has(id)) : prev;
+      if (base.includes(nflTeamId)) {
+        return base.filter(id => id !== nflTeamId);
       }
-      if (isBye(nflTeamId)) return prev;
-      if (prev.length >= startersNeeded) return prev;
-      return [...prev, nflTeamId];
+      if (isBye(nflTeamId)) return base;
+      if (base.length >= startersNeeded) return base;
+      return [...base, nflTeamId];
     });
   };
 
@@ -274,7 +279,10 @@ const LeagueLineups: React.FC = () => {
     try {
       setSaving(true);
       setError(null);
-      await MultiLeagueApi.setFantasyLineup(myTeam.id, selectedWeek, selectedTeams);
+      const lineup = weekSeeded
+        ? selectedTeams.filter(id => !byeTeams.has(id))
+        : selectedTeams;
+      await MultiLeagueApi.setFantasyLineup(myTeam.id, selectedWeek, lineup);
       setStatusMessage('Lineup saved');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save lineup');
@@ -377,7 +385,7 @@ const LeagueLineups: React.FC = () => {
               <span className={`text-xs px-2 py-1 rounded-lg font-bold tabular-nums ${
                 isComplete ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
               }`}>
-                {selectedTeams.length}/{startersNeeded}
+                {activeSelected.length}/{startersNeeded}
               </span>
             )}
             {canEdit && (
@@ -412,7 +420,7 @@ const LeagueLineups: React.FC = () => {
                 MIN_STARTS_PER_TEAM - starts > remainingRsWeeks;
               const canSelect =
                 !isSelected &&
-                selectedTeams.length < startersNeeded &&
+                activeSelected.length < startersNeeded &&
                 !kicked &&
                 !onBye;
               // Kicked: fully locked. Bye unselected: cannot select. Bye selected (stale): allow deselect.

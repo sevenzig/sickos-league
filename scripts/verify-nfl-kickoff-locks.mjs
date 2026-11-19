@@ -344,6 +344,18 @@ await rpc(
     check('bye-relief: 3 byes — manager starts 1 eligible', !error && data === true, error?.message);
   }
   {
+    const { data, error } = await rpc(
+      'set_fantasy_lineup',
+      {
+        p_fantasy_team_id: myTeam.id,
+        p_week: WEEK,
+        p_active_nfl_teams: [myRoster[1].nfl_team_id],
+      },
+      ownerToken
+    );
+    check('bye-relief: 3 byes — owner starts 1 eligible', !error && data === true, error?.message);
+  }
+  {
     const { error } = await rpc(
       'set_fantasy_lineup',
       { p_fantasy_team_id: myTeam.id, p_week: WEEK, p_active_nfl_teams: [] },
