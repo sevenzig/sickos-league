@@ -114,7 +114,7 @@ export async function authForgotPassword(
   return { error: null, message: typeof json.message === 'string' ? json.message : null }
 }
 
-/** Sets a new password from a reset link and stores the returned session token. */
+/** Sets a new password from an emailed code and stores the returned session token. */
 export async function authResetPassword(
   token: string,
   password: string

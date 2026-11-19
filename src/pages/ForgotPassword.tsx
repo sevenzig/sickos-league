@@ -16,7 +16,7 @@ const ForgotPassword: React.FC = () => {
     const { error: requestError } = await authForgotPassword(identifier);
     setLoading(false);
     if (requestError) {
-      setError(requestError.message || 'Could not send a reset link');
+      setError(requestError.message || 'Could not send a code');
       return;
     }
     setSent(true);
@@ -27,14 +27,15 @@ const ForgotPassword: React.FC = () => {
       <div className="text-center mb-8">
         <h1 className="text-title text-slate-50 mb-3">Reset password</h1>
         <p className="text-body text-slate-400 leading-relaxed">
-          Enter the username or email on your account. If it matches, we send a link that expires in 60 minutes.
+          Enter the username or email on your account. If it matches, we send a 6-digit code to that account's email. The code expires in 15 minutes.
         </p>
       </div>
       <Panel>
         {sent ? (
           <div className="space-y-4">
             <p className="text-body text-slate-200">
-              If an account exists for that username or email, we sent a reset link.
+              If an account exists for that username or email, we sent a code to its email.
+              Enter it on the sign-in form.
             </p>
             <Link
               to="/"
@@ -63,7 +64,7 @@ const ForgotPassword: React.FC = () => {
               />
             </div>
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? 'Sending...' : 'Send reset link'}
+              {loading ? 'Sending...' : 'Send code'}
             </Button>
           </form>
         )}

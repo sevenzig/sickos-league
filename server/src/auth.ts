@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -7,10 +7,9 @@ import { sendTransactionalEmail } from './email.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'local-dev-secret-change-me';
 const TOKEN_TTL = '30d';
-const RESET_TTL_MS = 60 * 60 * 1000;
-const APP_BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
+const RESET_TTL_MS = 15 * 60 * 1000;
 const FORGOT_MESSAGE =
-  'If an account exists for that username or email, we sent a reset link.';
+  'If an account exists for that username or email, we sent a code to its email.';
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,32}$/;
 
@@ -177,8 +176,8 @@ authRouter.post('/forgot-password', async (req, res) => {
     );
     const user = rows[0] as { id: string; email: string } | undefined;
     if (user) {
-      const token = randomBytes(32).toString('base64url');
-      const tokenHash = hashResetToken(token);
+      const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+      const tokenHash = hashResetToken(code);
       const expiresAt = new Date(Date.now() + RESET_TTL_MS);
       await adminPool.query(
         `UPDATE password_reset_tokens
@@ -191,13 +190,11 @@ authRouter.post('/forgot-password', async (req, res) => {
          VALUES ($1, $2, $3)`,
         [user.id, tokenHash, expiresAt]
       );
-      const link = `${APP_BASE_URL}/reset-password?token=${encodeURIComponent(token)}`;
       const sent = await sendTransactionalEmail(
         user.email,
-        'Reset your BQBL password',
-        `<p>Use this link to set a new password. It expires in 60 minutes.</p>
-<p><a href="${link}">${link}</a></p>
-<p>If you did not ask for this, you can ignore this email.</p>`
+        'Your BQBL password code',
+        `<p>Your password reset code is <strong>${code}</strong>.</p>
+<p>It expires in 15 minutes. If you did not ask for this, you can ignore this email.</p>`
       );
       if (!sent.ok) {
         console.error('[auth] password reset email failed:', sent.error);
@@ -214,7 +211,7 @@ authRouter.post('/reset-password', async (req, res) => {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   const password = req.body?.password;
   if (!token) {
-    res.status(400).json({ error: { message: 'This reset link is invalid or has expired' } });
+    res.status(400).json({ error: { message: 'This code is invalid or has expired' } });
     return;
   }
   if (typeof password !== 'string' || password.length < 6) {
@@ -239,7 +236,7 @@ authRouter.post('/reset-password', async (req, res) => {
     const expired = row && new Date(row.expires_at).getTime() <= Date.now();
     if (!row || row.used_at || expired) {
       await client.query('ROLLBACK');
-      res.status(400).json({ error: { message: 'This reset link is invalid or has expired' } });
+      res.status(400).json({ error: { message: 'This code is invalid or has expired' } });
       return;
     }
 
@@ -254,7 +251,7 @@ authRouter.post('/reset-password', async (req, res) => {
     );
     if (burned.rowCount !== 1) {
       await client.query('ROLLBACK');
-      res.status(400).json({ error: { message: 'This reset link is invalid or has expired' } });
+      res.status(400).json({ error: { message: 'This code is invalid or has expired' } });
       return;
     }
     await client.query('COMMIT');

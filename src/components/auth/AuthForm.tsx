@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { authForgotPassword } from '../../utils/apiClient';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 
-export type AuthFormMode = 'signin' | 'signup';
+export type AuthFormMode = 'signin' | 'signup' | 'reset';
 
 interface AuthFormProps {
   initialMode?: AuthFormMode;
@@ -15,8 +15,6 @@ interface AuthFormProps {
   className?: string;
   /** Called when mode changes so parents (e.g. modal title) can stay in sync. */
   onModeChange?: (mode: AuthFormMode) => void;
-  /** Close a parent modal before the forgot-password route renders. */
-  onForgotNavigate?: () => void;
 }
 
 const AuthForm: React.FC<AuthFormProps> = ({
@@ -25,9 +23,8 @@ const AuthForm: React.FC<AuthFormProps> = ({
   stackedActions = false,
   className,
   onModeChange,
-  onForgotNavigate,
 }) => {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, completeReset } = useAuth();
   const [mode, setMode] = useState<AuthFormMode>(initialMode);
   const [identifier, setIdentifier] = useState('');
   const [email, setEmail] = useState('');
@@ -36,6 +33,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetCode, setResetCode] = useState('');
 
   useEffect(() => {
     setMode(initialMode);
@@ -51,6 +49,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
     setUsername('');
     setPassword('');
     setPasswordConfirm('');
+    setResetCode('');
   };
 
   const setAuthMode = (next: AuthFormMode) => {
@@ -63,6 +62,8 @@ const AuthForm: React.FC<AuthFormProps> = ({
       // autofilled email (pattern rejects @/.) and block sign-in submit.
       setUsername('');
       setPasswordConfirm('');
+      setResetCode('');
+      if (mode === 'reset') setPassword('');
     }
     // Keep password on flip; only clear error.
     setError(null);
@@ -75,7 +76,19 @@ const AuthForm: React.FC<AuthFormProps> = ({
     setLoading(true);
     setError(null);
 
-    if (mode === 'signup') {
+    if (mode === 'reset') {
+      if (password !== passwordConfirm) {
+        setError('Passwords do not match');
+        setLoading(false);
+        return;
+      }
+      const { error: resetError } = await completeReset(resetCode, password);
+      if (resetError) {
+        setError(resetError.message || 'This code is invalid or has expired');
+        setLoading(false);
+        return;
+      }
+    } else if (mode === 'signup') {
       if (password !== passwordConfirm) {
         setError('Passwords do not match');
         setLoading(false);
@@ -101,7 +114,28 @@ const AuthForm: React.FC<AuthFormProps> = ({
     onSuccess?.();
   };
 
+  const sendResetCode = async () => {
+    if (!identifier.trim()) {
+      setError('Enter your username or email first');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const { error: requestError } = await authForgotPassword(identifier);
+    setLoading(false);
+    if (requestError) {
+      setError(requestError.message || 'Could not send a code');
+      return;
+    }
+    setPassword('');
+    setPasswordConfirm('');
+    setResetCode('');
+    setMode('reset');
+    onModeChange?.('reset');
+  };
+
   const isSignup = mode === 'signup';
+  const isReset = mode === 'reset';
 
   return (
     <form onSubmit={handleSubmit} className={className ?? 'space-y-4'}>
@@ -153,7 +187,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
         </div>
       </div>
 
-      {!isSignup && (
+      {!isSignup && !isReset && (
         <div className="space-y-1.5">
           <Label htmlFor="auth-identifier">Username or email</Label>
           <Input
@@ -168,25 +202,47 @@ const AuthForm: React.FC<AuthFormProps> = ({
         </div>
       )}
 
+      {isReset && (
+        <div className="space-y-1.5">
+          <Label htmlFor="auth-reset-code">Code</Label>
+          <Input
+            type="text"
+            id="auth-reset-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={resetCode}
+            onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="6-digit code"
+            required
+            minLength={6}
+            maxLength={6}
+            pattern="[0-9]{6}"
+          />
+          <p className="text-label text-slate-400">
+            If an account exists for that username or email, we sent a code to its email.
+          </p>
+        </div>
+      )}
+
       <div className="space-y-1.5">
-        <Label htmlFor="auth-password">Password</Label>
+        <Label htmlFor="auth-password">{isReset ? 'New password' : 'Password'}</Label>
         <Input
           type="password"
           id="auth-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder={isSignup ? 'At least 6 characters' : 'Enter your password'}
-          autoComplete={isSignup ? 'new-password' : 'current-password'}
+          placeholder={isSignup || isReset ? 'At least 6 characters' : 'Enter your password'}
+          autoComplete={isSignup || isReset ? 'new-password' : 'current-password'}
           required
-          minLength={isSignup ? 6 : undefined}
+          minLength={isSignup || isReset ? 6 : undefined}
         />
       </div>
 
       <div
         className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
-          isSignup ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          isSignup || isReset ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         }`}
-        aria-hidden={!isSignup}
+        aria-hidden={!(isSignup || isReset)}
       >
         <div className="overflow-hidden min-h-0">
           <div className="space-y-1.5 pb-0.5">
@@ -198,24 +254,25 @@ const AuthForm: React.FC<AuthFormProps> = ({
               onChange={(e) => setPasswordConfirm(e.target.value)}
               placeholder="Re-enter your password"
               autoComplete="new-password"
-              required={isSignup}
-              disabled={!isSignup}
+              required={isSignup || isReset}
+              disabled={!(isSignup || isReset)}
               minLength={6}
-              tabIndex={isSignup ? undefined : -1}
+              tabIndex={isSignup || isReset ? undefined : -1}
             />
           </div>
         </div>
       </div>
 
-      {!isSignup && (
+      {mode === 'signin' && (
         <div className="text-right">
-          <Link
-            to="/forgot-password"
-            onClick={onForgotNavigate}
+          <button
+            type="button"
+            onClick={sendResetCode}
+            disabled={loading}
             className="text-label text-slate-400 hover:text-white transition-colors"
           >
-            Forgot password?
-          </Link>
+            {loading ? 'Sending code...' : 'Forgot password?'}
+          </button>
         </div>
       )}
 
@@ -223,38 +280,54 @@ const AuthForm: React.FC<AuthFormProps> = ({
         <div className="space-y-3 pt-2">
           <Button type="submit" disabled={loading} className="w-full">
             {loading
-              ? isSignup
-                ? 'Creating account...'
-                : 'Signing in...'
-              : isSignup
-                ? 'Create Account'
-                : 'Log in'}
+              ? isReset
+                ? 'Saving...'
+                : isSignup
+                  ? 'Creating account...'
+                  : 'Signing in...'
+              : isReset
+                ? 'Save password'
+                : isSignup
+                  ? 'Create Account'
+                  : 'Log in'}
           </Button>
           <button
             type="button"
-            onClick={() => setAuthMode(isSignup ? 'signin' : 'signup')}
+            onClick={() => setAuthMode(isSignup || isReset ? 'signin' : 'signup')}
             className="w-full text-center text-label text-slate-400 hover:text-white transition-colors"
           >
-            {isSignup ? 'Have an account? Log in' : 'Need an account? Register'}
+            {isReset
+              ? 'Back to sign in'
+              : isSignup
+                ? 'Have an account? Log in'
+                : 'Need an account? Register'}
           </button>
         </div>
       ) : (
         <div className="flex items-center justify-between pt-4">
           <button
             type="button"
-            onClick={() => setAuthMode(isSignup ? 'signin' : 'signup')}
+            onClick={() => setAuthMode(isSignup || isReset ? 'signin' : 'signup')}
             className="text-label text-slate-400 hover:text-white transition-colors"
           >
-            {isSignup ? 'Have an account? Sign in' : 'Need an account? Sign up'}
+            {isReset
+              ? 'Back to sign in'
+              : isSignup
+                ? 'Have an account? Sign in'
+                : 'Need an account? Sign up'}
           </button>
           <Button type="submit" disabled={loading}>
             {loading
-              ? isSignup
-                ? 'Creating account...'
-                : 'Signing in...'
-              : isSignup
-                ? 'Create Account'
-                : 'Sign In'}
+              ? isReset
+                ? 'Saving...'
+                : isSignup
+                  ? 'Creating account...'
+                  : 'Signing in...'
+              : isReset
+                ? 'Save password'
+                : isSignup
+                  ? 'Create Account'
+                  : 'Sign In'}
           </Button>
         </div>
       )}

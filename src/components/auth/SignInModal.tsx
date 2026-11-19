@@ -49,7 +49,7 @@ const SignInModal: React.FC<SignInModalProps> = ({
       <DialogContent className="max-w-md w-full">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'signin' ? 'Sign In' : 'Create Account'}
+            {mode === 'signup' ? 'Create Account' : mode === 'reset' ? 'Reset password' : 'Sign In'}
           </DialogTitle>
         </DialogHeader>
         <AuthForm
@@ -57,7 +57,6 @@ const SignInModal: React.FC<SignInModalProps> = ({
           initialMode={initialMode}
           onModeChange={handleModeChange}
           onSuccess={handleSuccess}
-          onForgotNavigate={onClose}
         />
       </DialogContent>
     </Dialog>
