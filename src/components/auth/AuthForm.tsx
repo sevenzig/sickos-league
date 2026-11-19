@@ -7,6 +7,25 @@ import { Label } from '@/components/ui/label';
 
 export type AuthFormMode = 'signin' | 'signup' | 'reset';
 
+const RESET_PENDING_KEY = 'bqbl-reset-pending';
+
+function hasPendingReset(): boolean {
+  try {
+    return sessionStorage.getItem(RESET_PENDING_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setPendingReset(pending: boolean): void {
+  try {
+    if (pending) sessionStorage.setItem(RESET_PENDING_KEY, '1');
+    else sessionStorage.removeItem(RESET_PENDING_KEY);
+  } catch {
+    // Private mode can block storage. The email link still opens /reset-password.
+  }
+}
+
 interface AuthFormProps {
   initialMode?: AuthFormMode;
   onSuccess?: () => void;
@@ -32,10 +51,15 @@ const AuthForm: React.FC<AuthFormProps> = ({
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetCode, setResetCode] = useState('');
 
   useEffect(() => {
+    if (initialMode === 'signin' && hasPendingReset()) {
+      setMode('reset');
+      return;
+    }
     setMode(initialMode);
   }, [initialMode]);
 
@@ -63,6 +87,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
       setUsername('');
       setPasswordConfirm('');
       setResetCode('');
+      setPendingReset(false);
       if (mode === 'reset') setPassword('');
     }
     // Keep password on flip; only clear error.
@@ -88,6 +113,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
         setLoading(false);
         return;
       }
+      setPendingReset(false);
     } else if (mode === 'signup') {
       if (password !== passwordConfirm) {
         setError('Passwords do not match');
@@ -119,10 +145,10 @@ const AuthForm: React.FC<AuthFormProps> = ({
       setError('Enter your username or email first');
       return;
     }
-    setLoading(true);
+    setSendingCode(true);
     setError(null);
     const { error: requestError } = await authForgotPassword(identifier);
-    setLoading(false);
+    setSendingCode(false);
     if (requestError) {
       setError(requestError.message || 'Could not send a code');
       return;
@@ -130,6 +156,14 @@ const AuthForm: React.FC<AuthFormProps> = ({
     setPassword('');
     setPasswordConfirm('');
     setResetCode('');
+    setPendingReset(true);
+    setMode('reset');
+    onModeChange?.('reset');
+  };
+
+  const showCodeEntry = () => {
+    setError(null);
+    setPendingReset(true);
     setMode('reset');
     onModeChange?.('reset');
   };
@@ -264,14 +298,21 @@ const AuthForm: React.FC<AuthFormProps> = ({
       </div>
 
       {mode === 'signin' && (
-        <div className="text-right">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={showCodeEntry}
+            className="text-label text-slate-400 hover:text-white transition-colors"
+          >
+            Enter code
+          </button>
           <button
             type="button"
             onClick={sendResetCode}
-            disabled={loading}
+            disabled={sendingCode}
             className="text-label text-slate-400 hover:text-white transition-colors"
           >
-            {loading ? 'Sending code...' : 'Forgot password?'}
+            {sendingCode ? 'Sending code...' : 'Forgot password?'}
           </button>
         </div>
       )}

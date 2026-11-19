@@ -8,6 +8,7 @@ import { sendTransactionalEmail } from './email.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'local-dev-secret-change-me';
 const TOKEN_TTL = '30d';
 const RESET_TTL_MS = 15 * 60 * 1000;
+const APP_BASE_URL = (process.env.APP_BASE_URL || 'http://localhost:5173').replace(/\/$/, '');
 const FORGOT_MESSAGE =
   'If an account exists for that username or email, we sent a code to its email.';
 
@@ -190,10 +191,12 @@ authRouter.post('/forgot-password', async (req, res) => {
          VALUES ($1, $2, $3)`,
         [user.id, tokenHash, expiresAt]
       );
+      const link = `${APP_BASE_URL}/reset-password`;
       const sent = await sendTransactionalEmail(
         user.email,
         'Your BQBL password code',
         `<p>Your password reset code is <strong>${code}</strong>.</p>
+<p>Enter it here: <a href="${link}">${link}</a></p>
 <p>It expires in 15 minutes. If you did not ask for this, you can ignore this email.</p>`
       );
       if (!sent.ok) {

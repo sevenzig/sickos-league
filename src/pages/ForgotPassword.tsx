@@ -35,13 +35,12 @@ const ForgotPassword: React.FC = () => {
           <div className="space-y-4">
             <p className="text-body text-slate-200">
               If an account exists for that username or email, we sent a code to its email.
-              Enter it on the sign-in form.
             </p>
             <Link
-              to="/"
+              to="/reset-password"
               className="inline-block text-label text-slate-400 hover:text-white transition-colors"
             >
-              Back to sign in
+              Enter code
             </Link>
           </div>
         ) : (
