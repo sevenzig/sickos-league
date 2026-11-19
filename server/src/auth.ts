@@ -191,12 +191,12 @@ authRouter.post('/forgot-password', async (req, res) => {
          VALUES ($1, $2, $3)`,
         [user.id, tokenHash, expiresAt]
       );
-      const link = `${APP_BASE_URL}/reset-password`;
+      const link = `${APP_BASE_URL}/reset-password?token=${encodeURIComponent(code)}`;
       const sent = await sendTransactionalEmail(
         user.email,
         'Your BQBL password code',
         `<p>Your password reset code is <strong>${code}</strong>.</p>
-<p>Enter it here: <a href="${link}">${link}</a></p>
+<p><a href="${link}">Reset your password</a></p>
 <p>It expires in 15 minutes. If you did not ask for this, you can ignore this email.</p>`
       );
       if (!sent.ok) {
